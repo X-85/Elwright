@@ -6,5 +6,5 @@
 - [x] Windows `.exe` 处理 + 冒烟步骤显式 bash
 - [x] YAML 语法校验
 - [x] AGENTS.md 补 CI 说明
-- [ ] 首次 push 后 Actions 首跑结果回填（三平台）
+- [x] 首次 push 后 Actions 首跑结果回填（run#3 全绿，含两轮修复）
 - [ ] 3b 合入后：补 tauri dmg/msi 制品 job（按阶段 4 设计文档）

@@ -24,3 +24,15 @@
 ## 结论
 
 可合并。workflow 为纯新增（`.github/` 与任务目录），与阶段 3b 在制改动零交集。
+
+---
+
+## Actions 真实运行回填（2026-08-21）
+
+| Run | 提交 | 结果 | 说明 |
+|---|---|---|---|
+| #1 `add2287` | docs 集成 | ❌ 启动失败（0 job） | 教训：`runner` 上下文写进了 job 级 env，GitHub 校验直接拒绝。修复 `169b9f1`：EW 挪到 step 级。 |
+| #2 `169b9f1` | CI 修复 | ❌ 2/4 job | Frontend/Windows 绿；ubuntu `cargo test` exit 101（Tauri Linux 系统库缺失）、macos 冒烟挂（ew Broken pipe panic，产品 bug）。 |
+| #3 `d53b50c` | 双修复 | ✅ **4/4 全绿** | ubuntu 加 apt 装 webkit2gtk 等；ew 输出容错宏（另有 bugfix 任务目录）。 |
+
+结论：CI 门禁生效。三平台 cargo test/build + ew 冒烟（含 mock LLM 回归）+ 前端构建全部通过。
