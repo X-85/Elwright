@@ -1,0 +1,205 @@
+{
+  "$meta": {
+    "schemaVersion": "0.1",
+    "name": "Elwright",
+    "tagline": "普通人也能用上的大模型红利 · LLM 是增强不是地基",
+    "llmDefault": {
+      "base_url": "http://localhost:11434/v1",
+      "api_key": "",
+      "model": ""
+    },
+    "note": "种子清单（阶段 0）。entry 路径为规划目标路径，实际脚本/文档文件尚未导入 resources/，待阶段 1 再导入。具体现有 skill 文件本期不改。"
+  },
+  "capabilities": [
+    {
+      "id": "doc-keyword-search",
+      "name": "文档关键字搜索",
+      "type": "script",
+      "category": "知识库",
+      "entry": "resources/tools/doc-keyword-search/search_doc.py",
+      "offline": true
+    },
+    {
+      "id": "xlsx-to-md",
+      "name": "Excel转md",
+      "type": "script",
+      "category": "格式转换",
+      "entry": "resources/tools/xlsx-to-md/xlsx_to_md.py",
+      "offline": true
+    },
+    {
+      "id": "docx-to-md",
+      "name": "Word转md",
+      "type": "script",
+      "category": "格式转换",
+      "entry": "resources/tools/docx-to-md/docx_to_md.py",
+      "offline": true
+    },
+    {
+      "id": "product-req-to-checklist",
+      "name": "产品包需求→功能清单",
+      "type": "script",
+      "category": "清单生成",
+      "entry": "resources/tools/product-req-to-checklist/run.py",
+      "offline": true
+    },
+    {
+      "id": "change-note-to-checklist",
+      "name": "修改说明→功能清单",
+      "type": "script",
+      "category": "清单生成",
+      "entry": "resources/tools/change-note-to-checklist/run.py",
+      "offline": true
+    },
+    {
+      "id": "capability-label-gen",
+      "name": "能力标签自动生成",
+      "type": "script",
+      "category": "清单生成",
+      "entry": "resources/tools/capability-label-gen/run.py",
+      "offline": true
+    },
+    {
+      "id": "jar-decompile",
+      "name": "jar反编译",
+      "type": "script",
+      "category": "开发工具",
+      "entry": "resources/tools/jar-decompile/decompile-jar.ps1",
+      "offline": true
+    },
+    {
+      "id": "one-click-deploy",
+      "name": "一键部署",
+      "type": "script",
+      "category": "部署",
+      "entry": "resources/tools/one-click-deploy/deploy.ps1",
+      "offline": true
+    },
+    {
+      "id": "kb-orphan-check",
+      "name": "知识库查孤儿",
+      "type": "script",
+      "category": "知识库维护",
+      "entry": "resources/tools/kb-tools/check_orphan.ps1",
+      "offline": true
+    },
+    {
+      "id": "kb-tree",
+      "name": "知识库树",
+      "type": "script",
+      "category": "知识库维护",
+      "entry": "resources/tools/kb-tools/tree.ps1",
+      "offline": true
+    },
+    {
+      "id": "kb-validate",
+      "name": "知识库校验",
+      "type": "script",
+      "category": "知识库维护",
+      "entry": "resources/tools/kb-tools/validate.ps1",
+      "offline": true
+    },
+    {
+      "id": "desktop-shortcuts",
+      "name": "桌面快捷方式",
+      "type": "script",
+      "category": "效率",
+      "entry": "resources/tools/desktop-shortcuts/make_shortcuts.ps1",
+      "offline": true
+    },
+    {
+      "id": "vscode-ext-manage",
+      "name": "VSCode扩展管理",
+      "type": "script",
+      "category": "开发工具",
+      "entry": "resources/tools/workspace-ext/manage.py",
+      "offline": true
+    },
+    {
+      "id": "wds-customization",
+      "name": "WDS定制知识+踩坑",
+      "type": "knowledge",
+      "category": "知识库",
+      "doc": "resources/docs/wds-customization.md",
+      "offline": true
+    },
+    {
+      "id": "modbustcp-notes",
+      "name": "ModbusTCP学习笔记",
+      "type": "knowledge",
+      "category": "工业协议",
+      "doc": "resources/docs/modbustcp-notes.md",
+      "offline": true
+    },
+    {
+      "id": "jvm-crash-log",
+      "name": "JVM崩溃日志排查",
+      "type": "knowledge",
+      "category": "排障",
+      "doc": "resources/docs/jvm-crash-log.md",
+      "offline": true
+    },
+    {
+      "id": "http-auth-comparison",
+      "name": "HTTP接口鉴权方案对比",
+      "type": "knowledge",
+      "category": "技术选型",
+      "doc": "resources/docs/http-auth-comparison.md",
+      "offline": true
+    },
+    {
+      "id": "tech-grill",
+      "name": "八层拷问",
+      "type": "skill",
+      "category": "技能",
+      "prompt": "八层提问模板（技术掌握度深挖）",
+      "offline": false,
+      "degradeDoc": "resources/docs/tech-grill-sop.md"
+    },
+    {
+      "id": "prompt-optimizer",
+      "name": "提示词优化",
+      "type": "skill",
+      "category": "技能",
+      "prompt": "将简短输入优化为完整提示词",
+      "offline": false,
+      "degradeDoc": "resources/docs/prompt-optimizer-sop.md"
+    },
+    {
+      "id": "knowledge-sharing",
+      "name": "知识总结分享",
+      "type": "skill",
+      "category": "技能",
+      "prompt": "会话内容→结构化分享文档",
+      "offline": false,
+      "degradeDoc": "resources/docs/knowledge-sharing-sop.md"
+    },
+    {
+      "id": "work-summary",
+      "name": "工作总结",
+      "type": "skill",
+      "category": "技能",
+      "prompt": "会话内容→工作总结",
+      "offline": false,
+      "degradeDoc": "resources/docs/work-summary-sop.md"
+    },
+    {
+      "id": "api-doc-formatter",
+      "name": "接口文档格式化",
+      "type": "skill",
+      "category": "技能",
+      "prompt": "原始接口文档→标准格式（待确认脚本/技能）",
+      "offline": false,
+      "degradeDoc": "resources/docs/api-doc-formatter-sop.md"
+    },
+    {
+      "id": "skill-selpoint",
+      "name": "需求选点",
+      "type": "skill",
+      "category": "技能",
+      "prompt": "需求评审选点辅助",
+      "offline": false,
+      "degradeDoc": "resources/docs/skill-selpoint-sop.md"
+    }
+  ]
+}

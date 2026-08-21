@@ -1,0 +1,25 @@
+# Elwright 项目忽略规则
+
+# 构建产物
+target/
+node_modules/
+dist/
+dist-ssr/
+*.msi
+*.dmg
+
+# 依赖锁（按需保留，此处先忽略以减少仓库噪声）
+# package-lock.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 本地配置（LLM 设置等，用户隐私）
+config.local.json
+.llm_settings.json
+
+# 编辑器/系统
+.vscode/
+.DS_Store
+*.log
