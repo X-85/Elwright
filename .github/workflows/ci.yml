@@ -121,8 +121,9 @@ jobs:
         working-directory: src
         run: npm run build
 
-  # 阶段 4 起产出 macOS 安装包（dmg）制品，push 到 main 时上传。
-  # Windows msi 等公司机装 MSVC 后按 docs/work/.../stage4-release/design.md §3 补。
+  # 阶段 4 起产出安装包制品，push 到 main 时上传。
+  # Windows msi 用 runner 自带 MSVC 打包（enhancement-2026-08-windows-msi-ci，
+  # 替代 stage4-release/design.md §3 原定的公司机装 MSVC 方案）。
   dmg:
     name: macOS dmg artifact
     runs-on: macos-latest
@@ -155,4 +156,42 @@ jobs:
         with:
           name: Elwright-macos-aarch64
           path: src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  # runner 自带 VS/MSVC（Rust 矩阵在 windows-latest 编译通过即为证明），
+  # WiX 由 tauri-cli 自动下载。公司机因此无需装 MSVC 即可分发给用户 msi。
+  msi:
+    name: Windows msi artifact
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: npm ci (frontend deps incl. tauri-cli)
+        working-directory: src
+        run: npm ci
+
+      # shell: bash 让相对路径 ../src/node_modules/.bin/tauri 走 .bin 下的 sh
+      # shim——Windows 默认 pwsh 按相对路径找不到无扩展名可执行文件
+      - name: tauri build (msi)
+        working-directory: src-tauri
+        shell: bash
+        run: ../src/node_modules/.bin/tauri build --bundles msi
+
+      - name: Upload msi
+        uses: actions/upload-artifact@v4
+        with:
+          name: Elwright-windows-x64
+          path: src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error

@@ -31,7 +31,7 @@ npm run dev                   # 浏览器预览（dev 插件提供 /api/capabili
 npm run build                 # 产出 src/dist/
 ```
 
-CI：`.github/workflows/ci.yml` 在 push/PR 到 main 时跑三平台 `cargo test/build --bin ew` + `ew` 冒烟（含 mock LLM invoke 回归）+ 前端 `npm ci && npm run build`。改核心或前端后本地先过这几条再推。
+CI：`.github/workflows/ci.yml` 在 push/PR 到 main 时跑三平台 `cargo test/build --bin ew` + `ew` 冒烟（含 mock LLM invoke 回归）+ 前端 `npm ci && npm run build` + 双平台安装包制品（macOS dmg、Windows msi，均由 CI runner 打包上传 artifact）。改核心或前端后本地先过这几条再推。
 
 Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-pc-windows-gnu build`，运行需 `D:\mingw64\bin` 在 PATH。只有 Tauri 桌面二进制被此卡住；CLI、reqwest、核心逻辑均不受影响。cargo 代理配置在用户级 `~/.cargo/config.toml`，不进仓库。
 
@@ -62,7 +62,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-阶段 5（脚本型能力落地）进行中：第一批 3 个通用脚本完成（doc-keyword-search / xlsx-to-md / docx-to-md，纯 stdlib，见 `docs/features/script-tools/`）。此前阶段 1–4 完成（CLI、LLM+降级、Tauri 壳、macOS dmg）。待办：其余 10 个脚本 entry 等公司机原版导入；Windows msi 等 MSVC；GitHub Release。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
+阶段 5（脚本型能力落地）进行中：第一批 3 个通用脚本完成（doc-keyword-search / xlsx-to-md / docx-to-md，纯 stdlib，见 `docs/features/script-tools/`）。此前阶段 1–4 完成（CLI、LLM+降级、Tauri 壳、macOS dmg）。待办：其余 10 个脚本 entry 等公司机原版导入；GitHub Release（版本号三处同步后挂 CI 产出的 dmg/msi）。Windows msi 已由 CI 的 windows runner 打包（自带 MSVC），公司机无需装 VS 生成工具。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
 
 ## 前端约定（src/）
 
