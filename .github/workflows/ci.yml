@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 产品目标平台：Windows（优先）+ macOS；ubuntu 顺带兜底 unix 通用问题
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      # Windows 可执行文件带 .exe 后缀；冒烟步骤统一用 bash 调用
+      EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: cargo build (CLI ew)
+        working-directory: src-tauri
+        run: cargo build --bin ew
+
+      - name: Smoke - ew ls（注册表可加载）
+        shell: bash
+        run: |
+          "$EW" ls | grep -q "doc-keyword-search"
+          "$EW" ls | tail -n 1 | grep -q "项能力"
+
+      - name: Smoke - 降级 SOP 可读
+        shell: bash
+        run: '"$EW" invoke tech-grill | grep -q "八层拷问 · 离线 SOP"'
+
+      # 阶段 2 手工验证的 mock OpenAI 兼容端点，回归 invoke 成功路径
+      - name: Smoke - mock LLM invoke 成功路径
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/mock_llm.py" <<'PY'
+          import json
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          class H(BaseHTTPRequestHandler):
+              def do_POST(self):
+                  if self.path != "/v1/chat/completions":
+                      self.send_response(404)
+                      self.end_headers()
+                      return
+                  body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                  sys_msg = body["messages"][0]["content"]
+                  self.send_response(200)
+                  self.send_header("Content-Type", "application/json")
+                  self.end_headers()
+                  resp = {"choices": [{"message": {"role": "assistant",
+                      "content": f"[模拟LLM回复] system={sys_msg!r} user={body['messages'][1]['content']!r} model={body['model']}"}}]}
+                  self.wfile.write(json.dumps(resp).encode())
+
+              def log_message(self, *a):
+                  pass
+
+          HTTPServer(("127.0.0.1", 18434), H).serve_forever()
+          PY
+          python3 "$RUNNER_TEMP/mock_llm.py" &
+          MOCK_PID=$!
+          sleep 1
+          export ELWRIGHT_LLM_BASE_URL=http://127.0.0.1:18434/v1
+          export ELWRIGHT_LLM_MODEL=mock-model
+          "$EW" invoke tech-grill CI | grep -q "模拟LLM回复"
+          kill $MOCK_PID
+
+  frontend:
+    name: Frontend (Vue)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: npm ci
+        working-directory: src
+        run: npm ci
+
+      - name: npm run build
+        working-directory: src
+        run: npm run build
