@@ -31,17 +31,23 @@ watch(
 
 async function onRun() {
   busy.value = true
-  runResult.value = await props.bridge.runScript(
-    props.cap,
-    runArgs.value.trim() ? runArgs.value.trim().split(/\s+/) : [],
-  )
-  busy.value = false
+  try {
+    runResult.value = await props.bridge.runScript(
+      props.cap,
+      runArgs.value.trim() ? runArgs.value.trim().split(/\s+/) : [],
+    )
+  } finally {
+    busy.value = false
+  }
 }
 
 async function onInvoke() {
   busy.value = true
-  invokeResult.value = await props.bridge.invokeSkill(props.cap, invokePrompt.value.trim())
-  busy.value = false
+  try {
+    invokeResult.value = await props.bridge.invokeSkill(props.cap, invokePrompt.value.trim())
+  } finally {
+    busy.value = false
+  }
 }
 
 function renderMd(text: string): string {

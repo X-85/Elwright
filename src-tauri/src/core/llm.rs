@@ -63,14 +63,18 @@ impl LlmClient {
             req = req.bearer_auth(&self.config.api_key);
         }
 
-        let resp = req.send().map_err(|e| format!("请求 {} 失败: {}", url, e))?;
+        let resp = req
+            .send()
+            .map_err(|e| format!("请求 {} 失败: {}", url, e))?;
         let status = resp.status();
-        let text = resp
-            .text()
-            .map_err(|e| format!("读取响应失败: {}", e))?;
+        let text = resp.text().map_err(|e| format!("读取响应失败: {}", e))?;
 
         if !status.is_success() {
-            return Err(format!("LLM 返回 {}: {}", status.as_u16(), truncate(&text, 500)));
+            return Err(format!(
+                "LLM 返回 {}: {}",
+                status.as_u16(),
+                truncate(&text, 500)
+            ));
         }
 
         #[derive(serde::Deserialize)]

@@ -1,6 +1,5 @@
 /// 桌面壳与核心的边界抽象：UI 只依赖 Bridge 接口，不关心底下是
 /// 浏览器预览（dev 中间件 /api/*）还是 Tauri IPC。
-/// 阶段 3b 接入 Tauri 时新增 tauriBridge 适配器即可，UI 零改动。
 
 export interface Capability {
   id: string
@@ -78,9 +77,51 @@ const browserBridge: Bridge = {
   },
 }
 
-// TODO(阶段3b): tauriBridge —— window.__TAURI_INTERNALS__ 存在时用
-// @tauri-apps/api 的 invoke() 调 src-tauri 侧命令：
-//   list_capabilities / view_doc / run_script / invoke_skill
+async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<T>(command, args)
+}
+
+const tauriBridge: Bridge = {
+  kind: 'tauri',
+
+  listCapabilities() {
+    return tauriInvoke<Capability[]>('list_capabilities')
+  },
+
+  async viewDoc(cap) {
+    try {
+      return await tauriInvoke<ViewResult>('view_doc', { id: cap.id })
+    } catch (error) {
+      return { ok: false, content: `读取文档失败: ${messageOf(error)}` }
+    }
+  },
+
+  async runScript(cap, args) {
+    try {
+      return await tauriInvoke<RunResult>('run_script', { id: cap.id, args })
+    } catch (error) {
+      return { ok: false, output: `执行失败: ${messageOf(error)}` }
+    }
+  },
+
+  async invokeSkill(cap, prompt) {
+    try {
+      return await tauriInvoke<InvokeResult>('invoke_skill', { id: cap.id, prompt })
+    } catch (error) {
+      return {
+        source: 'degraded',
+        content: `调用失败: ${messageOf(error)}`,
+        note: '桌面壳无法完成技能调用。',
+      }
+    }
+  },
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 declare global {
   interface Window {
     __TAURI_INTERNALS__?: unknown
@@ -88,5 +129,5 @@ declare global {
 }
 
 export function createBridge(): Bridge {
-  return browserBridge
+  return window.__TAURI_INTERNALS__ ? tauriBridge : browserBridge
 }

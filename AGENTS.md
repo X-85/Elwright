@@ -4,9 +4,9 @@ Elwright 是个人工作流工具箱：一个 Rust 共享核心 + 两个壳（CL
 
 ## 目录
 
-- `src-tauri/src/core/` — 共享核心：`registry.rs`（加载 capabilities.json）、`executor.rs`（按扩展名选解释器 spawn 脚本）、`llm.rs`（阶段 2 占位）、`degrade.rs`（离线降级 SOP）。CLI 与未来桌面壳共用，勿把 CLI 专属逻辑放进 core。
-- `src-tauri/src/bin/ew.rs` — CLI 壳：`ls` / `run <id>` / `view <id>` / `invoke <id>`。`find_root()` 向上查找 `capabilities.json` 定位项目根。
-- `src/` — Vue 3 桌面前端（阶段 3，目前为空）。
+- `src-tauri/src/core/` — 共享核心：`registry.rs`（加载注册表/定位项目根）、`executor.rs`（按扩展名执行脚本）、`llm.rs`（OpenAI 兼容客户端）、`degrade.rs`（离线 SOP）、`invoke.rs`（LLM 调用/降级共享流程）。CLI 与桌面壳共用，勿把壳专属逻辑放进 core。
+- `src-tauri/src/bin/ew.rs` — CLI 壳：`ls` / `run <id>` / `view <id>` / `invoke <id>`；`src-tauri/src/main.rs` — Tauri 壳与四个 IPC 命令。
+- `src/` — Vue 3 桌面前端；组件仅依赖 `lib/bridge.ts`。
 - `capabilities.json` — 静态能力注册表（顶层对象 `{capabilities:[...]}`，不是裸数组——曾按裸数组解析出过 bug）。
 - `resources/tools/` — 脚本型能力的 .py/.ps1；`resources/docs/` — 知识型/SOP 的 .md。注意：种子清单中许多 entry 是规划目标路径，文件尚未导入。
 - `docs/features/<feature>/` — 长期功能文档（README/behavior/architecture/changelog/decisions）；`docs/work/{active,archive}/` — 按维护方案组织的任务目录。
@@ -21,12 +21,17 @@ cargo build --bin ew          # CLI 二进制
 cargo run --bin ew -- ls      # 或直接 target/debug/ew ls / view <id> / run <id> ...
 cargo test                    # llm.rs URL 拼接等单元测试
 
+# Tauri 桌面壳（先在 src/ 执行 npm install）
+../src/node_modules/.bin/tauri build --debug --bundles app
+
 # 桌面壳前端（src/ 是自包含 Vite 项目，package.json 在 src/ 内——有意为之）
 cd src
 npm install
 npm run dev                   # 浏览器预览（dev 插件提供 /api/capabilities 与 /api/file 只读端点）
 npm run build                 # 产出 src/dist/
 ```
+
+CI：`.github/workflows/ci.yml` 在 push/PR 到 main 时跑三平台 `cargo test/build --bin ew` + `ew` 冒烟（含 mock LLM invoke 回归）+ 前端 `npm ci && npm run build`。改核心或前端后本地先过这几条再推。
 
 Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-pc-windows-gnu build`，运行需 `D:\mingw64\bin` 在 PATH。只有 Tauri 桌面二进制被此卡住；CLI、reqwest、核心逻辑均不受影响。cargo 代理配置在用户级 `~/.cargo/config.toml`，不进仓库。
 
@@ -55,7 +60,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-阶段 3 前端完成（Vue 3 浏览器预览版，见 `docs/features/desktop-ui/` 与架构方案 §12.5）。下一步：**阶段 3b** —— src-tauri 增加 IPC 命令（list_capabilities / view_doc / run_script / invoke_skill）+ tauriBridge 适配器（挂接点在 `src/lib/bridge.ts` 的 `createBridge()`，UI 零改动）+ `tauri build` 打包（Windows 需 MSVC，macOS 本机 Xcode CLT 已就绪）；其余技能型 SOP 文档批量导入。
+阶段 3 已完成（浏览器预览 + Tauri 2 IPC + macOS debug `.app`，见 `docs/features/desktop-ui/` 与架构方案 §12.6）。下一步是阶段 4：资源随 bundle 打包、正式 msi/dmg、签名与发布；其余技能型 SOP 文档也可批量导入。
 
 ## 前端约定（src/）
 

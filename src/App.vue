@@ -58,7 +58,9 @@ function select(id: string) {
       </nav>
       <input v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
       <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
-      <p class="bridge-badge">预览模式 · 浏览器</p>
+      <p class="bridge-badge">
+        {{ bridge.kind === 'tauri' ? '桌面模式 · Tauri' : '预览模式 · 浏览器' }}
+      </p>
     </aside>
 
     <main class="content">

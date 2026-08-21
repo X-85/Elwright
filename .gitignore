@@ -5,6 +5,7 @@ target/
 node_modules/
 dist/
 dist-ssr/
+src-tauri/gen/
 *.msi
 *.dmg
 

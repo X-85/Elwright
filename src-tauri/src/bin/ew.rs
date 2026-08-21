@@ -1,7 +1,5 @@
-use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
-use elwright_core::core::{degrade, executor, llm, registry};
+use elwright_core::core::{executor, invoke, registry};
 
 #[derive(Parser)]
 #[command(name = "ew", about = "Elwright CLI · 个人工作流工具箱")]
@@ -21,9 +19,7 @@ enum Cmd {
         args: Vec<String>,
     },
     /// 查看知识型/技能型文档
-    View {
-        id: String,
-    },
+    View { id: String },
     /// 调用技能型（离线时降级为 SOP）
     Invoke {
         id: String,
@@ -32,23 +28,9 @@ enum Cmd {
     },
 }
 
-/// Walk up from the current directory looking for `capabilities.json`.
-fn find_root() -> PathBuf {
-    let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    loop {
-        if dir.join("capabilities.json").exists() {
-            return dir;
-        }
-        if !dir.pop() {
-            break;
-        }
-    }
-    PathBuf::from(".")
-}
-
 fn main() {
     let cli = Cli::parse();
-    let root = find_root();
+    let root = registry::find_project_root();
     let reg = match registry::Registry::load(&root) {
         Ok(r) => r,
         Err(e) => {
@@ -150,26 +132,15 @@ fn main() {
                 }
             );
 
-            // 有 LLM 配置则调用；未配置或调用失败都降级 SOP，不报错退出
-            if let Some(client) = llm::LlmClient::from_env() {
-                let system = cap.prompt.as_deref().unwrap_or("");
-                let user = if prompt_str.is_empty() {
-                    "（无附加输入，请按模板直接执行）".to_string()
-                } else {
-                    prompt_str
-                };
-                match client.chat(system, &user) {
-                    Ok(answer) => {
-                        println!("\n{}", answer);
-                        return;
-                    }
-                    Err(e) => eprintln!("【LLM 调用失败】{}\n", e),
-                }
-            } else {
-                eprintln!("【离线降级】未配置 LLM（设置 ELWRIGHT_LLM_BASE_URL 等环境变量可解锁）\n");
+            let outcome = invoke::invoke_skill(&reg.root, cap, &prompt_str);
+            if let Some(note) = outcome.note {
+                eprintln!("{}\n", note);
             }
-            let sop = degrade::show_sop(&reg.root, cap);
-            println!("【离线降级】展示 SOP：\n{}", sop);
+            if outcome.source == "degraded" {
+                println!("【离线降级】展示 SOP：\n{}", outcome.content);
+            } else {
+                println!("\n{}", outcome.content);
+            }
         }
     }
 }

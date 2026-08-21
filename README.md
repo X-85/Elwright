@@ -24,7 +24,7 @@
 
 ## 当前状态
 
-🚧 **阶段 3 前端完成**：Vue 3 + Vite 桌面壳前端已可浏览器预览（`cd src && npm install && npm run dev`），列表/筛选/搜索/知识阅读/技能降级 UI 全通；Tauri IPC 接入与打包属阶段 3b。此前：阶段 1（Rust 核心 + CLI `ew`）、阶段 2（LLM 客户端 + 技能型 invoke + 离线降级）已完成。见 `Elwright架构方案.md` §12。
+✅ **阶段 3 完成**：Vue 3 + Vite 界面既可浏览器预览，也已接入 Tauri 2 IPC（列表、文档、脚本执行、技能调用/离线降级）；macOS debug `.app` 已构建通过。正式跨平台发布、签名和 bundle 内资源路径属于阶段 4。此前阶段 1（Rust 核心 + CLI `ew`）、阶段 2（LLM 客户端 + 技能型 invoke + 离线降级）均已完成。见 `Elwright架构方案.md` §12。
 
 ## License
 

@@ -8,8 +8,7 @@ pub fn show_sop(root: &Path, cap: &Capability) -> String {
     if let Some(rel) = &cap.degrade_doc {
         let p = root.join(rel);
         if p.exists() {
-            return std::fs::read_to_string(&p)
-                .unwrap_or_else(|_| "SOP 文件读取失败".to_string());
+            return std::fs::read_to_string(&p).unwrap_or_else(|_| "SOP 文件读取失败".to_string());
         }
         return format!("SOP 文件不存在: {}", p.display());
     }

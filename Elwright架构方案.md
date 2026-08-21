@@ -211,4 +211,11 @@ CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制（`car
 - **Dev 只读 API**（vite 插件）：`/api/capabilities` 读真实注册表、`/api/file?path=` 读 resources/ 文件（前缀校验防穿越）——预览即真实数据，非 mock。
 - **UI**（全中文，三栏）：侧栏类型筛选 + 搜索；能力列表（类型徽标/分类/⚡离网标记）；分型详情——script 传参运行（预览态给等价 CLI 命令）、knowledge 渲染 Markdown、skill 调用（预览态固定走降级 SOP，正好预演降级 UI）。
 - 验证（见 `docs/work/active/feature-2026-08-stage3-desktop-ui/verification.md`）：`npm run build` 成功（产物 111KB）；curl 冒烟（24 项能力 / SOP 读取 / 穿越拦截 403）；浏览器 DOM 快照逐项验证（筛选、技能降级渲染、知识文档渲染、脚本面板）。
-- **阶段 3b 待做**（Tauri 壳）：src-tauri 增加 IPC 命令（list_capabilities / view_doc / run_script / invoke_skill，复用 core）；`@tauri-apps/api` 实现 tauriBridge；`tauri build` 打包（Windows 需 MSVC ~4.5GB 装到 D 盘，见 §12.2；macOS 本机 Xcode CLT 已就绪可直接做）。
+- 后续由阶段 3b 完成 Tauri 壳接入，见 §12.6。
+
+### 12.6 阶段 3b Tauri 壳落地情况（家里 macOS，2026-08-21 已完成）
+- 新增 `src-tauri/src/main.rs` 与 Tauri 2 配置：4 个 IPC 命令 `list_capabilities` / `view_doc` / `run_script` / `invoke_skill` 复用共享 core；脚本和 blocking LLM 请求在后台线程执行。
+- `Capability` 以 JSON 字段名序列化给前端；`executor` 提供 stdout/stderr 捕获变体；`core/invoke.rs` 让 CLI 与桌面壳共用 LLM 失败/未配置时的 SOP 降级逻辑。
+- `src/lib/bridge.ts` 用 `@tauri-apps/api` 的动态 `invoke()` 实现 Tauri 适配器，探测到 `window.__TAURI_INTERNALS__` 自动切换，现有 Vue 组件零数据访问改造，侧栏显示当前模式。
+- 加入 `tauri.conf.json`、官方工具生成的 app 图标、`build.rs` 和 desktop 默认二进制；`cargo test`（6 项）、`npm run build`、`tauri build --debug --bundles app` 全部通过，产物为 `src-tauri/target/debug/bundle/macos/Elwright.app`。
+- 阶段 4：将 `capabilities.json` 与 `resources/` 纳入 bundle 后的路径解析，制作/签名正式 msi 与 dmg，再发布；Windows 仍需 §12.2 所述 MSVC 工具链。

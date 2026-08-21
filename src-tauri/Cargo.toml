@@ -3,6 +3,7 @@ name = "elwright"
 version = "0.1.0"
 edition = "2021"
 description = "个人工作流工具箱 · LLM 是增强不是地基"
+default-run = "elwright"
 
 [lib]
 name = "elwright_core"
@@ -12,8 +13,16 @@ path = "src/lib.rs"
 name = "ew"
 path = "src/bin/ew.rs"
 
+[[bin]]
+name = "elwright"
+path = "src/main.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.13.4", features = ["blocking", "json"] }
+tauri = { version = "2", features = [] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
