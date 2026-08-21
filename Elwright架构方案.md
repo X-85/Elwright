@@ -195,3 +195,12 @@ CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制（`car
 - **阶段 2（无新工具链）**：`cargo add reqwest tokio`，把 `llm.rs` 占位换成真实 OpenAI 兼容 `/v1/chat/completions` 调用；`ew invoke <id>` 调技能型；LLM 不可达时降级 `degradeDoc`。
 - 测试阶段 2 可选本地 Ollama（`localhost:11434/v1`），或直接填云端 OpenAI 兼容端点 + key。
 - 阶段 3 桌面壳：先开发 Vue 前端（npm/vite，无需 Rust 工具链），Tauri 具体编译等 MSVC 到位再 `tauri build`。
+
+### 12.4 阶段 2 落地情况（家里 macOS，2026-08-21 已完成）
+- 家里 Mac 装 rustup 工具链（stable 1.98.0，minimal profile，用户级安装）。
+- `llm.rs`：占位替换为真实 OpenAI 兼容客户端。实现取舍：用 **reqwest blocking**（`--features blocking,json`），不显式引 tokio——CLI 是同步程序，免 async 污染调用链；理由与后果记录在 `docs/features/llm-invoke/decisions/ADR-001-blocking-reqwest.md`。60s 超时防挂死。
+- `ew invoke`：skill 类型限定；有 `ELWRIGHT_LLM_BASE_URL` 则调 LLM（能力 prompt 作 system、命令行参数作 user），失败/未配置/超时/解析失败均降级 `degradeDoc`，不报错退出。
+- 验证（见 `docs/work/active/feature-2026-08-stage2-llm-invoke/verification.md`）：`cargo test` 3 例 URL 拼接全过；降级路径（未配置 / 端点不可达）、成功路径（本地 mock OpenAI 兼容端点）、类型守卫、`ew ls` 回归冒烟全部通过。真实云端端点 / Ollama 待用户复验。
+- 新增种子 SOP `resources/docs/tech-grill-sop.md`（此前技能型 degradeDoc 均指向不存在的文件，降级只报"文件不存在"）。
+- Agent 开发维护方案（`resources/docs/AI_CODE_AGENT_MAINTENANCE.md`）首次实际应用：本阶段产出 `docs/features/llm-invoke/`（README/behavior/architecture/changelog/ADR-001）+ `docs/work/active/feature-2026-08-stage2-llm-invoke/`（plan/checklist/verification/STATUS）。
+- **接下来**：阶段 3 桌面壳（先 Vue 前端，npm/vite；Tauri 编译等 Windows 机器 MSVC 就绪）；其余 5 个技能型的 SOP 文档批量导入。

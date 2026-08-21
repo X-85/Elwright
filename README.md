@@ -24,7 +24,7 @@
 
 ## 当前状态
 
-🚧 **阶段 1**：Rust 核心（registry + executor）+ CLI 壳已跑通，`ew ls` / `ew view` 验证通过。LLM 客户端（阶段 2）待做。见 `Elwright架构方案.md` §12。
+🚧 **阶段 2 完成**：LLM 客户端（OpenAI 兼容 `/v1/chat/completions`，自写 reqwest thin client）+ `ew invoke` 技能型调用 + 离线降级 SOP 已跑通（含单测与降级/成功路径验证，见 `docs/features/llm-invoke/`）。阶段 3 桌面壳（Tauri+Vue）待做。见 `Elwright架构方案.md` §12。
 
 ## License
 

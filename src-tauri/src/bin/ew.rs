@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use elwright_core::core::{degrade, executor, registry};
+use elwright_core::core::{degrade, executor, llm, registry};
 
 #[derive(Parser)]
 #[command(name = "ew", about = "Elwright CLI · 个人工作流工具箱")]
@@ -135,6 +135,10 @@ fn main() {
                     std::process::exit(1);
                 }
             };
+            if cap.kind != "skill" {
+                eprintln!("{} 不是技能型能力（type={}），无法 invoke", id, cap.kind);
+                std::process::exit(1);
+            }
             let prompt_str = prompt.join(" ");
             println!(
                 "调用技能型: {}{}",
@@ -145,9 +149,27 @@ fn main() {
                     format!(" (prompt: {})", prompt_str)
                 }
             );
-            // 阶段 2：若 LlmClient::from_env().is_some() 则调 LLM；否则降级 SOP
+
+            // 有 LLM 配置则调用；未配置或调用失败都降级 SOP，不报错退出
+            if let Some(client) = llm::LlmClient::from_env() {
+                let system = cap.prompt.as_deref().unwrap_or("");
+                let user = if prompt_str.is_empty() {
+                    "（无附加输入，请按模板直接执行）".to_string()
+                } else {
+                    prompt_str
+                };
+                match client.chat(system, &user) {
+                    Ok(answer) => {
+                        println!("\n{}", answer);
+                        return;
+                    }
+                    Err(e) => eprintln!("【LLM 调用失败】{}\n", e),
+                }
+            } else {
+                eprintln!("【离线降级】未配置 LLM（设置 ELWRIGHT_LLM_BASE_URL 等环境变量可解锁）\n");
+            }
             let sop = degrade::show_sop(&reg.root, cap);
-            println!("【离线降级】当前未配置 LLM，展示 SOP：\n{}", sop);
+            println!("【离线降级】展示 SOP：\n{}", sop);
         }
     }
 }
