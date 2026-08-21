@@ -1,6 +1,6 @@
 # Elwright 架构方案
 
-> 版本：v0.1（规划稿）｜ 日期：2026-08-21 ｜ 状态：阶段 0（建仓 + 方案）
+> 版本：v0.2（含阶段1落地）｜ 日期：2026-08-21 ｜ 状态：阶段 1（Rust 核心 + CLI 壳已跑通）
 
 ## 1. 背景与动机
 
@@ -174,3 +174,24 @@ CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制（`car
 - `api-doc-formatter` 归类（脚本/技能）待定。
 - Linux 支持列为后续。
 - **技术栈三项决策已锁定**（2026-08-21，见 §9.2）：LLM 客户端自写 reqwest thin client；注册表 v1 纯静态 JSON；桌面 UI 用 Vue 3 + Vite。
+
+## 12. 阶段进度与环境决策记录（2026-08-21）
+
+### 12.1 阶段 1 落地情况（公司机器，已完成）
+- Rust 工具链装好：`rustc`/`cargo` 1.98.0，含 `stable-x86_64-pc-windows-msvc` + `stable-x86_64-pc-windows-gnu` 两个 toolchain。
+- 公司机器**无 MSVC 链接器**（没装 VS）→ 用 **GNU 工具链 + MinGW-w64（`D:\mingw64`，winlibs gcc-16.2.0）** 编译。
+- 编译命令：`cargo +stable-x86_64-pc-windows-gnu build`，产物 `src-tauri/target/debug/ew.exe`（运行时需 `D:\mingw64\bin` 在 PATH）。
+- cargo 代理/源在**用户级** `C:\Users\44895\.cargo\config.toml`（rsproxy 源 + 公司代理，不进仓库）。
+- 代码修复并 push（commit `c23a123`）：`registry.rs` 解析顶层 `{capabilities:[...]}`（原误当数组）+ `Capability` 补 `doc` 字段（知识型）+ View 优先读 `doc`；加 `elwright-guide` 知识条目。
+- 验证：`ew ls` 列 23 项能力；`ew view elwright-guide` 正确读出中文 md 全文（中文路径 OK）。**阶段 1 在公司机器完整跑通**。
+
+### 12.2 工具链决策结论（关键，回家接着看）
+- **不装 MSVC Build Tools 的影响边界**：卡住的只有「Tauri 桌面二进制编不出来/跑不起来」这一处（Tauri 后端 `wry` → WebView2 Loader 链接按 MSVC `.lib` 设计，GNU+MinGW 的 `ld` 读不通）。以下**完全不受影响**：CLI 壳 `ew`、阶段 2 LLM 客户端（纯 Rust `reqwest`+`tokio`）、所有共享核心逻辑、Vue 3 前端开发（Node/npm 跑 Vite，浏览器预览）。
+- **桌面 app 是交付项 → 最终必须有 MSVC**（或硬刚 GNU 非官方路径，不推荐做交付）。但**不是现在装**：推迟到真正 `tauri build` 出桌面 `.exe` 时再装。
+- MSVC 实际落地 ~4.5–5 GB（非 6–7）：MSVC v143 工具 ~1.7G + Win11 SDK ~1.3G + 共享组件 ~1–2G。**安装时指定到 D 盘**（如 `D:\VSBuildTools`），别吃 C 盘系统空间。
+- 本机磁盘现状（2026-08-21）：C 剩 14.6 GB / D 剩 10.7 GB，均偏紧。可用 `cargo clean` 清 `target/` 缓存腾空间。WebView2 Runtime 已预装（151.0.4129.101），桌面壳渲染不缺。
+
+### 12.3 接下来（回家可立即做的）
+- **阶段 2（无新工具链）**：`cargo add reqwest tokio`，把 `llm.rs` 占位换成真实 OpenAI 兼容 `/v1/chat/completions` 调用；`ew invoke <id>` 调技能型；LLM 不可达时降级 `degradeDoc`。
+- 测试阶段 2 可选本地 Ollama（`localhost:11434/v1`），或直接填云端 OpenAI 兼容端点 + key。
+- 阶段 3 桌面壳：先开发 Vue 前端（npm/vite，无需 Rust 工具链），Tauri 具体编译等 MSVC 到位再 `tauri build`。

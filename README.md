@@ -24,8 +24,7 @@
 
 ## 当前状态
 
-🚧 **阶段 0**：建仓 + 架构方案。见 `Elwright架构方案.md`。
-具体实现（核心 + CLI + 桌面）尚未开始，种子能力见 `capabilities.json`。
+🚧 **阶段 1**：Rust 核心（registry + executor）+ CLI 壳已跑通，`ew ls` / `ew view` 验证通过。LLM 客户端（阶段 2）待做。见 `Elwright架构方案.md` §12。
 
 ## License
 
