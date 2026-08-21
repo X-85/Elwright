@@ -1,0 +1,18 @@
+[package]
+name = "elwright"
+version = "0.1.0"
+edition = "2021"
+description = "个人工作流工具箱 · LLM 是增强不是地基"
+
+[lib]
+name = "elwright_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ew"
+path = "src/bin/ew.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }

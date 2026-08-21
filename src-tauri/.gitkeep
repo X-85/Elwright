@@ -1,7 +1,0 @@
-# Rust 核心 + Tauri 壳（阶段 1/3 实现）
-# 计划结构：
-# src-tauri/src/core/registry.rs   能力注册表加载
-# src-tauri/src/core/executor.rs   脚本执行引擎
-# src-tauri/src/core/llm.rs        OpenAI 兼容 LLM 客户端
-# src-tauri/src/core/degrade.rs    离线降级逻辑
-# src-tauri/src/main.rs            Tauri 入口 + CLI 复用 core

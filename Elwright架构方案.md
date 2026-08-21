@@ -118,7 +118,29 @@ WDS定制知识+踩坑、ModbusTCP学习笔记、JVM崩溃日志排查、HTTP接
 - `pi/`、`login-wechat/` 等 → 暂不入册。
 - **本期不移动/改写任何现有 skill 文件**，仅将引用登记进 `capabilities.json`，待阶段 1 再决定脚本如何导入 resources。
 
-## 9. 技术栈与目录结构（V1 草案）
+## 9. 技术栈详解（已锁定选型）
+
+> 2026-08-21 拍板：以下选型全部确认，阶段 1 起按此落地。
+
+### 9.1 选型总览（技术 → 解决什么问题 → 为什么选它）
+
+| 技术 | 解决什么问题 | 选型核心理由 | 备选（未选理由） |
+|---|---|---|---|
+| **Rust**（核心语言） | 一套代码同时喂 CLI 壳 + 桌面壳；跨平台、单二进制、体积小、离网启动快 | Tauri 后端就是 Rust → 核心与桌面**同一语言、零 FFI 胶水** | Go（接 Tauri 要 sidecar/FFI，多一层）；Node/Electron（体积大、违背 pi-mono 极简 & 离网 70%）；Python（桌面壳不如 Tauri 轻） |
+| **Tauri 2**（桌面壳，阶段 3） | 要界面但不打包整个 Chromium | 系统 WebView，单二进制几 MB，天然复用 Rust 核心 | Electron（重）；Flutter（Dart，复用不了 Rust 核心）；原生 WinUI/SwiftUI（不跨平台） |
+| **Vue 3 + Vite**（桌面 UI，阶段 3） | 桌面壳前端渲染（列表/详情/invoke） | 开发者最熟（AstrBot dashboard 即 Vue3+Vite，可复用范式）；轻量、Tauri 官方模板支持 | React（需重拾习惯）；Svelte（需从零学，Tauri 已足够小，省体积无意义） |
+| **OpenAI Compatible HTTP**（LLM 客户端，阶段 2） | 技能型调 LLM，端点各异（云端/Ollama/llama.cpp） | 一套 `/v1/chat/completions` 适配所有兼容端点，用户自填 base_url+key+model，不绑厂商 | 仅绑单厂商 SDK（锁定风险） |
+| **capabilities.json**（注册表） | 能力清单如何被核心加载 | 静态 JSON，人可读、进 git 版本可控，阶段 0 已建种子 | SQLite（过度工程）；TOML（JSON 已用，无换必要） |
+| **spawn 子进程**（脚本执行） | script 型是现成 .py/.ps1，核心不能 import | `std::process::Command` 原样执行，抓 stdout/exit code，**离网直接跑** | 嵌入解释器（重、环境耦合） |
+| **tokio + serde + clap**（Rust 生态） | 异步运行时 / JSON 解析 / CLI 参数 | Rust 事实标准，无争议 | — |
+
+### 9.2 三项关键决策（已定）
+
+1. **LLM 客户端：自写 `reqwest` thin client**（不引 `async-openai` crate）。理由：只用到 `chat/completions` 一个端点，自写可控、零额外结构耦合，符合 pi-mono 极简。后期若需流式/工具调用再评估。
+2. **注册表：v1 纯静态 JSON**（不做目录自动扫描）。理由：种子清单已就绪，静态可读可版本化；自动发现留作后续增强，不提前加复杂度。
+3. **桌面 UI：Vue 3 + Vite**。理由见 9.1；开发者流利度优先于框架特性。
+
+### 9.3 目录结构（V1）
 
 ```
 Elwright/
@@ -127,7 +149,7 @@ Elwright/
 │   │   ├── core/        # registry.rs / executor.rs / llm.rs / degrade.rs
 │   │   └── main.rs      # Tauri 入口
 │   └── Cargo.toml
-├── src/                 # Vue3 桌面界面
+├── src/                 # Vue3 桌面界面（阶段3）
 ├── capabilities.json    # 能力注册表（种子清单）
 ├── resources/
 │   ├── tools/           # 脚本型能力的 .py/.ps1（阶段1导入）
@@ -136,7 +158,7 @@ Elwright/
 └── LICENSE
 ```
 
-CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制。
+CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制（`cargo build --bin ew`）。
 
 ## 10. 路线图
 
@@ -151,3 +173,4 @@ CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制。
 - 名称把手核查：Elwright 在 GitHub / crates.io / npm 均无占用，域名未检索到（待发布时 registrar 确认）。✅
 - `api-doc-formatter` 归类（脚本/技能）待定。
 - Linux 支持列为后续。
+- **技术栈三项决策已锁定**（2026-08-21，见 §9.2）：LLM 客户端自写 reqwest thin client；注册表 v1 纯静态 JSON；桌面 UI 用 Vue 3 + Vite。
