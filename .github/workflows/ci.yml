@@ -22,9 +22,6 @@ jobs:
       matrix:
         # 产品目标平台：Windows（优先）+ macOS；ubuntu 顺带兜底 unix 通用问题
         os: [ubuntu-latest, macos-latest, windows-latest]
-    env:
-      # Windows 可执行文件带 .exe 后缀；冒烟步骤统一用 bash 调用
-      EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,20 +39,27 @@ jobs:
         working-directory: src-tauri
         run: cargo build --bin ew
 
+      # EW 必须定义在 step 级 env：runner 上下文在 job 级 env 不可用（首跑因此启动失败）
       - name: Smoke - ew ls（注册表可加载）
         shell: bash
+        env:
+          EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
         run: |
           "$EW" ls | grep -q "doc-keyword-search"
           "$EW" ls | tail -n 1 | grep -q "项能力"
 
       - name: Smoke - 降级 SOP 可读
         shell: bash
+        env:
+          EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
         run: '"$EW" invoke tech-grill | grep -q "八层拷问 · 离线 SOP"'
 
       # 阶段 2 手工验证的 mock OpenAI 兼容端点，回归 invoke 成功路径
       - name: Smoke - mock LLM invoke 成功路径
         if: runner.os != 'Windows'
         shell: bash
+        env:
+          EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
         run: |
           cat > "$RUNNER_TEMP/mock_llm.py" <<'PY'
           import json
