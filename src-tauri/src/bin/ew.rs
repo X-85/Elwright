@@ -1,6 +1,21 @@
 use clap::{Parser, Subcommand};
 use elwright_core::core::{executor, invoke, registry};
 
+// 管道下游提前退出（如 `ew ls | grep -q ...`）会让 stdout 写入返回 EPIPE，
+// println! 此时直接 panic。CLI 工具的标准行为是静默退出，故所有输出走容错宏。
+macro_rules! outln {
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let _ = writeln!(std::io::stdout(), $($arg)*);
+    }};
+}
+macro_rules! errln {
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let _ = writeln!(std::io::stderr(), $($arg)*);
+    }};
+}
+
 #[derive(Parser)]
 #[command(name = "ew", about = "Elwright CLI · 个人工作流工具箱")]
 struct Cli {
@@ -34,52 +49,52 @@ fn main() {
     let reg = match registry::Registry::load(&root) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("错误: {}", e);
+            errln!("错误: {}", e);
             std::process::exit(1);
         }
     };
 
     match cli.cmd {
         Cmd::Ls => {
-            println!("{:<26} {:<11} {:<9} {}", "ID", "TYPE", "OFFLINE", "NAME");
-            println!("{}", "-".repeat(72));
+            outln!("{:<26} {:<11} {:<9} {}", "ID", "TYPE", "OFFLINE", "NAME");
+            outln!("{}", "-".repeat(72));
             for c in reg.list() {
                 let offline = match c.offline {
                     Some(true) => "yes",
                     _ => "no",
                 };
-                println!("{:<26} {:<11} {:<9} {}", c.id, c.kind, offline, c.name);
+                outln!("{:<26} {:<11} {:<9} {}", c.id, c.kind, offline, c.name);
             }
-            println!("\n共 {} 项能力", reg.list().len());
+            outln!("\n共 {} 项能力", reg.list().len());
         }
         Cmd::Run { id, args } => {
             let cap = match reg.get(&id) {
                 Some(c) => c,
                 None => {
-                    eprintln!("未找到能力: {}", id);
+                    errln!("未找到能力: {}", id);
                     std::process::exit(1);
                 }
             };
             if cap.kind != "script" {
-                eprintln!("{} 不是脚本型能力（type={}），无法 run", id, cap.kind);
+                errln!("{} 不是脚本型能力（type={}），无法 run", id, cap.kind);
                 std::process::exit(1);
             }
             let entry = match reg.resolve_entry(cap) {
                 Some(e) => e,
                 None => {
-                    eprintln!("能力 {} 缺少 entry 字段", id);
+                    errln!("能力 {} 缺少 entry 字段", id);
                     std::process::exit(1);
                 }
             };
             if !entry.exists() {
-                eprintln!("脚本不存在: {}", entry.display());
+                errln!("脚本不存在: {}", entry.display());
                 std::process::exit(1);
             }
-            println!("▶ 运行 {} -> {}", id, entry.display());
+            outln!("▶ 运行 {} -> {}", id, entry.display());
             match executor::run_script(&entry, &args) {
-                Ok(code) => println!("退出码: {}", code),
+                Ok(code) => outln!("退出码: {}", code),
                 Err(e) => {
-                    eprintln!("执行失败: {}", e);
+                    errln!("执行失败: {}", e);
                     std::process::exit(1);
                 }
             }
@@ -88,7 +103,7 @@ fn main() {
             let cap = match reg.get(&id) {
                 Some(c) => c,
                 None => {
-                    eprintln!("未找到能力: {}", id);
+                    errln!("未找到能力: {}", id);
                     std::process::exit(1);
                 }
             };
@@ -99,30 +114,30 @@ fn main() {
                     let p = reg.root.join(rel);
                     if p.exists() {
                         match std::fs::read_to_string(&p) {
-                            Ok(s) => println!("{}", s),
-                            Err(e) => eprintln!("读取失败: {}", e),
+                            Ok(s) => outln!("{}", s),
+                            Err(e) => errln!("读取失败: {}", e),
                         }
                     } else {
-                        eprintln!("文档不存在: {}", p.display());
+                        errln!("文档不存在: {}", p.display());
                     }
                 }
-                None => println!("能力 {} 无可查看文档", id),
+                None => outln!("能力 {} 无可查看文档", id),
             }
         }
         Cmd::Invoke { id, prompt } => {
             let cap = match reg.get(&id) {
                 Some(c) => c,
                 None => {
-                    eprintln!("未找到能力: {}", id);
+                    errln!("未找到能力: {}", id);
                     std::process::exit(1);
                 }
             };
             if cap.kind != "skill" {
-                eprintln!("{} 不是技能型能力（type={}），无法 invoke", id, cap.kind);
+                errln!("{} 不是技能型能力（type={}），无法 invoke", id, cap.kind);
                 std::process::exit(1);
             }
             let prompt_str = prompt.join(" ");
-            println!(
+            outln!(
                 "调用技能型: {}{}",
                 id,
                 if prompt_str.is_empty() {
@@ -134,12 +149,12 @@ fn main() {
 
             let outcome = invoke::invoke_skill(&reg.root, cap, &prompt_str);
             if let Some(note) = outcome.note {
-                eprintln!("{}\n", note);
+                errln!("{}\n", note);
             }
             if outcome.source == "degraded" {
-                println!("【离线降级】展示 SOP：\n{}", outcome.content);
+                outln!("【离线降级】展示 SOP：\n{}", outcome.content);
             } else {
-                println!("\n{}", outcome.content);
+                outln!("\n{}", outcome.content);
             }
         }
     }
