@@ -120,3 +120,39 @@ jobs:
       - name: npm run build
         working-directory: src
         run: npm run build
+
+  # 阶段 4 起产出 macOS 安装包（dmg）制品，push 到 main 时上传。
+  # Windows msi 等公司机装 MSVC 后按 docs/work/.../stage4-release/design.md §3 补。
+  dmg:
+    name: macOS dmg artifact
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: npm ci (frontend deps incl. tauri-cli)
+        working-directory: src
+        run: npm ci
+
+      # dmg 的 AppleScript 美化偶发 Finder 超时（-1712），重试即过（本地已验证）
+      - name: tauri build (dmg)
+        working-directory: src-tauri
+        run: ../src/node_modules/.bin/tauri build --bundles dmg || ../src/node_modules/.bin/tauri build --bundles dmg
+
+      - name: Upload dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: Elwright-macos-aarch64
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error

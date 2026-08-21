@@ -1,3 +1,4 @@
+use crate::core::llm;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -22,6 +23,9 @@ pub struct Capability {
 pub struct Registry {
     pub root: PathBuf,
     pub items: Vec<Capability>,
+    /// `$meta.llmDefault`：未配置环境变量时的 LLM 默认端点（架构方案 §5
+    /// 「默认指向本地模型」）。
+    pub llm_default: Option<llm::LlmConfig>,
 }
 
 impl Registry {
@@ -33,12 +37,20 @@ impl Registry {
         struct RegistryFile {
             #[serde(default)]
             capabilities: Vec<Capability>,
+            #[serde(rename = "$meta", default)]
+            meta: Option<RegistryMeta>,
+        }
+        #[derive(Deserialize)]
+        struct RegistryMeta {
+            #[serde(rename = "llmDefault", default)]
+            llm_default: Option<llm::LlmConfig>,
         }
         let file: RegistryFile = serde_json::from_str(&text)
             .map_err(|e| format!("解析 capabilities.json 失败: {}", e))?;
         Ok(Self {
             root: root.to_path_buf(),
             items: file.capabilities,
+            llm_default: file.meta.and_then(|m| m.llm_default),
         })
     }
 
@@ -173,6 +185,25 @@ mod tests {
         assert_eq!(find_root_from(&empty_tree), None);
         fs::remove_dir_all(&root).ok();
         fs::remove_dir_all(&empty_tree).ok();
+    }
+
+    #[test]
+    fn parses_meta_llm_default() {
+        let dir = std::env::temp_dir().join(format!("elwright-meta-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("capabilities.json"),
+            r#"{"$meta":{"llmDefault":{"base_url":"http://localhost:11434/v1","api_key":"","model":"qwen3:8b"}},"capabilities":[]}"#,
+        )
+        .unwrap();
+        let reg = super::Registry::load(&dir).unwrap();
+        let default = reg.llm_default.expect("$meta.llmDefault 应被解析");
+        assert_eq!(default.base_url, "http://localhost:11434/v1");
+        assert_eq!(default.model, "qwen3:8b");
+        fs::write(dir.join("capabilities.json"), "{\"capabilities\":[]}").unwrap();
+        let reg = super::Registry::load(&dir).unwrap();
+        assert!(reg.llm_default.is_none());
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -1,3 +1,3 @@
 # STATUS
 
-ready-for-release（3 脚本实现与验证完成，CI 待确认后归档）
+ready-for-release（3 脚本完成，CI 全绿确认；待用户确认后归档）

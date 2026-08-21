@@ -147,7 +147,7 @@ fn main() {
                 }
             );
 
-            let outcome = invoke::invoke_skill(&reg.root, cap, &prompt_str);
+            let outcome = invoke::invoke_skill(&reg, cap, &prompt_str);
             if let Some(note) = outcome.note {
                 errln!("{}\n", note);
             }

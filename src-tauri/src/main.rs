@@ -96,7 +96,7 @@ async fn invoke_skill(id: String, prompt: String) -> Result<invoke::InvokeOutcom
                 id, capability.kind
             ));
         }
-        Ok(invoke::invoke_skill(&registry.root, capability, &prompt))
+        Ok(invoke::invoke_skill(&registry, capability, &prompt))
     })
     .await
     .map_err(|error| format!("技能调用任务异常: {}", error))?

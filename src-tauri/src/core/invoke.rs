@@ -1,7 +1,9 @@
 use serde::Serialize;
 use std::path::Path;
 
-use crate::core::{degrade, llm, registry::Capability};
+use crate::core::degrade;
+use crate::core::llm;
+use crate::core::registry::{Capability, Registry};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InvokeOutcome {
@@ -12,8 +14,16 @@ pub struct InvokeOutcome {
 
 /// Invoke a skill through the configured LLM, falling back to its local SOP
 /// whenever configuration or the request is unavailable.
-pub fn invoke_skill(root: &Path, cap: &Capability, prompt: &str) -> InvokeOutcome {
-    if let Some(client) = llm::LlmClient::from_env() {
+///
+/// LLM 来源优先级：环境变量 `ELWRIGHT_LLM_*` > 注册表 `$meta.llmDefault`
+/// （架构方案 §5「默认指向本地模型」，如 Ollama localhost:11434）。
+pub fn invoke_skill(reg: &Registry, cap: &Capability, prompt: &str) -> InvokeOutcome {
+    let client = llm::LlmClient::from_env().or_else(|| {
+        reg.llm_default.as_ref().filter(|c| !c.base_url.is_empty()).map(|c| llm::LlmClient {
+            config: c.clone(),
+        })
+    });
+    if let Some(client) = client {
         let system = cap.prompt.as_deref().unwrap_or("");
         let user = if prompt.is_empty() {
             "（无附加输入，请按模板直接执行）"
@@ -31,7 +41,7 @@ pub fn invoke_skill(root: &Path, cap: &Capability, prompt: &str) -> InvokeOutcom
             }
             Err(error) => {
                 return degraded(
-                    root,
+                    &reg.root,
                     cap,
                     format!("【LLM 调用失败】{}\n已自动降级为离线 SOP。", error),
                 )
@@ -40,7 +50,7 @@ pub fn invoke_skill(root: &Path, cap: &Capability, prompt: &str) -> InvokeOutcom
     }
 
     degraded(
-        root,
+        &reg.root,
         cap,
         "【离线降级】未配置 LLM（设置 ELWRIGHT_LLM_BASE_URL 等环境变量可解锁）".to_string(),
     )

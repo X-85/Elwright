@@ -5,7 +5,7 @@ use std::time::Duration;
 /// Thin self-written client against any OpenAI-compatible endpoint
 /// (cloud, Ollama, llama.cpp, ...). Config comes from environment variables:
 /// `ELWRIGHT_LLM_BASE_URL`, `ELWRIGHT_LLM_API_KEY`, `ELWRIGHT_LLM_MODEL`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct LlmConfig {
     pub base_url: String,
     pub api_key: String,

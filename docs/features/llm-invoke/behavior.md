@@ -7,7 +7,7 @@
 
 ## LLM 调用（在线路径）
 
-- 配置来源：环境变量 `ELWRIGHT_LLM_BASE_URL`（必填才视为已配置）、`ELWRIGHT_LLM_API_KEY`（可选，非空时作 Bearer 认证）、`ELWRIGHT_LLM_MODEL`。
+- 配置来源（优先级）：环境变量 `ELWRIGHT_LLM_BASE_URL`（必填才视为已配置）/ `ELWRIGHT_LLM_API_KEY`（可选，非空时作 Bearer 认证）/ `ELWRIGHT_LLM_MODEL`；**未设环境变量时回退注册表 `$meta.llmDefault`**（默认 `http://localhost:11434/v1`，即本地 Ollama）——装了 Ollama 的用户零配置即可解锁技能型。
 - 请求：POST `{base_url}/chat/completions`，messages 为两条——能力 `prompt` 字段作 system，命令行剩余参数拼接作 user。
 - 用户未给附加输入时，user 内容为「（无附加输入，请按模板直接执行）」。
 - 成功：打印 `choices[0].message.content`，退出码 0。
@@ -16,7 +16,7 @@
 
 以下任一情况触发降级，**打印 SOP 而非报错**：
 
-1. 未设置 `ELWRIGHT_LLM_BASE_URL`。
+1. 未设置 `ELWRIGHT_LLM_BASE_URL` **且**注册表无有效 `$meta.llmDefault`。
 2. 请求失败（网络不可达、连接被拒等）。
 3. 超时（60 秒）。
 4. 端点返回非 2xx 或响应不是合法的 chat completion JSON。

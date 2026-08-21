@@ -1,3 +1,3 @@
 # STATUS
 
-in-progress（仅设计预研，2026-08-21）。design.md 已备；plan/checklist/implementation 等阶段 3b（Tauri 壳）合入后启动。
+macOS 侧完成（dmg 产出并验证，CI 全绿）；Windows msi 与 GitHub Release 等外部条件（公司机 MSVC / 发版决策）。待用户确认后归档。

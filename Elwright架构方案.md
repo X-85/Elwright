@@ -219,3 +219,10 @@ CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制（`car
 - `src/lib/bridge.ts` 用 `@tauri-apps/api` 的动态 `invoke()` 实现 Tauri 适配器，探测到 `window.__TAURI_INTERNALS__` 自动切换，现有 Vue 组件零数据访问改造，侧栏显示当前模式。
 - 加入 `tauri.conf.json`、官方工具生成的 app 图标、`build.rs` 和 desktop 默认二进制；`cargo test`（6 项）、`npm run build`、`tauri build --debug --bundles app` 全部通过，产物为 `src-tauri/target/debug/bundle/macos/Elwright.app`。
 - 阶段 4：将 `capabilities.json` 与 `resources/` 纳入 bundle 后的路径解析，制作/签名正式 msi 与 dmg，再发布；Windows 仍需 §12.2 所述 MSVC 工具链。
+
+### 12.7 阶段 4/5 落地与整体收尾（2026-08-22）
+
+- **阶段 4（macOS 侧完成）**：资源根三段式解析（`ELWRIGHT_ROOT` env > cwd 上溯 > bundle 资源目录/exe 相邻）——core 保持零壳依赖；`tauri.conf.json` bundle.resources 把 capabilities.json 与 resources/ 打进 `Contents/Resources`（实测无 `_up_` 逃逸）；产出 `Elwright_0.1.0_aarch64.dmg`（8.2MB，未签名），挂载核验资源落位 + 卷内启动冒烟通过。坑：dmg 的 AppleScript 美化偶发 Finder 超时（-1712），重试即过。
+- **阶段 5 第一批（3 个通用脚本）**：doc-keyword-search / xlsx-to-md / docx-to-md，纯 Python stdlib 零依赖，`ew run` 端到端 + 全错误路径验证（样本为手工构造的最小合法 xlsx/docx）。其余 10 个 entry 等公司机原版导入。
+- **整体审计后的补漏**：① executor python 解释器探测（python3 → python → py，OnceLock 缓存）——修 Windows 无 python3 别名问题；② LLM 配置回退链落地（env > 注册表 `$meta.llmDefault`）——本方案 §5「默认指向本地模型」承诺兑现，装 Ollama 的用户零配置解锁技能型；③ CI 新增 macOS dmg 制品 job（上传 artifact）。
+- **待外部条件**：Windows msi（公司机 MSVC，§12.2/设计文档 §3）；GitHub Release 发布（版本三处同步 + 产物上传）；公司机原版脚本与知识文档导入。

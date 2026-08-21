@@ -47,7 +47,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 - `capabilities.json` 字段：`id`/`name`/`type`（script|knowledge|skill）/`category`/`entry`/`doc`/`offline`/`prompt`/`degradeDoc`（JSON camelCase ↔ Rust snake_case，靠 serde rename）。新增能力 = 注册表加条目 + 文件放 `resources/` 对应子目录。
 - `view` 命令优先读 `doc` 字段，回退 `entry`；知识型条目用 `doc`。
 - `run` 仅限 script 型，`invoke` 仅限 skill 型（调用 LLM，失败/未配置降级 SOP）。
-- 脚本执行按扩展名选解释器：`.py`→python3、`.ps1`→powershell、`.sh`→bash、`.bat/.cmd`→cmd，其他扩展名直接报错。
+- 脚本执行按扩展名选解释器：`.py`→python3（探测回退 python/py，OnceLock 缓存）、`.ps1`→powershell、`.sh`→bash、`.bat/.cmd`→cmd，其他扩展名直接报错。资源工具脚本必须**纯标准库零依赖**（离网底线）。
 - LLM 配置读环境变量：`ELWRIGHT_LLM_BASE_URL` / `ELWRIGHT_LLM_API_KEY` / `ELWRIGHT_LLM_MODEL`；默认指向本地模型（如 Ollama `http://localhost:11434/v1`）。LLM 客户端用 reqwest **blocking**（ADR-001，见 `docs/features/llm-invoke/decisions/`）。
 - 资源根三段式解析（`registry::resolve_root`）：`ELWRIGHT_ROOT` env 覆盖 > cwd 上溯 > bundle 资源目录/exe 相邻探测。两壳都已接入；改根解析逻辑时同步跑 registry 单测。
 - 正式打包：自 `src-tauri/` 跑 `../src/node_modules/.bin/tauri build`（`npx tauri` 在 `src/` 下找不到配置）。dmg 首次打包可能因 Finder AppleScript 超时（-1712）失败，重试即过。产物未签名。
