@@ -24,7 +24,7 @@
 
 ## 当前状态
 
-✅ **阶段 3 完成**：Vue 3 + Vite 界面既可浏览器预览，也已接入 Tauri 2 IPC（列表、文档、脚本执行、技能调用/离线降级）；macOS debug `.app` 已构建通过。正式跨平台发布、签名和 bundle 内资源路径属于阶段 4。此前阶段 1（Rust 核心 + CLI `ew`）、阶段 2（LLM 客户端 + 技能型 invoke + 离线降级）均已完成。见 `Elwright架构方案.md` §12。
+✅ **阶段 4（macOS 侧）完成**：安装包自带能力注册表与资源（三段式资源根解析：`ELWRIGHT_ROOT` > 仓库内运行 > 安装包内置），`Elwright_0.1.0_aarch64.dmg`（8.2 MB，未签名）已产出并验证。待办：Windows msi（等公司机装 MSVC）、GitHub Release 发布。此前阶段 1–3（Rust 核心 + CLI `ew`、LLM 客户端 + 离线降级、Tauri 桌面壳）均已完成。见 `Elwright架构方案.md` §12。
 
 ## 快速开始（开发者）
 

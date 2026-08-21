@@ -1,5 +1,11 @@
 # 变更记录
 
+## 2026-08-21（阶段 4：打包）
+
+- 资源根改为三段式解析：`ELWRIGHT_ROOT` 环境变量覆盖 > cwd 上溯（原行为）> bundle 资源目录/exe 相邻探测——桌面壳在 setup 期经 `resource_dir()` 解析一次（OnceLock 缓存），安装后的 app 不再依赖仓库路径。
+- `tauri.conf.json` 增加 `bundle.resources`（map 形式）：capabilities.json 与 resources/ 打进包内 `Contents/Resources/`，实测无 `_up_` 层级。
+- macOS 产出 `Elwright_0.1.0_aarch64.dmg`（8.2 MB，未签名）；挂载核验资源落位 + 卷内启动冒烟通过。
+
 ## 2026-08-21
 
 完成阶段 3b Tauri 桌面壳接入：

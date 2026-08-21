@@ -1,5 +1,11 @@
 use elwright_core::core::{executor, invoke, registry};
 use serde::Serialize;
+use std::path::PathBuf;
+use std::sync::OnceLock;
+use tauri::Manager;
+
+// setup 期解析一次（含 bundle 资源目录探测），IPC 命令复用
+static ROOT: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Serialize)]
 struct ViewDocResult {
@@ -97,11 +103,24 @@ async fn invoke_skill(id: String, prompt: String) -> Result<invoke::InvokeOutcom
 }
 
 fn load_registry() -> Result<registry::Registry, String> {
-    registry::Registry::load(&registry::find_project_root())
+    let root = ROOT
+        .get()
+        .cloned()
+        .unwrap_or_else(|| registry::resolve_root(&[]));
+    registry::Registry::load(&root)
 }
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .map_err(|e| format!("定位资源目录失败: {}", e))?;
+            let root = registry::resolve_root(&[resource_dir]);
+            let _ = ROOT.set(root);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             list_capabilities,
             view_doc,

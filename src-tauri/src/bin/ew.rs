@@ -45,7 +45,7 @@ enum Cmd {
 
 fn main() {
     let cli = Cli::parse();
-    let root = registry::find_project_root();
+    let root = registry::resolve_root(&[]);
     let reg = match registry::Registry::load(&root) {
         Ok(r) => r,
         Err(e) => {
