@@ -10,6 +10,7 @@ pub struct Capability {
     pub kind: String,
     pub category: Option<String>,
     pub entry: Option<String>,
+    pub doc: Option<String>,
     pub offline: Option<bool>,
     pub prompt: Option<String>,
     #[serde(rename = "degradeDoc")]
@@ -28,11 +29,16 @@ impl Registry {
         let path = root.join("capabilities.json");
         let text = std::fs::read_to_string(&path)
             .map_err(|e| format!("读取 {} 失败: {}", path.display(), e))?;
-        let items: Vec<Capability> = serde_json::from_str(&text)
+        #[derive(Deserialize)]
+        struct RegistryFile {
+            #[serde(default)]
+            capabilities: Vec<Capability>,
+        }
+        let file: RegistryFile = serde_json::from_str(&text)
             .map_err(|e| format!("解析 capabilities.json 失败: {}", e))?;
         Ok(Self {
             root: root.to_path_buf(),
-            items,
+            items: file.capabilities,
         })
     }
 

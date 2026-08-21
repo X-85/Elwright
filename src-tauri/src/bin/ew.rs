@@ -110,7 +110,9 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            match &cap.entry {
+            // 知识型用 doc 字段，脚本/文档型用 entry 字段
+            let rel = cap.doc.as_ref().or(cap.entry.as_ref());
+            match rel {
                 Some(rel) => {
                     let p = reg.root.join(rel);
                     if p.exists() {

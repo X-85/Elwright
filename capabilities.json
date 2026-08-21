@@ -200,6 +200,14 @@
       "prompt": "需求评审选点辅助",
       "offline": false,
       "degradeDoc": "resources/docs/skill-selpoint-sop.md"
+    },
+    {
+      "id": "elwright-guide",
+      "name": "公司家里项目共建指南",
+      "type": "knowledge",
+      "category": "协作",
+      "doc": "resources/docs/公司家里项目共建.md",
+      "offline": true
     }
   ]
 }
