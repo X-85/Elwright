@@ -62,7 +62,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-阶段 3 已完成（浏览器预览 + Tauri 2 IPC + macOS debug `.app`，见 `docs/features/desktop-ui/` 与架构方案 §12.6）。下一步是阶段 4：资源随 bundle 打包、正式 msi/dmg、签名与发布；其余技能型 SOP 文档也可批量导入。
+阶段 5（脚本型能力落地）进行中：第一批 3 个通用脚本完成（doc-keyword-search / xlsx-to-md / docx-to-md，纯 stdlib，见 `docs/features/script-tools/`）。此前阶段 1–4 完成（CLI、LLM+降级、Tauri 壳、macOS dmg）。待办：其余 10 个脚本 entry 等公司机原版导入；Windows msi 等 MSVC；GitHub Release。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
 
 ## 前端约定（src/）
 

@@ -24,7 +24,7 @@
 
 ## 当前状态
 
-✅ **阶段 4（macOS 侧）完成**：安装包自带能力注册表与资源（三段式资源根解析：`ELWRIGHT_ROOT` > 仓库内运行 > 安装包内置），`Elwright_0.1.0_aarch64.dmg`（8.2 MB，未签名）已产出并验证。待办：Windows msi（等公司机装 MSVC）、GitHub Release 发布。此前阶段 1–3（Rust 核心 + CLI `ew`、LLM 客户端 + 离线降级、Tauri 桌面壳）均已完成。见 `Elwright架构方案.md` §12。
+✅ **阶段 5 进行中**：脚本型能力第一批落地——文档关键字搜索、Excel转md、Word转md（纯 Python 标准库，零依赖离网可跑），`ew run` 端到端验证通过。此前阶段 1–4 完成：Rust 核心 + CLI、LLM 客户端 + 离线降级、Tauri 桌面壳、macOS dmg 打包（资源随包分发）。待办：其余脚本导入（公司机原版）、Windows msi（等 MSVC）、GitHub Release。见 `Elwright架构方案.md` §12。
 
 ## 快速开始（开发者）
 
