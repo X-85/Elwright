@@ -182,12 +182,29 @@ jobs:
         working-directory: src
         run: npm ci
 
+      # 诊断辅助（enhancement-2026-08-windows-msi-ci 首跑失败）：
+      # 1) release 编译独立成步，用步骤结论区分「编译失败」vs「打包失败」
+      - name: cargo build --release
+        working-directory: src-tauri
+        run: cargo build --release
+
+      # 2) 失败时把日志尾部转成 error annotation——仓库日志 API 需权限，
+      #    而 check-run annotations 公开可读（本地无 gh/token 时的诊断通道）
       # shell: bash 让相对路径 ../src/node_modules/.bin/tauri 走 .bin 下的 sh
       # shim——Windows 默认 pwsh 按相对路径找不到无扩展名可执行文件
       - name: tauri build (msi)
         working-directory: src-tauri
         shell: bash
-        run: ../src/node_modules/.bin/tauri build --bundles msi
+        run: |
+          set +e
+          ../src/node_modules/.bin/tauri build --bundles msi > build.log 2>&1
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "tauri build 失败，退出码 $rc；build.log 尾部："
+            tail -n 5 build.log
+            tail -n 10 build.log | sed 's/\r$//' | while IFS= read -r l; do echo "::error::$l"; done
+            exit $rc
+          fi
 
       - name: Upload msi
         uses: actions/upload-artifact@v4
