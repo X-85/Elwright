@@ -202,7 +202,7 @@ jobs:
           if [ $rc -ne 0 ]; then
             echo "tauri build 失败，退出码 $rc；build.log 尾部："
             tail -n 5 build.log
-            tail -n 10 build.log | sed 's/\r$//' | while IFS= read -r l; do echo "::error::$l"; done
+            tail -n 50 build.log | sed 's/\r$//' | grep -v '^$' | while IFS= read -r l; do echo "::error::$l"; done
             exit $rc
           fi
 
