@@ -15,10 +15,17 @@ Elwright 是个人工作流工具箱：一个 Rust 共享核心 + 两个壳（CL
 ## 构建与运行
 
 ```bash
+# Rust 核心 + CLI
 cd src-tauri
 cargo build --bin ew          # CLI 二进制
 cargo run --bin ew -- ls      # 或直接 target/debug/ew ls / view <id> / run <id> ...
-cargo test                    # 目前无测试
+cargo test                    # llm.rs URL 拼接等单元测试
+
+# 桌面壳前端（src/ 是自包含 Vite 项目，package.json 在 src/ 内——有意为之）
+cd src
+npm install
+npm run dev                   # 浏览器预览（dev 插件提供 /api/capabilities 与 /api/file 只读端点）
+npm run build                 # 产出 src/dist/
 ```
 
 Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-pc-windows-gnu build`，运行需 `D:\mingw64\bin` 在 PATH。只有 Tauri 桌面二进制被此卡住；CLI、reqwest、核心逻辑均不受影响。cargo 代理配置在用户级 `~/.cargo/config.toml`，不进仓库。
@@ -48,4 +55,10 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-阶段 2（LLM 客户端 + 技能型 invoke + 离线降级）已完成，见 `docs/features/llm-invoke/` 与架构方案 §12.4。下一步：阶段 3 桌面壳（先 Vue 前端，Tauri 编译待 Windows 机器装 MSVC）；其余技能型 SOP 文档批量导入。
+阶段 3 前端完成（Vue 3 浏览器预览版，见 `docs/features/desktop-ui/` 与架构方案 §12.5）。下一步：**阶段 3b** —— src-tauri 增加 IPC 命令（list_capabilities / view_doc / run_script / invoke_skill）+ tauriBridge 适配器（挂接点在 `src/lib/bridge.ts` 的 `createBridge()`，UI 零改动）+ `tauri build` 打包（Windows 需 MSVC，macOS 本机 Xcode CLT 已就绪）；其余技能型 SOP 文档批量导入。
+
+## 前端约定（src/）
+
+- UI 只依赖 `lib/bridge.ts` 的 `Bridge` 接口，禁止在组件里直接 fetch / 调 Tauri API。
+- 预览模式下 run/invoke 有明确的降级文案（浏览器不能 spawn 进程），不要试图在浏览器适配器里"绕过"这一点。
+- Markdown 渲染用 `marked` 直出 `v-html`：内容仅限本地 `resources/` 可信文件，不引入 sanitize 依赖；若未来渲染不可信来源必须重新评估。

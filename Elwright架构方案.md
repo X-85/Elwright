@@ -204,3 +204,11 @@ CLI 壳复用同一 `src-tauri/src/core`，单独编译为 `ew` 二进制（`car
 - 新增种子 SOP `resources/docs/tech-grill-sop.md`（此前技能型 degradeDoc 均指向不存在的文件，降级只报"文件不存在"）。
 - Agent 开发维护方案（`resources/docs/AI_CODE_AGENT_MAINTENANCE.md`）首次实际应用：本阶段产出 `docs/features/llm-invoke/`（README/behavior/architecture/changelog/ADR-001）+ `docs/work/active/feature-2026-08-stage2-llm-invoke/`（plan/checklist/verification/STATUS）。
 - **接下来**：阶段 3 桌面壳（先 Vue 前端，npm/vite；Tauri 编译等 Windows 机器 MSVC 就绪）；其余 5 个技能型的 SOP 文档批量导入。
+
+### 12.5 阶段 3 前端落地情况（家里 macOS，2026-08-21 浏览器预览版完成）
+- **前端先行路径执行**（§12.3 既定决策）：`src/` 作为自包含 Vite 项目（package.json 在 src/ 内，保持本方案 §9.3 目录规划），Vue 3 + Vite 8 + TS，依赖仅 `vue` + `marked`（无组件库，pi-mono 极简）。
+- **Bridge 抽象层**（`src/lib/bridge.ts`）：UI 只依赖 `Bridge` 接口（list/view/run/invoke）；浏览器适配器已实现，Tauri 适配器挂接点留在 `createBridge()`（探测 `window.__TAURI_INTERNALS__`），阶段 3b 接 IPC 时 UI 零改动。
+- **Dev 只读 API**（vite 插件）：`/api/capabilities` 读真实注册表、`/api/file?path=` 读 resources/ 文件（前缀校验防穿越）——预览即真实数据，非 mock。
+- **UI**（全中文，三栏）：侧栏类型筛选 + 搜索；能力列表（类型徽标/分类/⚡离网标记）；分型详情——script 传参运行（预览态给等价 CLI 命令）、knowledge 渲染 Markdown、skill 调用（预览态固定走降级 SOP，正好预演降级 UI）。
+- 验证（见 `docs/work/active/feature-2026-08-stage3-desktop-ui/verification.md`）：`npm run build` 成功（产物 111KB）；curl 冒烟（24 项能力 / SOP 读取 / 穿越拦截 403）；浏览器 DOM 快照逐项验证（筛选、技能降级渲染、知识文档渲染、脚本面板）。
+- **阶段 3b 待做**（Tauri 壳）：src-tauri 增加 IPC 命令（list_capabilities / view_doc / run_script / invoke_skill，复用 core）；`@tauri-apps/api` 实现 tauriBridge；`tauri build` 打包（Windows 需 MSVC ~4.5GB 装到 D 盘，见 §12.2；macOS 本机 Xcode CLT 已就绪可直接做）。
