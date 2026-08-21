@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use elwright_core::core::{executor, invoke, registry};
+use elwright_core::core::{executor, export, invoke, registry};
 
 // 管道下游提前退出（如 `ew ls | grep -q ...`）会让 stdout 写入返回 EPIPE，
 // println! 此时直接 panic。CLI 工具的标准行为是静默退出，故所有输出走容错宏。
@@ -41,6 +41,28 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         prompt: Vec<String>,
     },
+    /// 查看/设置 LLM 配置（环境变量 > config.local.json > ~/.elwright/config.json > 注册表默认）
+    Config {
+        #[command(subcommand)]
+        action: Option<ConfigAction>,
+    },
+    /// 导出能力为单文件（默认打印，给文件名则写入）
+    Export { id: String, file: Option<String> },
+    /// 导入能力（.elw.json；id 冲突需 --force）
+    Import { file: String, #[arg(long)] force: bool },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// set <base_url|model|api_key> <值>；--local 写项目 config.local.json（默认写用户级）
+    Set {
+        key: String,
+        value: String,
+        #[arg(long)]
+        local: bool,
+    },
+    /// 删除配置文件；--local 删项目的（默认删用户级）
+    Clear { #[arg(long)] local: bool },
 }
 
 fn main() {
@@ -155,6 +177,120 @@ fn main() {
                 outln!("【离线降级】展示 SOP：\n{}", outcome.content);
             } else {
                 outln!("\n{}", outcome.content);
+            }
+        }
+        Cmd::Config { action } => config_command(&reg, action),
+        Cmd::Export { id, file } => {
+            let bundle = match export::export_capability(&reg, &id) {
+                Ok(b) => b,
+                Err(e) => {
+                    errln!("错误: {}", e);
+                    std::process::exit(1);
+                }
+            };
+            match file {
+                Some(path) => match std::fs::write(&path, &bundle) {
+                    Ok(_) => outln!("已导出 {} -> {}", id, path),
+                    Err(e) => {
+                        errln!("写入 {} 失败: {}", path, e);
+                        std::process::exit(1);
+                    }
+                },
+                None => outln!("{}", bundle),
+            }
+        }
+        Cmd::Import { file, force } => {
+            let text = match std::fs::read_to_string(&file) {
+                Ok(t) => t,
+                Err(e) => {
+                    errln!("读取 {} 失败: {}", file, e);
+                    std::process::exit(1);
+                }
+            };
+            match export::import_capability(&reg.root, &text, force) {
+                Ok(msg) => outln!("{}", msg),
+                Err(e) => {
+                    errln!("错误: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+}
+
+fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
+    use elwright_core::core::llm;
+    match action {
+        None => {
+            let layers = llm::ConfigLayers::collect(&reg.root, reg.llm_default.clone());
+            let (cfg, source) = layers.merged();
+            let mask = |k: &str| {
+                if k.is_empty() {
+                    "（未设置）".to_string()
+                } else if k.len() > 8 {
+                    format!("{}****", &k[..4])
+                } else {
+                    "****".to_string()
+                }
+            };
+            outln!("当前生效的 LLM 配置：");
+            outln!("  base_url : {}", if cfg.base_url.is_empty() { "（未设置）".into() } else { cfg.base_url.clone() });
+            outln!("    来源   : {}", source[0]);
+            outln!("  model    : {}", if cfg.model.is_empty() { "（未设置）".into() } else { cfg.model.clone() });
+            outln!("    来源   : {}", source[2]);
+            outln!("  api_key  : {}", mask(&cfg.api_key));
+            outln!("    来源   : {}", source[1]);
+            outln!("\n设置：ew config set base_url <值>   清除：ew config clear");
+        }
+        Some(ConfigAction::Set { key, value, local }) => {
+            if !matches!(key.as_str(), "base_url" | "model" | "api_key") {
+                errln!("错误: key 只能是 base_url / model / api_key");
+                std::process::exit(1);
+            }
+            let path = if local {
+                reg.root.join("config.local.json")
+            } else {
+                match llm::user_config_path() {
+                    Some(p) => p,
+                    None => {
+                        errln!("错误: 无法定位用户主目录（HOME/USERPROFILE 均缺失）");
+                        std::process::exit(1);
+                    }
+                }
+            };
+            let mut cfg: std::collections::BTreeMap<String, String> =
+                std::fs::read_to_string(&path)
+                    .ok()
+                    .and_then(|t| serde_json::from_str(&t).ok())
+                    .unwrap_or_default();
+            cfg.insert(key.clone(), value);
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let text = serde_json::to_string_pretty(&cfg).unwrap();
+            match std::fs::write(&path, text + "\n") {
+                Ok(_) => outln!("已设置 {} -> {}", key, path.display()),
+                Err(e) => {
+                    errln!("写入 {} 失败: {}", path.display(), e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Some(ConfigAction::Clear { local }) => {
+            let path = if local {
+                reg.root.join("config.local.json")
+            } else {
+                match llm::user_config_path() {
+                    Some(p) => p,
+                    None => {
+                        errln!("错误: 无法定位用户主目录");
+                        std::process::exit(1);
+                    }
+                }
+            };
+            match std::fs::remove_file(&path) {
+                Ok(_) => outln!("已删除 {}", path.display()),
+                Err(_) => outln!("（无配置文件可删: {}）", path.display()),
             }
         }
     }

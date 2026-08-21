@@ -15,14 +15,17 @@ pub struct InvokeOutcome {
 /// Invoke a skill through the configured LLM, falling back to its local SOP
 /// whenever configuration or the request is unavailable.
 ///
-/// LLM 来源优先级：环境变量 `ELWRIGHT_LLM_*` > 注册表 `$meta.llmDefault`
-/// （架构方案 §5「默认指向本地模型」，如 Ollama localhost:11434）。
+/// LLM 配置链（架构方案 §5）：环境变量 `ELWRIGHT_LLM_*` > 项目
+/// `config.local.json` > 用户 `~/.elwright/config.json` > 注册表
+/// `$meta.llmDefault`（默认本地模型，如 Ollama localhost:11434）。
 pub fn invoke_skill(reg: &Registry, cap: &Capability, prompt: &str) -> InvokeOutcome {
-    let client = llm::LlmClient::from_env().or_else(|| {
-        reg.llm_default.as_ref().filter(|c| !c.base_url.is_empty()).map(|c| llm::LlmClient {
-            config: c.clone(),
-        })
-    });
+    let layers = llm::ConfigLayers::collect(&reg.root, reg.llm_default.clone());
+    let (config, _) = layers.merged();
+    let client = if config.base_url.is_empty() {
+        None
+    } else {
+        Some(llm::LlmClient { config })
+    };
     if let Some(client) = client {
         let system = cap.prompt.as_deref().unwrap_or("");
         let user = if prompt.is_empty() {

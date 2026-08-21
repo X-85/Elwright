@@ -29,7 +29,18 @@
 
 任意「OpenAI 兼容」的服务都行（各云厂商大模型平台基本都兼容）。在它们的控制台拿到三样东西：接口地址（一般以 `/v1` 结尾）、API Key、模型名。
 
-## 第二步：填配置（当前版本用环境变量）
+## 第二步：填配置（推荐用命令，一次配好持久保存）
+
+```bash
+ew config set base_url http://localhost:11434/v1     # Ollama 本地
+ew config set model qwen3:8b
+ew config set api_key 你的Key                          # 云端端点才需要；Ollama 跳过
+ew config                                             # 查看当前生效配置与来源
+```
+
+配置保存在 `~/.elwright/config.json`（用户级，重开终端仍有效）。加 `--local` 则写到项目目录 `config.local.json`（不进 git，适合单项目不同端点）。
+
+<details><summary>旧方式：环境变量（临时/排障用）</summary>
 
 **macOS / Linux（终端里执行，或写进 `~/.zshrc`）：**
 
