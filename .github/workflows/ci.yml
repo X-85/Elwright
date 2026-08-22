@@ -53,14 +53,14 @@ jobs:
         env:
           EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
         run: |
-          "$EW" ls | grep -q "doc-keyword-search"
+          "$EW" ls | grep -q "text-stats"
           "$EW" ls | tail -n 1 | grep -q "项能力"
 
       - name: Smoke - 降级 SOP 可读
         shell: bash
         env:
           EW: ${{ format('src-tauri/target/debug/ew{0}', runner.os == 'Windows' && '.exe' || '') }}
-        run: '"$EW" invoke tech-grill | grep -q "八层拷问 · 离线 SOP"'
+        run: '"$EW" invoke weekly-report | grep -q "周报生成 · 离线 SOP"'
 
       # 阶段 2 手工验证的 mock OpenAI 兼容端点，回归 invoke 成功路径
       - name: Smoke - mock LLM invoke 成功路径
@@ -98,7 +98,7 @@ jobs:
           sleep 1
           export ELWRIGHT_LLM_BASE_URL=http://127.0.0.1:18434/v1
           export ELWRIGHT_LLM_MODEL=mock-model
-          "$EW" invoke tech-grill CI | grep -q "模拟LLM回复"
+          "$EW" invoke weekly-report CI | grep -q "模拟LLM回复"
           kill $MOCK_PID
 
   frontend:

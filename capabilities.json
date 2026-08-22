@@ -8,206 +8,33 @@
       "api_key": "",
       "model": ""
     },
-    "note": "种子清单（阶段 0）。entry 路径为规划目标路径，实际脚本/文档文件尚未导入 resources/，待阶段 1 再导入。具体现有 skill 文件本期不改。"
+    "note": "示例注册表：每类能力各留一个真实小示例（text-stats / capability-types / weekly-report），既是格式参考也可直接使用。个人能力请通过「导入能力」或 ew import 加入用户叠加层 ~/.elwright/，不写回本文件。"
   },
   "capabilities": [
     {
-      "id": "doc-keyword-search",
-      "name": "文档关键字搜索",
+      "id": "text-stats",
+      "name": "文本统计",
       "type": "script",
-      "category": "知识库",
-      "entry": "resources/tools/doc-keyword-search/search_doc.py",
+      "category": "示例",
+      "entry": "resources/tools/text-stats/text_stats.py",
       "offline": true
     },
     {
-      "id": "xlsx-to-md",
-      "name": "Excel转md",
-      "type": "script",
-      "category": "格式转换",
-      "entry": "resources/tools/xlsx-to-md/xlsx_to_md.py",
-      "offline": true
-    },
-    {
-      "id": "docx-to-md",
-      "name": "Word转md",
-      "type": "script",
-      "category": "格式转换",
-      "entry": "resources/tools/docx-to-md/docx_to_md.py",
-      "offline": true
-    },
-    {
-      "id": "product-req-to-checklist",
-      "name": "产品包需求→功能清单",
-      "type": "script",
-      "category": "清单生成",
-      "entry": "resources/tools/product-req-to-checklist/run.py",
-      "offline": true
-    },
-    {
-      "id": "change-note-to-checklist",
-      "name": "修改说明→功能清单",
-      "type": "script",
-      "category": "清单生成",
-      "entry": "resources/tools/change-note-to-checklist/run.py",
-      "offline": true
-    },
-    {
-      "id": "capability-label-gen",
-      "name": "能力标签自动生成",
-      "type": "script",
-      "category": "清单生成",
-      "entry": "resources/tools/capability-label-gen/run.py",
-      "offline": true
-    },
-    {
-      "id": "jar-decompile",
-      "name": "jar反编译",
-      "type": "script",
-      "category": "开发工具",
-      "entry": "resources/tools/jar-decompile/decompile-jar.ps1",
-      "offline": true
-    },
-    {
-      "id": "one-click-deploy",
-      "name": "一键部署",
-      "type": "script",
-      "category": "部署",
-      "entry": "resources/tools/one-click-deploy/deploy.ps1",
-      "offline": true
-    },
-    {
-      "id": "kb-orphan-check",
-      "name": "知识库查孤儿",
-      "type": "script",
-      "category": "知识库维护",
-      "entry": "resources/tools/kb-tools/check_orphan.ps1",
-      "offline": true
-    },
-    {
-      "id": "kb-tree",
-      "name": "知识库树",
-      "type": "script",
-      "category": "知识库维护",
-      "entry": "resources/tools/kb-tools/tree.ps1",
-      "offline": true
-    },
-    {
-      "id": "kb-validate",
-      "name": "知识库校验",
-      "type": "script",
-      "category": "知识库维护",
-      "entry": "resources/tools/kb-tools/validate.ps1",
-      "offline": true
-    },
-    {
-      "id": "desktop-shortcuts",
-      "name": "桌面快捷方式",
-      "type": "script",
-      "category": "效率",
-      "entry": "resources/tools/desktop-shortcuts/make_shortcuts.ps1",
-      "offline": true
-    },
-    {
-      "id": "vscode-ext-manage",
-      "name": "VSCode扩展管理",
-      "type": "script",
-      "category": "开发工具",
-      "entry": "resources/tools/workspace-ext/manage.py",
-      "offline": true
-    },
-    {
-      "id": "wds-customization",
-      "name": "WDS定制知识+踩坑",
+      "id": "capability-types",
+      "name": "能力类型速览",
       "type": "knowledge",
-      "category": "知识库",
-      "doc": "resources/docs/wds-customization.md",
+      "category": "示例",
+      "doc": "resources/docs/capability-types.md",
       "offline": true
     },
     {
-      "id": "modbustcp-notes",
-      "name": "ModbusTCP学习笔记",
-      "type": "knowledge",
-      "category": "工业协议",
-      "doc": "resources/docs/modbustcp-notes.md",
-      "offline": true
-    },
-    {
-      "id": "jvm-crash-log",
-      "name": "JVM崩溃日志排查",
-      "type": "knowledge",
-      "category": "排障",
-      "doc": "resources/docs/jvm-crash-log.md",
-      "offline": true
-    },
-    {
-      "id": "http-auth-comparison",
-      "name": "HTTP接口鉴权方案对比",
-      "type": "knowledge",
-      "category": "技术选型",
-      "doc": "resources/docs/http-auth-comparison.md",
-      "offline": true
-    },
-    {
-      "id": "tech-grill",
-      "name": "八层拷问",
+      "id": "weekly-report",
+      "name": "周报生成",
       "type": "skill",
-      "category": "技能",
-      "prompt": "八层提问模板（技术掌握度深挖）",
+      "category": "示例",
+      "prompt": "你是周报整理助手。把用户给的本周工作素材（流水账、commit、会议要点等）整理成结构化周报，分四节：本周完成 / 进行中（含卡点与预计时间）/ 下周计划 / 风险与求助。每条一行、动词开头、写结果不写过程；纯过程性事务（无决策产出的会议、例行对齐）不要列入。输出 Markdown。",
       "offline": false,
-      "degradeDoc": "resources/docs/tech-grill-sop.md"
-    },
-    {
-      "id": "prompt-optimizer",
-      "name": "提示词优化",
-      "type": "skill",
-      "category": "技能",
-      "prompt": "将简短输入优化为完整提示词",
-      "offline": false,
-      "degradeDoc": "resources/docs/prompt-optimizer-sop.md"
-    },
-    {
-      "id": "knowledge-sharing",
-      "name": "知识总结分享",
-      "type": "skill",
-      "category": "技能",
-      "prompt": "会话内容→结构化分享文档",
-      "offline": false,
-      "degradeDoc": "resources/docs/knowledge-sharing-sop.md"
-    },
-    {
-      "id": "work-summary",
-      "name": "工作总结",
-      "type": "skill",
-      "category": "技能",
-      "prompt": "会话内容→工作总结",
-      "offline": false,
-      "degradeDoc": "resources/docs/work-summary-sop.md"
-    },
-    {
-      "id": "api-doc-formatter",
-      "name": "接口文档格式化",
-      "type": "skill",
-      "category": "技能",
-      "prompt": "原始接口文档→标准格式（待确认脚本/技能）",
-      "offline": false,
-      "degradeDoc": "resources/docs/api-doc-formatter-sop.md"
-    },
-    {
-      "id": "skill-selpoint",
-      "name": "需求选点",
-      "type": "skill",
-      "category": "技能",
-      "prompt": "需求评审选点辅助",
-      "offline": false,
-      "degradeDoc": "resources/docs/skill-selpoint-sop.md"
-    },
-    {
-      "id": "elwright-guide",
-      "name": "公司家里项目共建指南",
-      "type": "knowledge",
-      "category": "协作",
-      "doc": "resources/docs/company-home-collab.md",
-      "offline": true
+      "degradeDoc": "resources/docs/weekly-report-sop.md"
     }
   ]
 }

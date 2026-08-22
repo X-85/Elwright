@@ -7,8 +7,8 @@ Elwright 是个人工作流工具箱：一个 Rust 共享核心 + 两个壳（CL
 - `src-tauri/src/core/` — 共享核心：`registry.rs`（加载注册表/定位项目根）、`executor.rs`（按扩展名执行脚本）、`llm.rs`（OpenAI 兼容客户端）、`degrade.rs`（离线 SOP）、`invoke.rs`（LLM 调用/降级共享流程）。CLI 与桌面壳共用，勿把壳专属逻辑放进 core。
 - `src-tauri/src/bin/ew.rs` — CLI 壳：`ls` / `run <id>` / `view <id>` / `invoke <id>`；`src-tauri/src/main.rs` — Tauri 壳与四个 IPC 命令。
 - `src/` — Vue 3 桌面前端；组件仅依赖 `lib/bridge.ts`。
-- `capabilities.json` — 静态能力注册表（顶层对象 `{capabilities:[...]}`，不是裸数组——曾按裸数组解析出过 bug）。
-- `resources/tools/` — 脚本型能力的 .py/.ps1；`resources/docs/` — 知识型/SOP 的 .md。注意：种子清单中许多 entry 是规划目标路径，文件尚未导入。
+- `capabilities.json` — 内置注册表（顶层对象 `{capabilities:[...]}`，不是裸数组——曾按裸数组解析出过 bug）。当前只含三类能力各一个真实小示例（text-stats / capability-types / weekly-report）；个人能力走用户叠加层 `~/.elwright/`（导入按钮或 `ew import`），**不写回本文件**。
+- `resources/tools/` — 脚本型能力的 .py/.ps1；`resources/docs/` — 知识型/SOP 的 .md + Agent 维护文档（AI_CODE_AGENT_*.md，被 AGENTS.md 引用勿删）。
 - `docs/features/<feature>/` — 长期功能文档（README/behavior/architecture/changelog/decisions）；`docs/work/{active,archive}/` — 按维护方案组织的任务目录。
 - `docs/ROADMAP.md` — **活文档路线图**：做什么/排在哪/状态，只看这里（架构方案 §10/§11 是立项规划快照，不再随进度更新）。
 - `Elwright架构方案.md` — 权威架构文档。改架构相关代码前先读 §9（技术栈锁定决策）与 §12（阶段进度、Windows 工具链决策）。

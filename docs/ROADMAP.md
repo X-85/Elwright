@@ -19,17 +19,19 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 
 ## V1（短期，做完即发版）
 
-1. **发 v0.1.1**：更新检查按钮（已合入 main 的 f344b69）进正式产物——版本号三处同步（`src-tauri/Cargo.toml` / `tauri.conf.json` / `src/package.json`）+ 打 tag，CI 自动出包。
-2. **剩余资源导入**（公司机原版，纯标准库零依赖底线）：10 个脚本 entry + 4 个 knowledge doc，清单见 `capabilities.json` 中文件缺失项。
-3. **api-doc-formatter 归类决策**（脚本 vs 技能，架构方案 §11 遗留）：定了改注册表 `type` 字段即可。
-4. **script-tools Feature 文档补齐**：`docs/features/script-tools/` 缺 behavior / architecture / changelog。
-5. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md，与归档流程对齐。
+1. **发 v0.1.1**：更新检查按钮 + 桌面导入/导出/删除 + 示例注册表精简，一起进正式包——版本号三处同步（`src-tauri/Cargo.toml` / `tauri.conf.json` / `src/package.json`）+ 打 tag，CI 自动出包。
+2. **api-doc-formatter 归类决策**（脚本 vs 技能，架构方案 §11 遗留）：**2026-08-22 已作废**——该条目随注册表精简一并移除；将来若需要，按新流程经导入功能以自定义能力加入，届时再定类型。
+3. **script-tools Feature 文档补齐**：`docs/features/script-tools/` 缺 behavior / architecture / changelog。**2026-08-22 范围变化**：原 3 个脚本（doc-keyword-search/xlsx-to-md/docx-to-md）已随注册表精简移除，该 feature 目录需改写为面向 `text-stats` 示例或降级说明。
+4. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md，与归档流程对齐。
+
+~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
 用户动作（不占开发排期，阻塞对应任务归档）：
 
 - 归档 10 个 ready-for-release 任务目录（active→archive，维护方案规定人执行）。
 - 公司机实装一次 msi（stage4-release 验证收尾）。
 - 用真实 LLM 端点 `ew invoke` 复验一次（stage2 验证收尾）。
+- 桌面 app 实机导入/删除确认（材料 `~/Desktop/work-summary.elw.json` **已失效**——旧注册表条目已删；请改用任一现有能力导出后再导入，或直接导入 `text-stats` 导出的包）。
 
 ## V2（中期）
 
@@ -51,3 +53,4 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 - 2026-08-21 阶段 3/3b：Vue 3 前端 + Tauri 壳，四 IPC 命令，浏览器/桌面双适配 bridge。
 - 2026-08-21 阶段 4：CI 六 job 三平台、release.yml tag 发版、dmg + msi，v0.1.0 上 GitHub Release。
 - 2026-08-22 增强：`ew config` 四档 LLM 配置链、能力导入/导出（CLI）、更新检查按钮、3 个通用脚本（doc-keyword-search / xlsx-to-md / docx-to-md）、msi CI 打包（WiX 重名基文件修复）。
+- 2026-08-22 注册表精简：内置注册表从 24 条种子清单改为 3 条真实示例（text-stats / capability-types / weekly-report），个人能力全面转向用户叠加层 `~/.elwright/`；旧脚本/SOP/知识文档移除，「公司机原版批量导入」计划作废。
