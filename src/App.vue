@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import LlmSettings from './components/LlmSettings.vue'
+import TerminalPanel from './components/TerminalPanel.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
 
 const bridge: Bridge = createBridge()
@@ -12,6 +13,9 @@ const filter = ref<'all' | 'script' | 'knowledge' | 'skill'>('all')
 const search = ref('')
 const selectedId = ref('')
 const showLlmSettings = ref(false)
+const terminalRef = ref<InstanceType<typeof import('./components/TerminalPanel.vue').default> | null>(null)
+// 应用 cwd：浏览器预览用空字符串，桌面用 process.cwd()（简单做法）
+const cwd = ref('')
 
 // 能力导入/删除的反馈（toast 式，几秒后自动消失）
 const opMsg = ref('')
@@ -163,5 +167,7 @@ function select(id: string) {
     </main>
 
     <LlmSettings v-if="showLlmSettings" :bridge="bridge" @close="showLlmSettings = false" />
+
+    <TerminalPanel ref="terminalRef" :bridge="bridge" :cwd="cwd" />
   </div>
 </template>

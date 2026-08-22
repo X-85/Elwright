@@ -79,6 +79,24 @@ async function onInvoke() {
   }
 }
 
+/// 「在终端中运行」：拼出与 `ew run <id>` 等价的命令字符串，触发全局 terminalPanel
+async function onRunInTerminal() {
+  const win = window as unknown as { __elwrightTerminal?: { run: (cmd: string) => void } }
+  const runner = win.__elwrightTerminal
+  if (!runner) {
+    emit('notify', '终端面板未就绪', false)
+    return
+  }
+  const args = runArgs.value.trim()
+  // 与 ew run 等价的命令：假设 terminal cwd 与 elwright 资源目录同级；
+  // 这里直接以 entry 路径调用 python3 / bash 等，依赖 PATH 解释器探测（与 CLI 一致）
+  const cmd = `${props.cap.id} ${args}`.trim()
+  // 用 capability id 触发：TerminalPanel 收到后用 `ew run <id> [args]` 调用
+  // —— 这样跨平台一致（不依赖终端解释器）
+  // 更稳的写法：直接以 `ew` 二进制名调用，由 PATH 解析
+  runner.run(`ew run ${cmd}`)
+}
+
 function renderMd(text: string): string {
   return marked.parse(text, { async: false }) as string
 }
@@ -109,6 +127,13 @@ function renderMd(text: string): string {
       <div class="action-row">
         <input v-model="runArgs" class="search" placeholder="脚本参数（空格分隔）…" />
         <button class="primary" :disabled="busy" @click="onRun">▶ 运行</button>
+        <button
+          v-if="bridge.kind === 'tauri' && cap.entry"
+          class="terminal-btn"
+          :disabled="busy"
+          :title="`在集成终端中执行：${cap.entry}${runArgs.trim() ? ' ' + runArgs.trim() : ''}`"
+          @click="onRunInTerminal"
+        >⌨ 在终端中运行</button>
       </div>
       <pre v-if="runResult" class="output">{{ runResult.output }}</pre>
     </template>

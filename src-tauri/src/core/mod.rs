@@ -4,4 +4,5 @@ pub mod export;
 pub mod invoke;
 pub mod llm;
 pub mod registry;
+pub mod terminal;
 pub mod version;

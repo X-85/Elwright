@@ -1,12 +1,15 @@
-use elwright_core::core::{executor, export, invoke, llm, registry, version};
+use elwright_core::core::{executor, export, invoke, llm, registry, terminal, version};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
+use tauri::ipc::Channel;
 use tauri::Manager;
 
 // setup 期解析一次（含 bundle 资源目录探测），IPC 命令复用
 static ROOT: OnceLock<PathBuf> = OnceLock::new();
+// 终端 session 注册表（setup 期创建）
+static TERMINAL: OnceLock<Arc<terminal::SessionRegistry>> = OnceLock::new();
 
 #[derive(Serialize)]
 struct ViewDocResult {
@@ -248,7 +251,22 @@ fn main() {
                 .map_err(|e| format!("定位资源目录失败: {}", e))?;
             let root = registry::resolve_root(&[resource_dir]);
             let _ = ROOT.set(root);
+
+            // 终端注册表（LocalBackend）：跨进程保持
+            let backend: terminal::SharedBackend = Arc::new(terminal::LocalBackend::new());
+            let registry = terminal::SessionRegistry::new(backend);
+            let _ = TERMINAL.set(registry);
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // 关闭主窗口时 kill 所有终端 session
+                if let Some(reg) = TERMINAL.get() {
+                    reg.kill_all();
+                }
+                let _ = window; // 保留参数语义
+            }
         })
         .invoke_handler(tauri::generate_handler![
             list_capabilities,
@@ -261,8 +279,66 @@ fn main() {
             delete_capability,
             get_llm_config,
             set_llm_config,
-            test_llm_connection
+            test_llm_connection,
+            terminal_open,
+            terminal_write,
+            terminal_resize,
+            terminal_close
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");
+}
+
+// ---- 集成终端 IPC ----
+
+/// 打开新终端会话，返回 (id, channel)。
+/// 前端收到 channel 后立即 `channel.onmessage = (bytes) => term.writeBytes(...)`。
+#[tauri::command]
+async fn terminal_open(
+    cols: u16,
+    rows: u16,
+    cwd: Option<String>,
+    shell: Option<String>,
+    env: Option<Vec<(String, String)>>,
+) -> Result<(u64, Channel<Vec<u8>>), String> {
+    let reg = TERMINAL
+        .get()
+        .ok_or_else(|| "终端注册表未初始化".to_string())?;
+    let backend_shells = reg.default_shells();
+    let shell = shell
+        .or_else(|| backend_shells.into_iter().next())
+        .ok_or_else(|| "未配置默认 shell".to_string())?;
+    let cwd_path = cwd
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    let env = env.unwrap_or_default();
+    // Channel 单向用：on_message 是前端消息回调（v1 我们不接收前端消息，留 no-op）
+    let channel = Channel::new(|_body: tauri::ipc::InvokeResponseBody| Ok(()));
+    let id = reg.open(&shell, &cwd_path, cols, rows, &env, channel.clone())?;
+    Ok((id.0, channel))
+}
+
+#[tauri::command]
+fn terminal_write(id: u64, data: Vec<u8>) -> Result<(), String> {
+    let reg = TERMINAL
+        .get()
+        .ok_or_else(|| "终端注册表未初始化".to_string())?;
+    reg.write(terminal::SessionId(id), &data)
+}
+
+#[tauri::command]
+fn terminal_resize(id: u64, cols: u16, rows: u16) -> Result<(), String> {
+    let reg = TERMINAL
+        .get()
+        .ok_or_else(|| "终端注册表未初始化".to_string())?;
+    reg.resize(terminal::SessionId(id), cols, rows)
+}
+
+#[tauri::command]
+fn terminal_close(id: u64) -> Result<(), String> {
+    let reg = TERMINAL
+        .get()
+        .ok_or_else(|| "终端注册表未初始化".to_string())?;
+    reg.kill(terminal::SessionId(id));
+    Ok(())
 }

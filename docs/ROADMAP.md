@@ -15,7 +15,7 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 
 ## 进行中
 
-（无——2026-08-22 全量归档 15 个任务目录至 archive/，回到干净基线，等待新功能立项）
+- **集成终端 v1**（feature-2026-08-integrated-terminal）：底部抽屉 + 多 tab + 本地 shell + 「在终端中运行」联动。Rust 端 SessionRegistry + LocalBackend(portable-pty) + Tauri Channel 二进制流；前端 xterm.js (WebGL) + addon-fit。代码完成，**待真机端到端验证**（用户动作：双机分别跑一次 `npm run dev` + 桌面构建，验证 PTY 启动/WebGL 渲染/resize/「在终端中运行」）。
 
 ## V1（短期，做完即发版）
 

@@ -56,6 +56,26 @@ export interface LlmConfigInfo {
   userConfigPath?: string
 }
 
+/**
+ * 前端可见的终端会话抽象。
+ * - `onData`：Rust 通过 Tauri Channel 推送的 PTY 输出（已 flush 的批次）
+ * - `write`：用户按键回写 PTY
+ * - `close`：关闭并回收会话
+ */
+export interface TerminalSession {
+  readonly id: number
+  /** 关闭会话（幂等） */
+  close(): Promise<void>
+  /** 写入 PTY（按键或命令字符串） */
+  write(data: string | Uint8Array): Promise<void>
+  /** 通知后端窗口尺寸变化 */
+  resize(cols: number, rows: number): Promise<void>
+  /** 监听后端推送的输出 bytes */
+  onOutput(handler: (bytes: Uint8Array) => void): () => void
+  /** 监听会话结束（PTY EOF） */
+  onExit(handler: () => void): () => void
+}
+
 export interface Bridge {
   readonly kind: 'browser' | 'tauri'
   listCapabilities(): Promise<Capability[]>
@@ -76,6 +96,14 @@ export interface Bridge {
   setLlmConfig(baseUrl: string, apiKey: string | null, model: string): Promise<LlmConfigInfo>
   /** 用表单当前值测试连接（未保存也可测）。 */
   testLlmConnection(baseUrl: string, apiKey: string, model: string): Promise<string>
+  /**
+   * 打开一个新终端会话。返回一个 TerminalSession：
+   * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
+   * - `write` 写入按键/命令
+   * - `close` 关闭会话
+   * 仅桌面模式可用；浏览器预览模式直接抛错（与现有 import/export 保持一致）。
+   */
+  openTerminal(options?: { cwd?: string; shell?: string }): Promise<TerminalSession>
 }
 
 const browserBridge: Bridge = {
@@ -197,6 +225,12 @@ const browserBridge: Bridge = {
     })
     if (!res.ok) throw new Error(`端点返回 HTTP ${res.status}：${(await res.text()).slice(0, 300)}`)
     return '连接正常（浏览器直连测试）'
+  },
+
+  async openTerminal() {
+    throw new Error(
+      '【预览模式】浏览器无法启动 PTY。\n真实终端请用桌面应用。',
+    )
   },
 }
 
@@ -336,6 +370,69 @@ const tauriBridge: Bridge = {
 
   async testLlmConnection(baseUrl, apiKey, model) {
     return tauriInvoke<string>('test_llm_connection', { baseUrl, apiKey, model })
+  },
+
+  async openTerminal(options) {
+    const { Channel } = await import('@tauri-apps/api/core')
+    const channel = new Channel<number[]>()
+    let onOutput: ((bytes: Uint8Array) => void) | null = null
+    let onExit: (() => void) | null = null
+    let closed = false
+    channel.onmessage = (raw) => {
+      const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw)
+      // 后端在 PTY 关闭时不再 send bytes，但仍要触发 exit
+      onOutput?.(bytes)
+    }
+    // cols/rows 由前端 xterm.js 提供初值，IPC 返回 id 后前端会立即 resize
+    const cols = 80
+    const rows = 24
+    const id = await tauriInvoke<number>('terminal_open', {
+      cols,
+      rows,
+      cwd: options?.cwd ?? null,
+      shell: options?.shell ?? null,
+      env: null,
+      channel,
+    })
+    const session: TerminalSession = {
+      id,
+      async close() {
+        if (closed) return
+        closed = true
+        try {
+          await tauriInvoke('terminal_close', { id })
+        } catch {
+          // best-effort
+        }
+        onExit?.()
+      },
+      async write(data) {
+        if (closed) throw new Error('终端会话已关闭')
+        const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
+        await tauriInvoke('terminal_write', { id, data: Array.from(bytes) })
+      },
+      async resize(c, r) {
+        if (closed) return
+        try {
+          await tauriInvoke('terminal_resize', { id, cols: c, rows: r })
+        } catch {
+          // ignore: PTY 已退出
+        }
+      },
+      onOutput(handler) {
+        onOutput = handler
+        return () => {
+          if (onOutput === handler) onOutput = null
+        }
+      },
+      onExit(handler) {
+        onExit = handler
+        return () => {
+          if (onExit === handler) onExit = null
+        }
+      },
+    }
+    return session
   },
 }
 
