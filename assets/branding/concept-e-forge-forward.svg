@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- 第四轮定稿概念 v2：E 骨架 + Codex 式锐角 > 中横
-       上下横杠/左立柱 = 离线核心地基；> = 注入的前进动力 -->
-  <rect width="1024" height="1024" fill="#ffffff"/>
-  <g fill="#111111">
-    <path d="M256 256 H784 V356 H256 Z"/>
-    <path d="M256 256 H356 V768 H256 Z"/>
-    <path d="M256 668 H784 V768 H256 Z"/>
-    <path d="M356 380 L700 484 L736 512 L700 540 L356 644 L356 548 L572 512 L356 476 Z"/>
+  <!-- 第五轮定稿：单字母 E（学 ZCode 手法：黑底挖白字）
+       粗几何无衬线 E，居中，约 48%×42% 画面占比 -->
+  <rect width="1024" height="1024" fill="#0d0d0d"/>
+  <g fill="#f5f5f5">
+    <path d="M264 296 H760 V400 H264 Z"/>
+    <path d="M264 296 H368 V728 H264 Z"/>
+    <path d="M264 624 H760 V728 H264 Z"/>
+    <path d="M264 460 H672 V564 H264 Z"/>
   </g>
 </svg>

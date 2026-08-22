@@ -46,3 +46,27 @@
 - `app-icon.svg` → 渲染 `src-tauri/app-icon.png`（暖纸底）→ `tauri icon` 全平台尺寸
 
 应用图标配色：暖纸底 `#f2efe8`、石墨 `#1e2833`、能量青渐变 `#2fb8a6 → #0e7f8c`。
+
+## 第五轮定稿（单字母 E，学 ZCode 手法）
+
+用户反馈 E+`>` 复合方案仍不够干净，提出参考 ZCode 图标：ZCode 就是一个 Z，Elwright 主要用一个 E。
+
+分析 ZCode 图标（`/Applications/ZCode.app/Contents/Resources/icon.png`，1024×1024）：
+
+- 纯黑满铺方底（`#000` 88% 占比），系统显示时套 squircle 圆角
+- 白色字母作**负空间**挖出（黑底白字）
+- 粗几何无衬线，单笔画宽度
+- 字母占画面约 48% 宽 × 42% 高，居中
+
+定稿 `concept-e-forge-forward.svg` 与正式三版本，完全照 ZCode 手法做 Elwright 的 E：
+
+- 黑底 `#0d0d0d` + 白 E `#f5f5f5`（负空间）
+- E 四笔等粗（~10.4% 画面高），中横略短于上下杠（经典 E 比例）
+- 占画面 48%×42%，居中
+- 彩色版：黑底白 E + 中横青渐变（`#2fb8a6→#0e7f8c`）= LLM 增强注入中横
+
+正式产出（`assets/branding/`）：
+
+- `elwright-mark.svg` — 黑底白 E，主版本（ZCode 式）
+- `elwright-mark-light.svg` — 白底黑 E，浅色背景用
+- `elwright-mark-color.svg` — 黑底白 E + 青色中横

@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Elwright 标识 · v2 单色主版本
-       E 骨架（上横杠/左立柱/下横杠）= 离线核心地基
-       中横替换为 Codex 式锐角 > = 注入的前进动力（LLM 是增强不是地基）
-       尖端为锐利单点，两臂等粗，干净利落 -->
-  <rect width="1024" height="1024" fill="#ffffff"/>
-  <g fill="#111111">
-    <path d="M256 256 H784 V356 H256 Z"/>
-    <path d="M256 256 H356 V768 H256 Z"/>
-    <path d="M256 668 H784 V768 H256 Z"/>
-    <path d="M356 380 L700 484 L736 512 L700 540 L356 644 L356 548 L572 512 L356 476 Z"/>
+  <!-- Elwright 标识 · v3 单字母 E（学 ZCode 手法：黑底挖白字）
+       纯黑满铺 + 白色 E 负空间，粗几何无衬线，居中 -->
+  <rect width="1024" height="1024" fill="#0a0a0a"/>
+  <g fill="#f5f5f5">
+    <path d="M264 296 H760 V400 H264 Z"/>
+    <path d="M264 296 H368 V728 H264 Z"/>
+    <path d="M264 624 H760 V728 H264 Z"/>
+    <path d="M264 460 H672 V564 H264 Z"/>
   </g>
 </svg>
