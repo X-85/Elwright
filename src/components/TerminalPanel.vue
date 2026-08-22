@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TerminalView from './TerminalView.vue'
 import type { Bridge, TerminalSession } from '../lib/bridge'
 
@@ -100,10 +100,17 @@ async function runCommand(command: string) {
 
 defineExpose({ openTab, runCommand })
 
-// 暴露一个全局事件让外部触发（CapabilityDetail 联动）
-;(window as unknown as { __elwrightTerminal?: { run: (cmd: string) => void } }).__elwrightTerminal = {
-  run: (cmd) => runCommand(cmd),
-}
+// 把面板的 runCommand 暴露给外部组件（CapabilityDetail 联动）。
+// 通过 window 全局，避免 prop drilling；HMR 重载时 onBeforeUnmount 清理旧引用。
+onMounted(() => {
+  ;(window as unknown as { __elwrightTerminal?: { run: (cmd: string) => void } }).__elwrightTerminal = {
+    run: (cmd) => runCommand(cmd),
+  }
+})
+onBeforeUnmount(() => {
+  const w = window as unknown as { __elwrightTerminal?: { run: (cmd: string) => void } }
+  if (w.__elwrightTerminal) w.__elwrightTerminal = undefined
+})
 </script>
 
 <template>

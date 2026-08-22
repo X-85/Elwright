@@ -43,6 +43,16 @@ xterm.js + addons 整包约 500kB，符合预期（VS Code 同样量级；后续
 > 5. CapabilityDetail 选一个 script → 点「⌨ 在终端中运行」→ 新 tab 自动跑 `ew run <id>`
 > 6. 关闭应用主窗口 → 所有 tab 被 kill（无残留进程）
 
+### 自动化 GUI 验证尝试（2026-08-22，home Mac）
+
+用 `cargo run --bin elwright` + `npm run dev` 起干净实例（单一进程确认：截图 elwright-shot14.png 显示 3 个能力，无重复实例），抽屉 header `▲ + 新建` 渲染正确；`▲` 与 `+ 新建` 按钮在 y≈1015 行可见。
+
+随后用 cliclick 点击 `+ 新建`，**macOS 焦点被切到 Finder 而不是 elwright webview**（顶部菜单变成中文 Finder 菜单）——这是当前 zcode 沙盒 AX/屏幕录制权限不完整导致的：cliclick 通过 Quartz Event Services 派发 mouse-down，能击中 elwright 几何坐标但不能保证 webview 拿到 focus。多次 osascript `set frontmost of process "elwright" to true` + screencapture 复测未改善。
+
+**结论**：
+- 核心通路（PTY spawn / 16ms 批 flush / 多 session 隔离 / kill_all）由 `cargo test --lib` 29 个测试覆盖，包含真实 PTY 端到端 `spawn_produces_expected_output`
+- GUI 端"开 tab / 输入命令 / 多 tab 切换 / 在终端中运行 capability"清单需要用户在自家 macOS（已授权 AX/屏幕录制）上点一次确认；或后续接入 Playwright + WebDriver 控制 webview（超出本 PR 范围）
+
 ## 已知限制（v1）
 
 - Windows 用户需 Win10 1809+ 才有 ConPTY（portable-pty 自动选；旧版无解）
