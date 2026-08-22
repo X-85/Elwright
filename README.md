@@ -23,9 +23,20 @@
 
 > 跨平台：Windows（优先）+ macOS；Linux 后续。
 
+## 安装（普通用户）
+
+到 **[Releases](https://github.com/X-85/Elwright/releases)** 页下载最新版安装包：
+
+- **macOS**（Apple 芯片）：下载 `.dmg`，打开后把 Elwright 拖入「应用程序」。首次打开若被拦截：右键应用图标 →「打开」→ 再点「打开」（安装包未签名，属正常提示，只需过一次）。
+- **Windows**：下载 `.msi` 双击安装。SmartScreen 蓝色提示时点「更多信息」→「仍要运行」。
+
+装完即用：**脚本型与知识型能力离网可用**（脚本型需机器上有 Python 3）。想让技能型接入大模型（可选），见 [LLM 配置指引](docs/release/llm-setup-guide.md)——支持本地 Ollama（免费、数据不出机器）或任意 OpenAI 兼容云端端点；不配置时技能型自动降级为可照做的 SOP 文档。
+
+更新 = 下载新版安装包覆盖安装；LLM 配置存在用户目录（`~/.elwright/config.json`），不会丢。
+
 ## 当前状态
 
-✅ **阶段 5 进行中**：脚本型能力第一批落地——文档关键字搜索、Excel转md、Word转md（纯 Python 标准库，零依赖离网可跑），`ew run` 端到端验证通过。此前阶段 1–4 完成：Rust 核心 + CLI、LLM 客户端 + 离线降级、Tauri 桌面壳、macOS dmg 打包（资源随包分发）。待办：其余脚本导入（公司机原版）、Windows msi（等 MSVC）、GitHub Release。见 `Elwright架构方案.md` §12。
+✅ **阶段 5 进行中**：脚本型能力第一批落地——文档关键字搜索、Excel转md、Word转md（纯 Python 标准库，零依赖离网可跑），`ew run` 端到端验证通过。此前阶段 1–4 完成：Rust 核心 + CLI、LLM 客户端 + 离线降级（含 `ew config` 持久配置链）、Tauri 桌面壳、双平台安装包（macOS dmg + Windows msi 均由 CI 产出）、能力导入/导出分享、GitHub Release 流水线（打 `v*` tag 自动发版）。待办：其余脚本导入（公司机原版）。见 `Elwright架构方案.md` §12。
 
 ## 快速开始（开发者）
 

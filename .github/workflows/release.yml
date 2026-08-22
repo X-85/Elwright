@@ -1,0 +1,116 @@
+name: Release
+
+# 打 v* tag 触发：双平台构建安装包并发布 GitHub Release。
+# 版本号三处同步（src-tauri/Cargo.toml / tauri.conf.json / src/package.json），
+# tag 名必须与之一致（如 v0.1.0 ↔ 0.1.0），msi/dmg 文件名自带版本号。
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  dmg:
+    name: Build macOS dmg
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: npm ci (frontend deps incl. tauri-cli)
+        working-directory: src
+        run: npm ci
+
+      # dmg 的 AppleScript 美化偶发 Finder 超时（-1712），重试即过
+      - name: tauri build (dmg)
+        working-directory: src-tauri
+        run: ../src/node_modules/.bin/tauri build --bundles dmg || ../src/node_modules/.bin/tauri build --bundles dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-dmg
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  msi:
+    name: Build Windows msi
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: npm ci (frontend deps incl. tauri-cli)
+        working-directory: src
+        run: npm ci
+
+      # 失败时把日志尾部转成 error annotation（公开可读的诊断通道，见
+      # docs/work/active/enhancement-2026-08-windows-msi-ci/verification.md）
+      - name: tauri build (msi)
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          set +e
+          ../src/node_modules/.bin/tauri build --bundles msi > build.log 2>&1
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            tail -n 50 build.log | sed 's/\r$//' | grep -v '^$' | while IFS= read -r l; do echo "::error::$l"; done
+            exit $rc
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-msi
+          path: src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [dmg, msi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-macos-dmg
+          path: dist-macos
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-windows-msi
+          path: dist-windows
+
+      # 自动生成 release notes（基于 commits/PRs）；产物未签名，
+      # 首次打开的 Gatekeeper/SmartScreen 提示在 README 安装节说明
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-macos/*.dmg
+            dist-windows/*.msi
+          generate_release_notes: true
