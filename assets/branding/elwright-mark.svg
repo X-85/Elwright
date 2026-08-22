@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Elwright 标识 · 单色主版本
+       E 骨架（上横杠/左立柱/下横杠）= 离线核心地基
+       中横替换为带缺口的向右折角 = 注入的前进动力（LLM 是增强不是地基）
+       右侧四角星 = El（星/光） -->
+  <rect width="1024" height="1024" fill="#ffffff"/>
+  <g fill="#111111" transform="translate(-60 0)">
+    <path d="M232 232 H792 V348 H232 Z"/>
+    <path d="M232 232 H348 V792 H232 Z"/>
+    <path d="M232 676 H792 V792 H232 Z"/>
+    <path d="M348 396 L716 466 L690 512 L716 558 L348 628 L348 524 L560 512 L348 500 Z"/>
+    <path d="M858 458 L874 496 L912 512 L874 528 L858 566 L842 528 L804 512 L842 496 Z"/>
+  </g>
+</svg>

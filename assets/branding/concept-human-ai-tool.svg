@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="184" fill="#17383b"/>
+  <!-- 人：E 的上部，代表人的经验、想法和潜能。 -->
+  <path fill="none" stroke="#e7f4ed" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" d="M300 232h424M300 232v280"/>
+  <!-- AI：中间横线作为连接人与工具的增强层。 -->
+  <path fill="none" stroke="#64c7b2" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" d="M300 512h292"/>
+  <!-- 工具：共享左侧竖笔后形成 L，代表落地执行。 -->
+  <path fill="none" stroke="#edb85c" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" d="M300 512v280h424"/>
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="184" fill="#17383b"/>
+
+  <!-- A complete E keeps the primary brand shape clear at small sizes. -->
+  <path
+    fill="none"
+    stroke="#e7f4ed"
+    stroke-width="112"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M300 232h424M300 232v560M300 512h424M300 792h424"
+  />
+
+  <!-- The terminal prompt is an inset detail, not a replacement for E's structure. -->
+  <path
+    fill="none"
+    stroke="#17383b"
+    stroke-width="54"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M474 468l70 44-70 44"
+  />
+  <path
+    fill="none"
+    stroke="#64c7b2"
+    stroke-width="28"
+    stroke-linecap="round"
+    d="M586 556h104"
+  />
+</svg>

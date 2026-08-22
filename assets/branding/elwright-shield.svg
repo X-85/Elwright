@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="shield" x1="210" y1="150" x2="814" y2="890" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64c7b2"/>
+      <stop offset="1" stop-color="#2494a7"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="523" y1="300" x2="523" y2="745" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe39a"/>
+      <stop offset="1" stop-color="#edb85c"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#shield)" d="M512 118 824 222v250c0 207-123 350-312 434-189-84-312-227-312-434V222z"/>
+  <path fill="#17383b" d="M512 187 754 268v202c0 161-91 275-242 351-151-76-242-190-242-351V268z"/>
+  <path fill="#e7f4ed" d="M331 302h311v74H408v91h204v73H408v96h244v74H331z"/>
+  <path fill="url(#beam)" d="m557 273 104 0-75 177h76L452 749l57-196h-79z"/>
+  <circle cx="391" cy="802" r="18" fill="#edb85c"/>
+  <circle cx="512" cy="838" r="18" fill="#edb85c"/>
+  <circle cx="633" cy="802" r="18" fill="#edb85c"/>
+  <path fill="none" stroke="#edb85c" stroke-width="10" d="m391 802 121 36 121-36"/>
+</svg>

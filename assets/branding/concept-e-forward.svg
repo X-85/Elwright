@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="184" fill="#17383b"/>
+
+  <!-- A reduced, forward-moving E: two rails and a pair of balanced diagonals. -->
+  <g fill="none" stroke="#e7f4ed" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="92" d="M238 254h548"/>
+    <path stroke-width="108" d="M252 354l258 158-258 158"/>
+    <path stroke-width="92" d="M238 770h502l86-34"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1660 520">
+  <g transform="translate(30 18) scale(.47)">
+    <path fill="#64c7b2" d="M512 118 824 222v250c0 207-123 350-312 434-189-84-312-227-312-434V222z"/>
+    <path fill="#17383b" d="M512 187 754 268v202c0 161-91 275-242 351-151-76-242-190-242-351V268z"/>
+    <path fill="#e7f4ed" d="M331 302h311v74H408v91h204v73H408v96h244v74H331z"/>
+    <path fill="#edb85c" d="m557 273 104 0-75 177h76L452 749l57-196h-79z"/>
+    <circle cx="391" cy="802" r="18" fill="#edb85c"/><circle cx="512" cy="838" r="18" fill="#edb85c"/><circle cx="633" cy="802" r="18" fill="#edb85c"/>
+    <path fill="none" stroke="#edb85c" stroke-width="10" d="m391 802 121 36 121-36"/>
+  </g>
+  <text x="480" y="322" fill="#17383b" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="170" font-weight="700" letter-spacing="2">Elwright</text>
+</svg>
