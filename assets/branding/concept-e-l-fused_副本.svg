@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="184" fill="#17383b"/>
+  <!-- E upper structure; its left stem continues directly into the L. -->
+  <path fill="none" stroke="#e7f4ed" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" d="M300 232h424M300 232v280M300 512h292"/>
+  <!-- Shared left stem and bottom bar form the embedded L. -->
+  <path fill="none" stroke="#edb85c" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" d="M300 512v280h424"/>
+</svg>
