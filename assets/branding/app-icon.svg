@@ -1,19 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Elwright 应用图标源：暖纸底 + 石墨 E 骨架 + 青色能量（tauri icon 用此渲染 1024 png） -->
+  <!-- Elwright 应用图标源 v2：暖纸底 + 石墨 E 骨架 + 青色 > 能量 -->
   <defs>
-    <linearGradient id="elw-energy" x1="348" y1="512" x2="912" y2="512" gradientUnits="userSpaceOnUse">
+    <linearGradient id="elw-energy" x1="356" y1="512" x2="736" y2="512" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2fb8a6"/>
       <stop offset="1" stop-color="#0e7f8c"/>
     </linearGradient>
   </defs>
   <rect width="1024" height="1024" fill="#f2efe8"/>
-  <g transform="translate(-60 0)">
-    <g fill="#1e2833">
-      <path d="M232 232 H792 V348 H232 Z"/>
-      <path d="M232 232 H348 V792 H232 Z"/>
-      <path d="M232 676 H792 V792 H232 Z"/>
-    </g>
-    <path fill="url(#elw-energy)" d="M348 396 L716 466 L690 512 L716 558 L348 628 L348 524 L560 512 L348 500 Z"/>
-    <path fill="url(#elw-energy)" d="M858 458 L874 496 L912 512 L874 528 L858 566 L842 528 L804 512 L842 496 Z"/>
+  <g fill="#1e2833">
+    <path d="M256 256 H784 V356 H256 Z"/>
+    <path d="M256 256 H356 V768 H256 Z"/>
+    <path d="M256 668 H784 V768 H256 Z"/>
   </g>
+  <path fill="url(#elw-energy)" d="M356 380 L700 484 L736 512 L700 540 L356 644 L356 548 L572 512 L356 476 Z"/>
 </svg>
