@@ -46,6 +46,16 @@ export interface ImportResult {
   conflict?: boolean
 }
 
+/** LLM 配置生效视图（api_key 打码，不回传明文） */
+export interface LlmConfigInfo {
+  baseUrl: string
+  model: string
+  apiKeyMasked: string
+  /** 每字段来源标签：[baseUrl, apiKey, model] */
+  source: [string, string, string]
+  userConfigPath?: string
+}
+
 export interface Bridge {
   readonly kind: 'browser' | 'tauri'
   listCapabilities(): Promise<Capability[]>
@@ -60,6 +70,12 @@ export interface Bridge {
   exportCapability(cap: Capability): Promise<ImportResult>
   /** 删除自定义能力（内置不可删）。 */
   deleteCapability(cap: Capability): Promise<ImportResult>
+  /** 读取 LLM 配置生效视图（api_key 打码）。 */
+  getLlmConfig(): Promise<LlmConfigInfo>
+  /** 保存到用户层 ~/.elwright/config.json。apiKey=null 保留现值，空串=清除。 */
+  setLlmConfig(baseUrl: string, apiKey: string | null, model: string): Promise<LlmConfigInfo>
+  /** 用表单当前值测试连接（未保存也可测）。 */
+  testLlmConnection(baseUrl: string, apiKey: string, model: string): Promise<string>
 }
 
 const browserBridge: Bridge = {
@@ -156,6 +172,31 @@ const browserBridge: Bridge = {
       ok: false,
       message: '【预览模式】浏览器无法删除用户叠加层条目。\n真实删除请用桌面应用或 CLI：ew delete <id>',
     }
+  },
+
+  // 浏览器无法读用户主目录的配置文件；真实读写走桌面壳 IPC 或 CLI：ew config
+  async getLlmConfig() {
+    throw new Error('【预览模式】浏览器无法读取用户配置。\n真实配置请用桌面应用的「模型设置」或 CLI：ew config')
+  },
+
+  async setLlmConfig() {
+    throw new Error('【预览模式】浏览器无法写入用户配置。\n真实配置请用桌面应用的「模型设置」或 CLI：ew config set')
+  },  async testLlmConnection(_baseUrl: string, _apiKey: string, _model: string) {
+    // 连接测试本质是普通 HTTP POST，浏览器可直接发（CORS 由端点决定）
+    const res = await fetch(`${_baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(_apiKey ? { Authorization: `Bearer ${_apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: _model,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 1,
+      }),
+    })
+    if (!res.ok) throw new Error(`端点返回 HTTP ${res.status}：${(await res.text()).slice(0, 300)}`)
+    return '连接正常（浏览器直连测试）'
   },
 }
 
@@ -256,6 +297,45 @@ const tauriBridge: Bridge = {
     } catch (error) {
       return { ok: false, message: messageOf(error) }
     }
+  },
+
+  async getLlmConfig() {
+    const raw = await tauriInvoke<Record<string, unknown>>('get_llm_config')
+    // Rust snake_case → 前端 camelCase
+    return {
+      baseUrl: String(raw.base_url ?? ''),
+      model: String(raw.model ?? ''),
+      apiKeyMasked: String(raw.api_key_masked ?? ''),
+      source: [
+        String(raw.source?.[0] ?? ''),
+        String(raw.source?.[1] ?? ''),
+        String(raw.source?.[2] ?? ''),
+      ],
+      userConfigPath: raw.user_config_path ? String(raw.user_config_path) : undefined,
+    }
+  },
+
+  async setLlmConfig(baseUrl: string, apiKey: string | null, model: string) {
+    const raw = await tauriInvoke<Record<string, unknown>>('set_llm_config', {
+      baseUrl,
+      apiKey, // null 序列化为 JSON null → Rust Option::None（保留现值）
+      model,
+    })
+    return {
+      baseUrl: String(raw.base_url ?? ''),
+      model: String(raw.model ?? ''),
+      apiKeyMasked: String(raw.api_key_masked ?? ''),
+      source: [
+        String(raw.source?.[0] ?? ''),
+        String(raw.source?.[1] ?? ''),
+        String(raw.source?.[2] ?? ''),
+      ],
+      userConfigPath: raw.user_config_path ? String(raw.user_config_path) : undefined,
+    }
+  },
+
+  async testLlmConnection(baseUrl, apiKey, model) {
+    return tauriInvoke<string>('test_llm_connection', { baseUrl, apiKey, model })
   },
 }
 

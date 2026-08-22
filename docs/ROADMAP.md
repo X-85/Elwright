@@ -16,6 +16,7 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 ## 进行中
 
 - **桌面端能力导入/导出/删除**（`feature-2026-08-desktop-import-export`）：用户叠加层 `~/.elwright/`，桌面壳读写自定义能力，app 更新不丢。v1 范围：单项导出、可删除自定义项、浏览器预览导出走 Blob 下载。**实现与本地验证已完成**，待 CI + 用户实机确认后归档。CLI 同步获得 `ew delete` 与合并视图（`ls` SRC 列）。
+- **桌面端模型设置**（`feature-2026-08-desktop-llm-settings`）：侧栏 ⚙ 弹层配置 LLM（base_url/model/api_key，key 打码、留空不改）、测试连接、invoke 降级引导链接。写用户层与 `ew config` 互通。**实现与本地验证已完成**，待 CI + 用户实机配真实端点确认后归档。
 
 ## V1（短期，做完即发版）
 

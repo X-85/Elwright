@@ -1,5 +1,12 @@
 # 变更记录
 
+## 2026-08-22（桌面端模型设置）
+
+- 侧栏「⚙ 模型设置」弹层：base_url / model / api_key 三字段（key 打码显示、留空=不修改已存值），每字段显示生效来源标签，保存写入用户层 `~/.elwright/config.json`（与 `ew config` 互通）。
+- 「测试连接」：用表单当前值发 max_tokens=1 最小请求，未保存也可测；成功/失败均给中文提示。
+- 技能型调用降级横幅新增「去配置模型 →」引导链接，一键打开设置弹层。
+- core/llm.rs：`LlmConfigView`（打码视图）、`set_user_config`（字段级合并，空值=清除）、`test_connection`、`read_user_api_key`（key 保留语义）；`user_config_path` 支持 `ELWRIGHT_USER_ROOT`。
+
 ## 2026-08-22（能力导入/导出/删除）
 
 - 新增用户叠加层（overlay）`~/.elwright/{capabilities.json,resources/}`：桌面壳与 CLI 共享合并视图，同 id 用户条目遮蔽内置；文件解析双根（overlay 优先回退 bundle）。app 更新只动 bundle，用户导入的能力不丢，Windows 亦无 Program Files 写权限问题。

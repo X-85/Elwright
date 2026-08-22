@@ -17,7 +17,11 @@ pub struct LlmConfig {
 }
 
 /// 用户级配置文件路径（`~/.elwright/config.json`；Windows 用 USERPROFILE）。
+/// `ELWRIGHT_USER_ROOT` 可覆盖（与叠加层同开关，测试/排障用）。
 pub fn user_config_path() -> Option<PathBuf> {
+    if let Ok(custom) = std::env::var("ELWRIGHT_USER_ROOT") {
+        return Some(PathBuf::from(custom).join("config.json"));
+    }
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(|h| PathBuf::from(h).join(".elwright").join("config.json"))
@@ -87,6 +91,125 @@ impl ConfigLayers {
 #[derive(Debug, Default)]
 pub struct LlmClient {
     pub config: LlmConfig,
+}
+
+/// LLM 配置的生效视图：合并结果 + 每字段来源标签 + 用户层原文。
+/// 桌面设置界面与 `ew config` 共用；api_key 下发前打码（不回传明文）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LlmConfigView {
+    pub base_url: String,
+    pub model: String,
+    pub api_key_masked: String,
+    /// 每字段来源标签：[base_url, api_key, model]
+    pub source: [String; 3],
+    /// 用户层文件路径（保存时写这里；None = 找不到主目录）
+    pub user_config_path: Option<String>,
+}
+
+/// api_key 显示打码：保留前 4 位，短值全遮。
+fn mask_key(key: &str) -> String {
+    if key.is_empty() {
+        String::new()
+    } else if key.chars().count() > 8 {
+        let head: String = key.chars().take(4).collect();
+        format!("{}****", head)
+    } else {
+        "****".to_string()
+    }
+}
+
+impl ConfigLayers {
+    /// 汇总为下发视图（api_key 打码）。
+    pub fn view(&self) -> LlmConfigView {
+        let (cfg, source) = self.merged();
+        LlmConfigView {
+            base_url: cfg.base_url,
+            model: cfg.model,
+            api_key_masked: mask_key(&cfg.api_key),
+            source,
+            user_config_path: user_config_path().map(|p| p.display().to_string()),
+        }
+    }
+}
+
+/// 读用户层当前 api_key（明文，仅供「保存时保留现值」语义内部使用，不下发前端）。
+pub fn read_user_api_key() -> String {
+    user_config_path()
+        .and_then(|p| read_config_file(&p))
+        .map(|c| c.api_key)
+        .unwrap_or_default()
+}
+
+/// 保存到用户层 `~/.elwright/config.json`：字段级合并（空值 = 清除该字段），
+/// 保留文件里其他未知键。返回保存后的生效视图。
+/// 桌面设置界面与 `ew config set`（非 --local）共用同一落盘逻辑。
+pub fn set_user_config(base_url: &str, api_key: &str, model: &str) -> Result<(), String> {
+    let path = user_config_path().ok_or("无法定位用户主目录")?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建目录 {} 失败: {}", parent.display(), e))?;
+    }
+    let mut value: serde_json::Map<String, serde_json::Value> = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default();
+    for (key, new) in [("base_url", base_url), ("api_key", api_key), ("model", model)] {
+        if new.is_empty() {
+            value.remove(key);
+        } else {
+            value.insert(key.to_string(), serde_json::Value::String(new.to_string()));
+        }
+    }
+    let text = serde_json::to_string_pretty(&value)
+        .map_err(|e| format!("序列化配置失败: {}", e))?;
+    std::fs::write(&path, text + "\n")
+        .map_err(|e| format!("写入 {} 失败: {}", path.display(), e))?;
+    Ok(())
+}
+
+/// 连接测试：向 base_url 发一条 1 token 上限的最小请求。
+/// 走完整鉴权与响应解析，能真实反映 invoke 是否可用。
+pub fn test_connection(base_url: &str, api_key: &str, model: &str) -> Result<String, String> {
+    // 最小请求：max_tokens=1 + 一字提示，探测成本最低
+    let url = chat_url(base_url);
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": "ping"}],
+        "max_tokens": 1,
+    });
+    let http = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+    let mut req = http.post(&url).json(&body);
+    if !api_key.is_empty() {
+        req = req.bearer_auth(api_key);
+    }
+    let resp = req
+        .send()
+        .map_err(|e| format!("无法连接 {}: {}", url, e))?;
+    let status = resp.status();
+    let text = resp.text().map_err(|e| format!("读取响应失败: {}", e))?;
+    if !status.is_success() {
+        return Err(format!(
+            "端点返回 {}: {}",
+            status.as_u16(),
+            truncate(&text, 300)
+        ));
+    }
+    // 只要求是合法 JSON 响应（choices 结构即可），不比对内容
+    #[derive(serde::Deserialize)]
+    struct AnyChat {
+        #[serde(default)]
+        choices: Vec<serde_json::Value>,
+    }
+    serde_json::from_str::<AnyChat>(&text)
+        .map(|c| if c.choices.is_empty() {
+            Err(format!("响应缺少 choices: {}", truncate(&text, 200)))
+        } else {
+            Ok(format!("连接正常（{}，model={}）", url, model))
+        })
+        .unwrap_or_else(|e| Err(format!("响应不是 OpenAI 兼容格式: {}（响应: {}）", e, truncate(&text, 200))))
 }
 
 /// Join a base_url (e.g. `http://localhost:11434/v1`) with the
@@ -184,8 +307,24 @@ fn truncate(s: &str, max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{chat_url, ConfigLayers, LlmConfig};
+    use super::{chat_url, mask_key, set_user_config, ConfigLayers, LlmConfig};
     use std::fs;
+    use std::path::PathBuf;
+    use std::sync::Mutex;
+
+    // set_user_config/user_config_path 读进程级环境变量，测试间需串行
+    static USER_ROOT_LOCK: Mutex<()> = Mutex::new(());
+
+    fn temp_user_root(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "elwright-usercfg-{}-{}",
+            tag,
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 
     #[test]
     fn joins_chat_completions_path() {
@@ -213,8 +352,9 @@ mod tests {
 
     #[test]
     fn merges_fieldwise_with_priority() {
+        let _guard = USER_ROOT_LOCK.lock().unwrap();
         // 清掉可能存在的环境变量，保证优先级测试不受宿主环境影响
-        for k in ["ELWRIGHT_LLM_BASE_URL", "ELWRIGHT_LLM_API_KEY", "ELWRIGHT_LLM_MODEL"] {
+        for k in ["ELWRIGHT_LLM_BASE_URL", "ELWRIGHT_LLM_API_KEY", "ELWRIGHT_LLM_MODEL", "ELWRIGHT_USER_ROOT"] {
             std::env::remove_var(k);
         }
         let dir = std::env::temp_dir().join(format!("elwright-cfg-{}", std::process::id()));
@@ -248,5 +388,64 @@ mod tests {
         assert_eq!(source2[0], "未设置");
         fs::remove_dir_all(&dir).ok();
         fs::remove_dir_all(&empty_dir).ok();
+    }
+
+    #[test]
+    fn set_user_config_merges_and_clears_fieldwise() {
+        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let root = temp_user_root("merge");
+        std::env::set_var("ELWRIGHT_USER_ROOT", &root);
+
+        // 首次保存三字段
+        set_user_config("http://llm:9/v1", "sk-12345678", "qwen3:8b").unwrap();
+        let first: LlmConfig =
+            serde_json::from_str(&fs::read_to_string(root.join("config.json")).unwrap()).unwrap();
+        assert_eq!(first.base_url, "http://llm:9/v1");
+        assert_eq!(first.api_key, "sk-12345678");
+        assert_eq!(first.model, "qwen3:8b");
+
+        // 第二次：空值 = 清除该字段；只保留 model 新值
+        set_user_config("", "", "gpt-4o-mini").unwrap();
+        let second: LlmConfig =
+            serde_json::from_str(&fs::read_to_string(root.join("config.json")).unwrap()).unwrap();
+        assert_eq!(second.base_url, "", "空值应清除字段");
+        assert!(second.api_key.is_empty());
+        assert_eq!(second.model, "gpt-4o-mini");
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn set_user_config_preserves_unknown_keys() {
+        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let root = temp_user_root("preserve");
+        std::env::set_var("ELWRIGHT_USER_ROOT", &root);
+        fs::write(
+            root.join("config.json"),
+            r#"{"base_url":"http://old:1/v1","custom_theme":"dark"}"#,
+        )
+        .unwrap();
+        set_user_config("http://new:2/v1", "", "").unwrap();
+        let text = fs::read_to_string(root.join("config.json")).unwrap();
+        assert!(text.contains("custom_theme"));
+        assert!(text.contains("http://new:2/v1"));
+        assert!(!text.contains("http://old:1/v1"));
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn view_masks_api_key() {
+        assert_eq!(mask_key(""), "");
+        assert_eq!(mask_key("short"), "****");
+        assert_eq!(mask_key("sk-1234567890"), "sk-1****");
+    }
+
+    #[test]
+    fn test_connection_reports_unreachable_in_chinese() {
+        // 端口几乎必然无人监听；只验证错误是中文可读的传输错误
+        let err = super::test_connection("http://127.0.0.1:1/v1", "", "m").unwrap_err();
+        assert!(err.contains("无法连接"), "实际: {}", err);
     }
 }

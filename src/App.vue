@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
+import LlmSettings from './components/LlmSettings.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
 
 const bridge: Bridge = createBridge()
@@ -10,6 +11,7 @@ const loadError = ref('')
 const filter = ref<'all' | 'script' | 'knowledge' | 'skill'>('all')
 const search = ref('')
 const selectedId = ref('')
+const showLlmSettings = ref(false)
 
 // 能力导入/删除的反馈（toast 式，几秒后自动消失）
 const opMsg = ref('')
@@ -117,7 +119,10 @@ function select(id: string) {
         </button>
       </nav>
       <input v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
-      <button class="import-btn" @click="importCapability()">＋ 导入能力…</button>
+      <div class="sidebar-row">
+        <button class="import-btn" @click="importCapability()">＋ 导入能力…</button>
+        <button class="import-btn settings-btn" @click="showLlmSettings = true">⚙ 模型设置</button>
+      </div>
       <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
       <transition name="fade">
         <p v-if="opMsg" :class="['op-toast', opOk ? 'op-ok' : 'op-err']">{{ opMsg }}</p>
@@ -152,8 +157,11 @@ function select(id: string) {
         :bridge="bridge"
         @notify="notify"
         @deleted="onDeleted"
+        @open-settings="showLlmSettings = true"
       />
       <div v-else-if="!loadError" class="placeholder">← 选择一项能力查看详情</div>
     </main>
+
+    <LlmSettings v-if="showLlmSettings" :bridge="bridge" @close="showLlmSettings = false" />
   </div>
 </template>

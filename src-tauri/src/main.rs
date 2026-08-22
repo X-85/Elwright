@@ -1,4 +1,4 @@
-use elwright_core::core::{executor, export, invoke, registry, version};
+use elwright_core::core::{executor, export, invoke, llm, registry, version};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -196,6 +196,47 @@ fn delete_capability(id: String) -> Result<String, String> {
     export::delete_capability(&overlay, &registry, &id)
 }
 
+// ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----
+
+#[tauri::command]
+fn get_llm_config() -> Result<llm::LlmConfigView, String> {
+    let registry = load_registry()?;
+    let layers = llm::ConfigLayers::collect(&registry.root, registry.llm_default.clone());
+    Ok(layers.view())
+}
+
+/// 保存到用户层 ~/.elwright/config.json。
+/// apiKey 语义：Some(v) 空串=清除、Some(v) 非空=写入、None=保留现值不改。
+/// 环境变量/项目层优先级更高，保存后视图可能仍显示被更高层覆盖的值。
+#[tauri::command]
+fn set_llm_config(
+    baseUrl: String,
+    apiKey: Option<String>,
+    model: String,
+) -> Result<llm::LlmConfigView, String> {
+    // api_key 保留语义：None 时先读用户层现值回填
+    let key = match apiKey {
+        Some(k) => k,
+        None => llm::read_user_api_key(),
+    };
+    llm::set_user_config(&baseUrl, &key, &model)?;
+    get_llm_config()
+}
+
+/// 连接测试：用表单当前值（未保存也可测）发最小请求。
+#[tauri::command]
+async fn test_llm_connection(
+    baseUrl: String,
+    apiKey: String,
+    model: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        llm::test_connection(&baseUrl, &apiKey, &model)
+    })
+    .await
+    .map_err(|e| format!("连接测试任务异常: {}", e))?
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -217,7 +258,10 @@ fn main() {
             check_update,
             import_capability,
             export_capability,
-            delete_capability
+            delete_capability,
+            get_llm_config,
+            set_llm_config,
+            test_llm_connection
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");

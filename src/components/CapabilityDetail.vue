@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   notify: [message: string, ok: boolean]
   deleted: []
+  openSettings: []
 }>()
 
 const view = ref<ViewResult | null>(null)
@@ -131,7 +132,14 @@ function renderMd(text: string): string {
         <button class="primary" :disabled="busy" @click="onInvoke">⚡ 调用</button>
       </div>
       <div v-if="invokeResult">
-        <p v-if="invokeResult.note" class="degrade-banner">{{ invokeResult.note }}</p>
+        <p v-if="invokeResult.note" class="degrade-banner">
+          {{ invokeResult.note }}
+          <a
+            v-if="invokeResult.source === 'degraded'"
+            class="settings-link"
+            @click="emit('openSettings')"
+          >去配置模型 →</a>
+        </p>
         <div v-if="invokeResult.source === 'degraded'" class="markdown" v-html="renderMd(invokeResult.content)"></div>
         <pre v-else class="output">{{ invokeResult.content }}</pre>
       </div>
