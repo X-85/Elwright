@@ -23,13 +23,14 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 
 ## 进行中
 
-- **集成终端 v1**（feature-2026-08-integrated-terminal）：底部抽屉 + 多 tab + 本地 shell + 「在终端中运行」联动。Rust 端 SessionRegistry + LocalBackend(portable-pty) + Tauri Channel 二进制流；前端 xterm.js (WebGL) + addon-fit。代码完成，**待真机端到端验证**（用户动作：双机分别跑一次 `npm run dev` + 桌面构建，验证 PTY 启动/WebGL 渲染/resize/「在终端中运行」）。
+- **AI 对话 阶段①（对话基础）**（feature-2026-08-chat-phase1）：独立对话页 + 多轮消息 + 安全 Markdown 渲染（ADR-002）+ 发送/停止/重试 + 模型状态展示；非流式，system 提示词 Rust 侧前置。代码完成，自动化验证过（cargo 31 测试/注入样本/CLI mock 端到端），**待真机端到端验证**（用户动作：预览降级态 + 双机桌面构建多轮对话/停止/重试/未配置引导）。
 
 ## V1（短期，做完即发版）
 
 1. ~~发 v0.1.1~~ **已完成（2026-08-22）**：更新检查按钮 + 桌面导入/导出/删除 + 模型设置 + 示例注册表全部进包，Release 流水线一次通过。
-2. **script-tools Feature 文档补齐**：`docs/features/script-tools/` 缺 behavior / architecture / changelog。**2026-08-22 范围变化**：原 3 个脚本（doc-keyword-search/xlsx-to-md/docx-to-md）已随注册表精简移除，该 feature 目录需改写为面向 `text-stats` 示例或降级说明。
+2. ~~script-tools Feature 文档补齐~~ **已完成（2026-08-22）**：目录改写为面向 `text-stats` 示例 + executor 通用执行行为，README/behavior/architecture/changelog 四件套齐。
 3. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md ~~——已完成（归档时补建，已入 archive）~~。
+4. **发 v0.1.2（含集成终端）**：终端 v1 已真机端到端验证并归档，但尚未进过任何 Release 包。打 tag 走 release.yml 出 dmg + msi（用户动作：打 tag 发版）。
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
@@ -78,3 +79,4 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 - 2026-08-22 注册表精简：内置注册表从 24 条种子清单改为 3 条真实示例（text-stats / capability-types / weekly-report），个人能力全面转向用户叠加层 `~/.elwright/`；旧脚本/SOP/知识文档移除，「公司机原版批量导入」计划作废。
 - 2026-08-22 桌面端模型设置：⚙ 弹层（key 打码/测试连接/来源标签），写用户层与 `ew config` 互通。
 - 2026-08-22 全量归档：15 个任务目录（阶段 1–5 全程 + CI/发布/导入导出/模型设置/注册表精简）active→archive，回到干净基线。
+- 2026-08-22 集成终端 v1：底部抽屉 + 多 tab + 本地 shell（portable-pty + Tauri Channel）+「在终端中运行」联动，xterm.js (WebGL) 渲染；代码完成并由用户真机端到端验证通过，任务目录已归档（`docs/work/archive/feature-2026-08-integrated-terminal/`）。尚未随版本发布，发版见 V1 第 4 项。
