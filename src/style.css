@@ -120,8 +120,56 @@ code {
   font-size: 12px;
 }
 
-.bridge-badge {
+/* ---------- 检查更新 ---------- */
+
+.update-box {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.update-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.update-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.update-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.update-msg {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.update-link {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.update-link:hover {
+  text-decoration: underline;
+}
+
+.bridge-badge {
   color: var(--text-dim);
   font-size: 11px;
 }

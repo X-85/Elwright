@@ -30,12 +30,21 @@ export interface InvokeResult {
   note?: string
 }
 
+export interface UpdateInfo {
+  current: string
+  latest: string
+  updateAvailable: boolean
+  releaseUrl: string
+}
+
 export interface Bridge {
   readonly kind: 'browser' | 'tauri'
   listCapabilities(): Promise<Capability[]>
   viewDoc(cap: Capability): Promise<ViewResult>
   runScript(cap: Capability, args: string[]): Promise<RunResult>
   invokeSkill(cap: Capability, prompt: string): Promise<InvokeResult>
+  checkUpdate(): Promise<UpdateInfo>
+  openExternal(url: string): Promise<void>
 }
 
 const browserBridge: Bridge = {
@@ -74,6 +83,27 @@ const browserBridge: Bridge = {
       content,
       note: '【预览模式】未接 LLM，固定展示离线降级 SOP',
     }
+  },
+
+  // 更新检查直接查 GitHub 公开 API（支持 CORS），预览与桌面行为一致
+  async checkUpdate() {
+    const res = await fetch('https://api.github.com/repos/X-85/Elwright/releases/latest', {
+      headers: { Accept: 'application/vnd.github+json' },
+    })
+    if (!res.ok) throw new Error(`检查更新失败：GitHub 返回 HTTP ${res.status}`)
+    const data = (await res.json()) as { tag_name: string; html_url: string }
+    const current = __APP_VERSION__
+    const latest = data.tag_name.replace(/^v/i, '')
+    return {
+      current,
+      latest,
+      updateAvailable: compareVersions(latest, current) > 0,
+      releaseUrl: data.html_url,
+    }
+  },
+
+  async openExternal(url) {
+    window.open(url, '_blank', 'noopener')
   },
 }
 
@@ -116,11 +146,40 @@ const tauriBridge: Bridge = {
       }
     }
   },
+
+  checkUpdate() {
+    return tauriInvoke<UpdateInfo>('check_update')
+  },
+
+  async openExternal(url) {
+    const { openUrl } = await import('@tauri-apps/plugin-opener')
+    await openUrl(url)
+  },
+}
+
+/// 语义与 core::version::is_newer 一致（core 有单测覆盖）：逐段数值比较，
+/// 段内非数字后缀取前导数字，缺段视为 0。返回 >0 表示 a 更新。
+function compareVersions(a: string, b: string): number {
+  const seg = (v: string) =>
+    v
+      .replace(/^v/i, '')
+      .split(/[.-]/)
+      .map((p) => parseInt(p, 10) || 0)
+  const x = seg(a)
+  const y = seg(b)
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0)
+    if (d !== 0) return d
+  }
+  return 0
 }
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
+
+// vite define 注入（vite.config.ts），与 tauri.conf.json 的 version 保持同步
+declare const __APP_VERSION__: string
 
 declare global {
   interface Window {

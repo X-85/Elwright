@@ -7,8 +7,14 @@ import { defineConfig, type Plugin } from 'vite'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const resourcesRoot = path.join(repoRoot, 'resources')
 
+// 桌面壳版本（tauri.conf.json 是发版真相源）；浏览器预览用它显示「当前版本」
+const appVersion = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'),
+).version as string
+
 export default defineConfig({
   plugins: [vue(), elwrightDataApi()],
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
 })
 
 /// Dev-only read-only endpoints so the browser preview talks to the real

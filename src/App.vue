@@ -11,6 +11,35 @@ const filter = ref<'all' | 'script' | 'knowledge' | 'skill'>('all')
 const search = ref('')
 const selectedId = ref('')
 
+// 检查更新：手动触发（不轮询，离网友好），结果展示在按钮下方
+const checking = ref(false)
+const updateMsg = ref('')
+const updateUrl = ref('')
+
+async function checkUpdate() {
+  if (checking.value) return
+  checking.value = true
+  updateMsg.value = ''
+  updateUrl.value = ''
+  try {
+    const info = await bridge.checkUpdate()
+    if (info.updateAvailable) {
+      updateMsg.value = `发现新版本 v${info.latest}（当前 v${info.current}）`
+      updateUrl.value = info.releaseUrl
+    } else {
+      updateMsg.value = `已是最新版本（v${info.current}）`
+    }
+  } catch (e) {
+    updateMsg.value = `检查更新失败：${e instanceof Error ? e.message : String(e)}`
+  } finally {
+    checking.value = false
+  }
+}
+
+function openDownload() {
+  if (updateUrl.value) bridge.openExternal(updateUrl.value)
+}
+
 onMounted(async () => {
   try {
     capabilities.value = await bridge.listCapabilities()
@@ -58,6 +87,17 @@ function select(id: string) {
       </nav>
       <input v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
       <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
+      <div class="update-box">
+        <button class="update-btn" :disabled="checking" @click="checkUpdate">
+          {{ checking ? '检查中…' : '检查更新' }}
+        </button>
+        <p v-if="updateMsg" class="update-msg">{{ updateMsg }}</p>
+        <button
+          v-if="updateUrl"
+          class="update-link"
+          @click="openDownload"
+        >前往下载 →</button>
+      </div>
       <p class="bridge-badge">
         {{ bridge.kind === 'tauri' ? '桌面模式 · Tauri' : '预览模式 · 浏览器' }}
       </p>
