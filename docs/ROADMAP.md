@@ -15,8 +15,7 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 
 ## 进行中
 
-- **桌面端能力导入/导出/删除**（`feature-2026-08-desktop-import-export`）：用户叠加层 `~/.elwright/`，桌面壳读写自定义能力，app 更新不丢。v1 范围：单项导出、可删除自定义项、浏览器预览导出走 Blob 下载。**实现与本地验证已完成**，待 CI + 用户实机确认后归档。CLI 同步获得 `ew delete` 与合并视图（`ls` SRC 列）。
-- **桌面端模型设置**（`feature-2026-08-desktop-llm-settings`）：侧栏 ⚙ 弹层配置 LLM（base_url/model/api_key，key 打码、留空不改）、测试连接、invoke 降级引导链接。写用户层与 `ew config` 互通。**实现与本地验证已完成**，待 CI + 用户实机配真实端点确认后归档。
+（无——2026-08-22 全量归档 15 个任务目录至 archive/，回到干净基线，等待新功能立项）
 
 ## V1（短期，做完即发版）
 
@@ -27,12 +26,11 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
-用户动作（不占开发排期，阻塞对应任务归档）：
+用户动作（不占开发排期）：
 
-- 归档 10 个 ready-for-release 任务目录（active→archive，维护方案规定人执行）。
-- 公司机实装一次 msi（stage4-release 验证收尾）。
-- 用真实 LLM 端点 `ew invoke` 复验一次（stage2 验证收尾）。
-- 桌面 app 实机导入/删除确认（材料 `~/Desktop/work-summary.elw.json` **已失效**——旧注册表条目已删；请改用任一现有能力导出后再导入，或直接导入 `text-stats` 导出的包）。
+- 公司机实装一次 msi（从 GitHub Release v0.1.0 或更新版本下载）。
+- 桌面 app 配置真实 LLM 端点（⚙ 模型设置 → 测试连接 → 保存）并 invoke 一次，确认真实链路。
+- 桌面 app 实机走一遍导入 → 徽标 → 删除循环。
 
 ## V2（中期）
 
@@ -55,3 +53,5 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 - 2026-08-21 阶段 4：CI 六 job 三平台、release.yml tag 发版、dmg + msi，v0.1.0 上 GitHub Release。
 - 2026-08-22 增强：`ew config` 四档 LLM 配置链、能力导入/导出（CLI）、更新检查按钮、3 个通用脚本（doc-keyword-search / xlsx-to-md / docx-to-md）、msi CI 打包（WiX 重名基文件修复）。
 - 2026-08-22 注册表精简：内置注册表从 24 条种子清单改为 3 条真实示例（text-stats / capability-types / weekly-report），个人能力全面转向用户叠加层 `~/.elwright/`；旧脚本/SOP/知识文档移除，「公司机原版批量导入」计划作废。
+- 2026-08-22 桌面端模型设置：⚙ 弹层（key 打码/测试连接/来源标签），写用户层与 `ew config` 互通。
+- 2026-08-22 全量归档：15 个任务目录（阶段 1–5 全程 + CI/发布/导入导出/模型设置/注册表精简）active→archive，回到干净基线。
