@@ -56,6 +56,12 @@ export interface LlmConfigInfo {
   userConfigPath?: string
 }
 
+/** 多轮对话消息（前端只传 user/assistant；system 由 Rust 侧固定前置） */
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 /**
  * 前端可见的终端会话抽象。
  * - `onData`：Rust 通过 Tauri Channel 推送的 PTY 输出（已 flush 的批次）
@@ -96,6 +102,11 @@ export interface Bridge {
   setLlmConfig(baseUrl: string, apiKey: string | null, model: string): Promise<LlmConfigInfo>
   /** 用表单当前值测试连接（未保存也可测）。 */
   testLlmConnection(baseUrl: string, apiKey: string, model: string): Promise<string>
+  /**
+   * 多轮 AI 对话（非流式）：发送 user/assistant 历史，返回 assistant 回复。
+   * system 提示词由后端固定前置；未配置/请求失败抛中文错误（对话无降级 SOP）。
+   */
+  chat(messages: ChatMessage[]): Promise<string>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -225,6 +236,11 @@ const browserBridge: Bridge = {
     })
     if (!res.ok) throw new Error(`端点返回 HTTP ${res.status}：${(await res.text()).slice(0, 300)}`)
     return '连接正常（浏览器直连测试）'
+  },
+
+  async chat() {
+    // 对话需要读用户配置链并经桌面壳前置 system 提示词；预览模式明确降级，不模拟
+    throw new Error('【预览模式】浏览器无法发起 AI 对话。\n真实对话请用桌面应用。')
   },
 
   async openTerminal() {
@@ -370,6 +386,10 @@ const tauriBridge: Bridge = {
 
   async testLlmConnection(baseUrl, apiKey, model) {
     return tauriInvoke<string>('test_llm_connection', { baseUrl, apiKey, model })
+  },
+
+  async chat(messages) {
+    return tauriInvoke<string>('chat_completion', { messages })
   },
 
   async openTerminal(options) {

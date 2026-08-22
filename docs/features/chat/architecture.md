@@ -16,7 +16,7 @@ core::llm（多轮 OpenAI-compatible 请求）
 
 ## 分阶段技术方案
 
-- 阶段 1：将 `llm.rs` 的单轮 `system/user` 请求扩展为受控 `ChatMessage[]`，先采用非流式返回；新增 `chat` IPC 与 Bridge 方法。
+- 阶段 1（已实现 2026-08-22）：`llm.rs` 单轮 `system/user` 请求已扩展为受控 `ChatMessage[]`（`chat_messages`，原 `chat()` 改为其封装），非流式返回；IPC `chat_completion` 与 Bridge `chat()` 已接入。system 提示词（`CHAT_SYSTEM_PROMPT`）由 Rust 侧前置，IPC 层拒绝 user/assistant 之外的角色。停止为前端序号丢弃（请求级取消属阶段④）。模型输出渲染走 `src/lib/safeMarkdown.ts`（ADR-002）。
 - 阶段 2：桌面壳增加会话文件存储和生命周期管理，存放在 `~/.elwright/chats/` 或等价用户目录；API Key 永不进入会话模型。
 - 阶段 3：增加能力协作协议。模型推荐结果先解析为展示模型，用户确认后才转调用现有能力接口；不把任意模型输出当作可执行指令。
 - 阶段 4：用 Tauri Channel 推送增量文本，增加请求 id、取消、超时、上下文长度提示和跨平台验证。

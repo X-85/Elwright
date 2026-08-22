@@ -8,11 +8,11 @@ AI 对话是 Elwright 桌面应用中的自然语言工作入口。用户可以�
 
 ## 当前状态
 
-已规划，尚未实现。现有系统已支持 OpenAI 兼容 LLM 配置、单轮技能调用、离线 SOP 降级和桌面模型设置。
+阶段①（对话基础）已实现（2026-08-22）：桌面壳「AI 对话」一级页面、多轮消息、安全 Markdown 渲染（ADR-002）、发送/停止/重试、模型状态条与未配置引导。非流式、会话仅内存态。阶段②③④未实现。
 
 ## 分阶段范围
 
-1. **对话基础**：独立 AI 对话页面、多轮文本消息、Markdown/代码块、发送/停止/重试、模型状态展示。
+1. **对话基础**：独立 AI 对话页面、多轮文本消息、Markdown/代码块、发送/停止/重试、模型状态展示。✅ 已实现（2026-08-22）。
 2. **会话管理**：本地新建/切换/重命名/删除会话，默认本地保存，敏感内容最小化持久化。
 3. **能力协作**：从对话中手动关联能力；模型可以推荐能力和草拟参数，但执行前显示目标与影响并由用户确认。
 4. **流式与完善**：流式输出、取消请求、长上下文处理、macOS/Windows 真机验证和性能优化。
@@ -26,8 +26,9 @@ AI 对话是 Elwright 桌面应用中的自然语言工作入口。用户可以�
 
 ## 相关基础
 
-- LLM 客户端与配置：`src-tauri/src/core/llm.rs`
+- LLM 客户端与配置：`src-tauri/src/core/llm.rs`（含 `ChatMessage`/`chat_messages` 多轮接口与 `CHAT_SYSTEM_PROMPT`）
+- 桌面对话 IPC：`src-tauri/src/main.rs` `chat_completion`（system 提示词 Rust 侧前置）
+- 桌面 Bridge：`src/lib/bridge.ts`（`chat()` 方法）；不可信渲染：`src/lib/safeMarkdown.ts`（ADR-002）
+- 对话页面：`src/components/ChatView.vue`；模型设置：`src/components/LlmSettings.vue`
 - 技能调用与降级：`src-tauri/src/core/invoke.rs`
-- 桌面 Bridge：`src/lib/bridge.ts`
-- 桌面模型设置：`src/components/LlmSettings.vue`
 - 路线图：`docs/ROADMAP.md`

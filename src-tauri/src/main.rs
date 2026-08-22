@@ -199,6 +199,52 @@ fn delete_capability(id: String) -> Result<String, String> {
     export::delete_capability(&overlay, &registry, &id)
 }
 
+// ---- AI 对话（阶段①：多轮非流式）----
+
+/// chat_completion 的入参消息：只接受 user/assistant（system 由 Rust 侧
+/// 固定前置，前端无法注入——chat behavior 的安全要求）。
+#[derive(Deserialize)]
+struct ChatMessageArg {
+    role: String,
+    content: String,
+}
+
+/// 多轮对话：合并 LLM 配置链（与 invoke_skill 同链路），前置系统提示词，
+/// 非流式返回 assistant 回复。未配置/失败返回中文 Err——对话无降级 SOP，
+/// 会话保留与重试由前端负责。
+#[tauri::command]
+async fn chat_completion(messages: Vec<ChatMessageArg>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if messages.is_empty() {
+            return Err("消息列表为空".to_string());
+        }
+        for m in &messages {
+            if m.role != "user" && m.role != "assistant" {
+                return Err(format!(
+                    "不支持的消息角色: {}（仅 user/assistant，system 由应用控制）",
+                    m.role
+                ));
+            }
+        }
+        let registry = load_registry()?;
+        let layers = llm::ConfigLayers::collect(&registry.root, registry.llm_default.clone());
+        let (config, _) = layers.merged();
+        if config.base_url.is_empty() {
+            return Err("未配置 LLM：请在「⚙ 模型设置」填写 base_url 后使用 AI 对话".to_string());
+        }
+        let client = llm::LlmClient { config };
+        let mut all = vec![llm::ChatMessage::new("system", llm::CHAT_SYSTEM_PROMPT)];
+        all.extend(
+            messages
+                .into_iter()
+                .map(|m| llm::ChatMessage { role: m.role, content: m.content }),
+        );
+        client.chat_messages(&all)
+    })
+    .await
+    .map_err(|e| format!("对话任务异常: {}", e))?
+}
+
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----
 
 #[tauri::command]
@@ -280,6 +326,7 @@ fn main() {
             get_llm_config,
             set_llm_config,
             test_llm_connection,
+            chat_completion,
             terminal_open,
             terminal_write,
             terminal_resize,
