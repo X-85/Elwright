@@ -11,7 +11,7 @@
 
 ## 当前版本
 
-v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
+v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 新增：桌面导入/导出/删除、模型设置、检查更新按钮、注册表精简为 3 条示例、CLI delete/import 用户层）
 
 ## 进行中
 
@@ -19,10 +19,9 @@ v0.1.0（2026-08-21 首个 GitHub Release，dmg + msi，tag `v0.1.0`）
 
 ## V1（短期，做完即发版）
 
-1. **发 v0.1.1**：更新检查按钮 + 桌面导入/导出/删除 + 示例注册表精简，一起进正式包——版本号三处同步（`src-tauri/Cargo.toml` / `tauri.conf.json` / `src/package.json`）+ 打 tag，CI 自动出包。
-2. **api-doc-formatter 归类决策**（脚本 vs 技能，架构方案 §11 遗留）：**2026-08-22 已作废**——该条目随注册表精简一并移除；将来若需要，按新流程经导入功能以自定义能力加入，届时再定类型。
-3. **script-tools Feature 文档补齐**：`docs/features/script-tools/` 缺 behavior / architecture / changelog。**2026-08-22 范围变化**：原 3 个脚本（doc-keyword-search/xlsx-to-md/docx-to-md）已随注册表精简移除，该 feature 目录需改写为面向 `text-stats` 示例或降级说明。
-4. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md，与归档流程对齐。
+1. ~~发 v0.1.1~~ **已完成（2026-08-22）**：更新检查按钮 + 桌面导入/导出/删除 + 模型设置 + 示例注册表全部进包，Release 流水线一次通过。
+2. **script-tools Feature 文档补齐**：`docs/features/script-tools/` 缺 behavior / architecture / changelog。**2026-08-22 范围变化**：原 3 个脚本（doc-keyword-search/xlsx-to-md/docx-to-md）已随注册表精简移除，该 feature 目录需改写为面向 `text-stats` 示例或降级说明。
+3. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md ~~——已完成（归档时补建，已入 archive）~~。
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
