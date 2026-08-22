@@ -8,12 +8,40 @@ const props = defineProps<{
   bridge: Bridge
 }>()
 
+const emit = defineEmits<{
+  notify: [message: string, ok: boolean]
+  deleted: []
+}>()
+
 const view = ref<ViewResult | null>(null)
 const runArgs = ref('')
 const runResult = ref<RunResult | null>(null)
 const invokePrompt = ref('')
 const invokeResult = ref<InvokeResult | null>(null)
 const busy = ref(false)
+
+// 导出/删除操作（删除仅自定义项可见）
+async function onExport() {
+  busy.value = true
+  try {
+    const result = await props.bridge.exportCapability(props.cap)
+    emit('notify', result.message, result.ok)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function onDelete() {
+  if (!confirm(`删除自定义能力「${props.cap.name}」（${props.cap.id}）？\n其引用的文件会一并清理。`)) return
+  busy.value = true
+  try {
+    const result = await props.bridge.deleteCapability(props.cap)
+    emit('notify', result.message, result.ok)
+    if (result.ok) emit('deleted')
+  } finally {
+    busy.value = false
+  }
+}
 
 // 知识型选中即加载文档；其余类型在操作后展示结果
 watch(
@@ -60,8 +88,18 @@ function renderMd(text: string): string {
     <header class="detail-head">
       <h2>{{ cap.name }}</h2>
       <span :class="['type-badge', cap.type]">{{ cap.type }}</span>
+      <span v-if="cap.origin === 'custom'" class="custom-badge" title="来自用户叠加层 ~/.elwright/">自定义</span>
       <span v-if="cap.category" class="cap-cat">{{ cap.category }}</span>
       <code class="cap-id">{{ cap.id }}</code>
+      <span class="detail-actions">
+        <button :disabled="busy" @click="onExport">⬇ 导出</button>
+        <button
+          v-if="cap.origin === 'custom'"
+          class="danger"
+          :disabled="busy"
+          @click="onDelete"
+        >🗑 删除</button>
+      </span>
     </header>
 
     <!-- 脚本型 -->

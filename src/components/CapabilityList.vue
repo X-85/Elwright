@@ -26,6 +26,7 @@ const typeLabel: Record<string, string> = {
       <div class="cap-main">
         <span class="cap-name">{{ c.name }}</span>
         <span :class="['type-badge', c.type]">{{ typeLabel[c.type] ?? c.type }}</span>
+        <span v-if="c.origin === 'custom'" class="custom-badge" title="来自用户叠加层 ~/.elwright/">自定义</span>
       </div>
       <div class="cap-sub">
         <code>{{ c.id }}</code>

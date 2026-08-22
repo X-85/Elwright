@@ -1,4 +1,4 @@
-use elwright_core::core::{executor, invoke, registry, version};
+use elwright_core::core::{executor, export, invoke, registry, version};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -21,10 +21,25 @@ struct RunScriptResult {
     output: String,
 }
 
+/// list_capabilities 的下发结构：条目 + 来源标记（前端渲染「自定义」徽标）。
+#[derive(Serialize)]
+struct CapabilityWithOrigin {
+    #[serde(flatten)]
+    cap: registry::Capability,
+    origin: registry::Origin,
+}
+
 #[tauri::command]
-fn list_capabilities() -> Result<Vec<registry::Capability>, String> {
+fn list_capabilities() -> Result<Vec<CapabilityWithOrigin>, String> {
     let registry = load_registry()?;
-    Ok(registry.list().to_vec())
+    Ok(registry
+        .list()
+        .iter()
+        .map(|c| CapabilityWithOrigin {
+            cap: c.clone(),
+            origin: registry.origin_of(&c.id),
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -38,7 +53,7 @@ fn view_doc(id: String) -> Result<ViewDocResult, String> {
         .as_ref()
         .or(capability.entry.as_ref())
         .ok_or_else(|| format!("能力 {} 无可查看文档", id))?;
-    let path = registry.root.join(relative);
+    let path = registry.resolve_resource(relative);
     let content = std::fs::read_to_string(&path)
         .map_err(|error| format!("读取文档 {} 失败: {}", path.display(), error))?;
 
@@ -154,9 +169,37 @@ fn load_registry() -> Result<registry::Registry, String> {
     registry::Registry::load(&root)
 }
 
+// ---- 导入/导出/删除（用户叠加层 ~/.elwright/）----
+
+#[tauri::command]
+fn import_capability(path: String, force: bool) -> Result<String, String> {
+    let overlay = registry::user_root()
+        .ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| format!("读取 {} 失败: {}", path, e))?;
+    export::import_capability(&overlay, &text, force)
+}
+
+#[tauri::command]
+fn export_capability(id: String, path: String) -> Result<String, String> {
+    let registry = load_registry()?;
+    let bundle = export::export_capability(&registry, &id)?;
+    std::fs::write(&path, &bundle).map_err(|e| format!("写入 {} 失败: {}", path, e))?;
+    Ok(format!("已导出 {} -> {}", id, path))
+}
+
+#[tauri::command]
+fn delete_capability(id: String) -> Result<String, String> {
+    let registry = load_registry()?;
+    let overlay = registry::user_root()
+        .ok_or_else(|| "无法定位用户主目录".to_string())?;
+    export::delete_capability(&overlay, &registry, &id)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let resource_dir = app
                 .path()
@@ -171,7 +214,10 @@ fn main() {
             view_doc,
             run_script,
             invoke_skill,
-            check_update
+            check_update,
+            import_capability,
+            export_capability,
+            delete_capability
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");

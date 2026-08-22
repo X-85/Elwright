@@ -48,8 +48,10 @@ enum Cmd {
     },
     /// 导出能力为单文件（默认打印，给文件名则写入）
     Export { id: String, file: Option<String> },
-    /// 导入能力（.elw.json；id 冲突需 --force）
+    /// 导入能力到用户叠加层 ~/.elwright/（.elw.json；id 冲突需 --force）
     Import { file: String, #[arg(long)] force: bool },
+    /// 删除自定义能力（仅用户叠加层条目，内置不可删）
+    Delete { id: String },
 }
 
 #[derive(Subcommand)]
@@ -78,14 +80,19 @@ fn main() {
 
     match cli.cmd {
         Cmd::Ls => {
-            outln!("{:<26} {:<11} {:<9} {}", "ID", "TYPE", "OFFLINE", "NAME");
-            outln!("{}", "-".repeat(72));
+            outln!("{:<26} {:<11} {:<9} {:<6} {}", "ID", "TYPE", "OFFLINE", "SRC", "NAME");
+            outln!("{}", "-".repeat(78));
             for c in reg.list() {
                 let offline = match c.offline {
                     Some(true) => "yes",
                     _ => "no",
                 };
-                outln!("{:<26} {:<11} {:<9} {}", c.id, c.kind, offline, c.name);
+                let src = if reg.origin_of(&c.id) == registry::Origin::Custom {
+                    "user"
+                } else {
+                    "-"
+                };
+                outln!("{:<26} {:<11} {:<9} {:<6} {}", c.id, c.kind, offline, src, c.name);
             }
             outln!("\n共 {} 项能力", reg.list().len());
         }
@@ -207,7 +214,31 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            match export::import_capability(&reg.root, &text, force) {
+            // 装机后 bundle 根只读/更新即清零，导入统一写用户叠加层
+            let overlay = match registry::user_root() {
+                Some(p) => p,
+                None => {
+                    errln!("错误: 无法定位用户主目录（HOME/USERPROFILE 均缺失）");
+                    std::process::exit(1);
+                }
+            };
+            match export::import_capability(&overlay, &text, force) {
+                Ok(msg) => outln!("{}\n（叠加层: {}）", msg, overlay.display()),
+                Err(e) => {
+                    errln!("错误: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Cmd::Delete { id } => {
+            let overlay = match registry::user_root() {
+                Some(p) => p,
+                None => {
+                    errln!("错误: 无法定位用户主目录");
+                    std::process::exit(1);
+                }
+            };
+            match export::delete_capability(&overlay, &reg, &id) {
                 Ok(msg) => outln!("{}", msg),
                 Err(e) => {
                     errln!("错误: {}", e);

@@ -10,6 +10,7 @@ Elwright 是个人工作流工具箱：一个 Rust 共享核心 + 两个壳（CL
 - `capabilities.json` — 静态能力注册表（顶层对象 `{capabilities:[...]}`，不是裸数组——曾按裸数组解析出过 bug）。
 - `resources/tools/` — 脚本型能力的 .py/.ps1；`resources/docs/` — 知识型/SOP 的 .md。注意：种子清单中许多 entry 是规划目标路径，文件尚未导入。
 - `docs/features/<feature>/` — 长期功能文档（README/behavior/architecture/changelog/decisions）；`docs/work/{active,archive}/` — 按维护方案组织的任务目录。
+- `docs/ROADMAP.md` — **活文档路线图**：做什么/排在哪/状态，只看这里（架构方案 §10/§11 是立项规划快照，不再随进度更新）。
 - `Elwright架构方案.md` — 权威架构文档。改架构相关代码前先读 §9（技术栈锁定决策）与 §12（阶段进度、Windows 工具链决策）。
 
 ## 构建与运行
@@ -62,7 +63,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-阶段 5（脚本型能力落地）进行中：第一批 3 个通用脚本完成（doc-keyword-search / xlsx-to-md / docx-to-md，纯 stdlib，见 `docs/features/script-tools/`）。此前阶段 1–4 完成（CLI、LLM+降级、Tauri 壳、macOS dmg）。待办：其余 10 个脚本 entry 等公司机原版导入；GitHub Release（版本号三处同步后挂 CI 产出的 dmg/msi）。Windows msi 已由 CI 的 windows runner 打包（自带 MSVC），公司机无需装 VS 生成工具。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
+看 `docs/ROADMAP.md`（活文档，唯一排期视图）。一句话现状：阶段 1–4 完成（CLI、LLM+降级、Tauri 壳、CI+Release v0.1.0 dmg/msi），进行中=桌面端能力导入/导出/删除（用户叠加层 `~/.elwright/`），待办大头=公司机原版 10 脚本 + 4 知识文档导入。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
 
 ## 前端约定（src/）
 

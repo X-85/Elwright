@@ -1,5 +1,17 @@
 # 变更记录
 
+## 2026-08-22（能力导入/导出/删除）
+
+- 新增用户叠加层（overlay）`~/.elwright/{capabilities.json,resources/}`：桌面壳与 CLI 共享合并视图，同 id 用户条目遮蔽内置；文件解析双根（overlay 优先回退 bundle）。app 更新只动 bundle，用户导入的能力不丢，Windows 亦无 Program Files 写权限问题。
+- 桌面 UI：侧栏「＋ 导入能力…」（id 冲突弹确认覆盖）、详情页「⬇ 导出」（保存对话框）与「🗑 删除」（仅自定义项）；列表/详情「自定义」徽标；操作 toast。
+- IPC 新增 `import_capability`/`export_capability`/`delete_capability`，`list_capabilities` 下发 `origin` 字段；注册 `tauri-plugin-dialog`。
+- 浏览器预览：导出走 Blob 下载（真实 bundle 格式）；导入/删除显示降级文案（浏览器不可写用户目录）。
+- CLI 同步：`ew import` 改写用户叠加层（不再写仓库根）、新增 `ew delete <id>`、`ew ls` 增 SRC 列（user/-）。
+
+## 2026-08-22（更新检查）
+
+- 侧栏「检查更新」按钮：查 GitHub 最新 Release 与当前版本比较，新版本给「前往下载」入口（opener 打开系统浏览器）。
+
 ## 2026-08-21（阶段 4：打包）
 
 - 资源根改为三段式解析：`ELWRIGHT_ROOT` 环境变量覆盖 > cwd 上溯（原行为）> bundle 资源目录/exe 相邻探测——桌面壳在 setup 期经 `resource_dir()` 解析一次（OnceLock 缓存），安装后的 app 不再依赖仓库路径。

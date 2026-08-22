@@ -11,6 +11,43 @@ const filter = ref<'all' | 'script' | 'knowledge' | 'skill'>('all')
 const search = ref('')
 const selectedId = ref('')
 
+// 能力导入/删除的反馈（toast 式，几秒后自动消失）
+const opMsg = ref('')
+const opOk = ref(true)
+let opTimer: ReturnType<typeof setTimeout> | undefined
+
+function notify(message: string, ok: boolean) {
+  opMsg.value = message
+  opOk.value = ok
+  clearTimeout(opTimer)
+  opTimer = setTimeout(() => (opMsg.value = ''), 6000)
+}
+
+async function reload() {
+  try {
+    capabilities.value = await bridge.listCapabilities()
+  } catch (e) {
+    loadError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+// 导入：id 冲突时弹确认框，确认后带 force 重试
+async function importCapability(force = false) {
+  const result = await bridge.importCapability(force)
+  notify(result.message, result.ok)
+  if (result.ok) {
+    selectedId.value = ''
+    await reload()
+  } else if (result.conflict && confirm('该能力已存在，覆盖导入吗？（覆盖后为自定义版本）')) {
+    await importCapability(true)
+  }
+}
+
+async function onDeleted() {
+  selectedId.value = ''
+  await reload()
+}
+
 // 检查更新：手动触发（不轮询，离网友好），结果展示在按钮下方
 const checking = ref(false)
 const updateMsg = ref('')
@@ -40,13 +77,7 @@ function openDownload() {
   if (updateUrl.value) bridge.openExternal(updateUrl.value)
 }
 
-onMounted(async () => {
-  try {
-    capabilities.value = await bridge.listCapabilities()
-  } catch (e) {
-    loadError.value = e instanceof Error ? e.message : String(e)
-  }
-})
+onMounted(reload)
 
 const filtered = computed(() => {
   const kw = search.value.trim().toLowerCase()
@@ -86,7 +117,11 @@ function select(id: string) {
         </button>
       </nav>
       <input v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
+      <button class="import-btn" @click="importCapability()">＋ 导入能力…</button>
       <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
+      <transition name="fade">
+        <p v-if="opMsg" :class="['op-toast', opOk ? 'op-ok' : 'op-err']">{{ opMsg }}</p>
+      </transition>
       <div class="update-box">
         <button class="update-btn" :disabled="checking" @click="checkUpdate">
           {{ checking ? '检查中…' : '检查更新' }}
@@ -111,7 +146,13 @@ function select(id: string) {
         :selected-id="selectedId"
         @select="select"
       />
-      <CapabilityDetail v-if="selected" :cap="selected" :bridge="bridge" />
+      <CapabilityDetail
+        v-if="selected"
+        :cap="selected"
+        :bridge="bridge"
+        @notify="notify"
+        @deleted="onDeleted"
+      />
       <div v-else-if="!loadError" class="placeholder">← 选择一项能力查看详情</div>
     </main>
   </div>

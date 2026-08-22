@@ -11,6 +11,8 @@ export interface Capability {
   offline?: boolean
   prompt?: string
   degradeDoc?: string
+  /** builtin = 内置注册表；custom = 用户叠加层（~/.elwright/）导入 */
+  origin?: 'builtin' | 'custom'
 }
 
 export interface ViewResult {
@@ -37,6 +39,13 @@ export interface UpdateInfo {
   releaseUrl: string
 }
 
+export interface ImportResult {
+  ok: boolean
+  message: string
+  /** id 冲突（需确认覆盖后带 force 重试） */
+  conflict?: boolean
+}
+
 export interface Bridge {
   readonly kind: 'browser' | 'tauri'
   listCapabilities(): Promise<Capability[]>
@@ -45,6 +54,12 @@ export interface Bridge {
   invokeSkill(cap: Capability, prompt: string): Promise<InvokeResult>
   checkUpdate(): Promise<UpdateInfo>
   openExternal(url: string): Promise<void>
+  /** 弹文件选择框选 .elw.json 导入（写用户叠加层）。force 用于冲突覆盖。 */
+  importCapability(force?: boolean): Promise<ImportResult>
+  /** 弹保存框导出能力为 .elw.json。 */
+  exportCapability(cap: Capability): Promise<ImportResult>
+  /** 删除自定义能力（内置不可删）。 */
+  deleteCapability(cap: Capability): Promise<ImportResult>
 }
 
 const browserBridge: Bridge = {
@@ -105,6 +120,43 @@ const browserBridge: Bridge = {
   async openExternal(url) {
     window.open(url, '_blank', 'noopener')
   },
+
+  async importCapability() {
+    // 浏览器无法写用户叠加层目录；真实导入走桌面壳 dialog + IPC 或 CLI：ew import <file>
+    return {
+      ok: false,
+      message: '【预览模式】浏览器无法写入用户叠加层。\n真实导入请用桌面应用或 CLI：ew import <文件.elw.json>',
+    }
+  },
+
+  async exportCapability(cap) {
+    // 浏览器无保存对话框，按 elwright-skill/0.1 格式组 bundle 走 Blob 下载。
+    // 预览注册表全部视为 builtin，文件经 /api/file 读取（仅 resources/ 可见）。
+    const files: { path: string; content: string }[] = []
+    for (const rel of [cap.entry, cap.doc, cap.degradeDoc]) {
+      if (!rel) continue
+      const res = await fetch(`/api/file?path=${encodeURIComponent(rel)}`)
+      if (res.ok) files.push({ path: rel, content: await res.text() })
+    }
+    const bundle = { schema: 'elwright-skill/0.1', capability: cap, files }
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${cap.id}.elw.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    return { ok: true, message: `已导出 ${cap.id}（含 ${files.length} 个文件）` }
+  },
+
+  async deleteCapability() {
+    return {
+      ok: false,
+      message: '【预览模式】浏览器无法删除用户叠加层条目。\n真实删除请用桌面应用或 CLI：ew delete <id>',
+    }
+  },
 }
 
 async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -154,6 +206,56 @@ const tauriBridge: Bridge = {
   async openExternal(url) {
     const { openUrl } = await import('@tauri-apps/plugin-opener')
     await openUrl(url)
+  },
+
+  async importCapability(force = false) {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const path = await open({
+      title: '选择要导入的能力文件',
+      filters: [{ name: 'Elwright 能力包', extensions: ['json'] }],
+      multiple: false,
+    })
+    if (!path) return { ok: false, message: '已取消导入' }
+    try {
+      const message = await tauriInvoke<string>('import_capability', {
+        path,
+        force,
+      })
+      return { ok: true, message }
+    } catch (error) {
+      const message = messageOf(error)
+      return { ok: false, message, conflict: message.includes('已存在') }
+    }
+  },
+
+  async exportCapability(cap) {
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const path = await save({
+      title: '导出能力',
+      defaultPath: `${cap.id}.elw.json`,
+      filters: [{ name: 'Elwright 能力包', extensions: ['json'] }],
+    })
+    if (!path) return { ok: false, message: '已取消导出' }
+    try {
+      const message = await tauriInvoke<string>('export_capability', {
+        id: cap.id,
+        path,
+      })
+      return { ok: true, message }
+    } catch (error) {
+      return { ok: false, message: messageOf(error) }
+    }
+  },
+
+  async deleteCapability(cap) {
+    try {
+      const message = await tauriInvoke<string>('delete_capability', {
+        id: cap.id,
+      })
+      return { ok: true, message }
+    } catch (error) {
+      return { ok: false, message: messageOf(error) }
+    }
   },
 }
 

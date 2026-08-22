@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "主窗口能力：核心默认 + opener（检查更新后打开下载页）",
+  "description": "主窗口能力：核心默认 + opener（检查更新后打开下载页）+ dialog（导入导出文件选择）",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default"]
+  "permissions": ["core:default", "opener:default", "dialog:default"]
 }
