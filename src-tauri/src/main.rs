@@ -122,6 +122,7 @@ async fn invoke_skill(id: String, prompt: String) -> Result<invoke::InvokeOutcom
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct UpdateInfo {
     current: String,
     latest: String,
@@ -341,4 +342,36 @@ fn terminal_close(id: u64) -> Result<(), String> {
         .ok_or_else(|| "终端注册表未初始化".to_string())?;
     reg.kill(terminal::SessionId(id));
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 回归 v0.1.3 修复：Tauri IPC 返回值不会自动 snake→camel，
+    /// 必须显式 #[serde(rename_all = "camelCase")]，否则前端读到 undefined，
+    /// 导致「检查更新」按钮永远显示「已是最新版本」。
+    /// 用 to_string + from_str 模拟 IPC 在 webview 里 JSON.parse 的路径。
+    #[test]
+    fn update_info_serializes_camel_case() {
+        let info = UpdateInfo {
+            current: "0.1.1".to_string(),
+            latest: "0.1.2".to_string(),
+            update_available: true,
+            release_url: "https://github.com/X-85/Elwright/releases/tag/v0.1.2".to_string(),
+        };
+        let raw = serde_json::to_string(&info).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(json["current"], "0.1.1");
+        assert_eq!(json["latest"], "0.1.2");
+        assert_eq!(json["updateAvailable"], true);
+        assert!(
+            json.get("update_available").is_none(),
+            "UpdateInfo 序列化必须输出 updateAvailable，不能有 snake_case 字段（前端 bridge.ts 读 updateAvailable）",
+        );
+        assert_eq!(
+            json["releaseUrl"],
+            "https://github.com/X-85/Elwright/releases/tag/v0.1.2"
+        );
+    }
 }
