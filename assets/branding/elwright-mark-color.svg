@@ -2,7 +2,7 @@
   <!-- Elwright 标识 · 彩色版本
        黑底白 Σ 骨架（离线核心地基）+ Σ 腹部青渐变（LLM 增强注入腹部） -->
   <defs>
-    <linearGradient id="elw-energy" x1="264" y1="488" x2="760" y2="503" gradientUnits="userSpaceOnUse">
+    <linearGradient id="elw-energy" x1="264" y1="452" x2="644" y2="567" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2fb8a6"/>
       <stop offset="1" stop-color="#0e7f8c"/>
     </linearGradient>
@@ -13,7 +13,7 @@
     <rect x="264" y="656" width="496" height="72" rx="16"/>
   </g>
   <g fill="url(#elw-energy)">
-    <path d="M264 408 H760 V521 L264 480 Z"/>
-    <path d="M264 544 H760 V581 L264 616 Z"/>
+    <path d="M264 412 H644 V473 L264 452 Z"/>
+    <path d="M264 548 H644 V567 L264 588 Z"/>
   </g>
 </svg>
