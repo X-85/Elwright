@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Elwright 标识 · 浅底版本（白底黑 E，用于浅色背景） -->
+  <!-- Elwright 标识 · 浅底版本（白底黑 E + > 中横） -->
   <rect width="1024" height="1024" fill="#f5f5f5"/>
   <g fill="#0d0d0d">
     <path d="M264 296 H760 V400 H264 Z"/>
     <path d="M264 296 H368 V728 H264 Z"/>
     <path d="M264 624 H760 V728 H264 Z"/>
-    <path d="M264 460 H672 V564 H264 Z"/>
+    <path d="M368 402 L672 484 L700 512 L672 540 L368 622 L368 518 L648 512 L368 506 Z"/>
   </g>
 </svg>

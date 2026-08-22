@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Elwright 标识 · v3 单字母 E（学 ZCode 手法：黑底挖白字）
-       纯黑满铺 + 白色 E 负空间，粗几何无衬线，居中 -->
-  <rect width="1024" height="1024" fill="#0a0a0a"/>
+  <!-- Elwright 标识 · v4：单字母 E + 中横协调地变成 >
+       黑底白 E（学 ZCode）；中横替换为与横杠等粗、连在立柱上的 > 折角
+       读作「E 的中横长成了终端 >」，而非另贴一个符号 -->
+  <rect width="1024" height="1024" fill="#0d0d0d"/>
   <g fill="#f5f5f5">
     <path d="M264 296 H760 V400 H264 Z"/>
     <path d="M264 296 H368 V728 H264 Z"/>
     <path d="M264 624 H760 V728 H264 Z"/>
-    <path d="M264 460 H672 V564 H264 Z"/>
+    <path d="M368 402 L672 484 L700 512 L672 540 L368 622 L368 518 L648 512 L368 506 Z"/>
   </g>
 </svg>

@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Elwright 应用图标源 v3：黑底白 E（学 ZCode 单字母手法） -->
+  <!-- Elwright 应用图标源 v4：黑底白 E + > 中横（学 ZCode 手法 + 终端 > 注入） -->
   <rect width="1024" height="1024" fill="#0d0d0d"/>
   <g fill="#f5f5f5">
     <path d="M264 296 H760 V400 H264 Z"/>
     <path d="M264 296 H368 V728 H264 Z"/>
     <path d="M264 624 H760 V728 H264 Z"/>
-    <path d="M264 460 H672 V564 H264 Z"/>
+    <path d="M368 402 L672 484 L700 512 L672 540 L368 622 L368 518 L648 512 L368 506 Z"/>
   </g>
 </svg>
