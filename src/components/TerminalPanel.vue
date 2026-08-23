@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Plus, X } from 'lucide-vue-next'
 import TerminalView from './TerminalView.vue'
 import type { Bridge, TerminalSession } from '../lib/bridge'
 
@@ -50,14 +51,17 @@ onMounted(async () => {
   }
 })
 
-async function openTab(label = 'Terminal') {
+/** 默认标签序号：终端 1、终端 2…（双击标签可重命名） */
+let tabSeq = 0
+
+async function openTab(label?: string) {
   if (props.bridge.kind !== 'tauri') return
   try {
     // 默认落在主目录（顶栏按钮/＋ 新建的语义）；「在终端中运行」显式传 props.cwd
     const session = await props.bridge.openTerminal({ cwd: homeCwd.value })
     const tab: Tab = {
       id: session.id,
-      label,
+      label: label ?? `终端 ${++tabSeq}`,
       session,
       closed: false,
     }
@@ -166,6 +170,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="bridge.kind === 'tauri'" ref="panelRef" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '0px' }" :aria-hidden="!expanded">
     <div class="panel-header" title="拖动调整高度" @mousedown="onDragStart">
+      <span class="panel-title" @mousedown.stop>终端</span>
       <div class="tabs">
         <div
           v-for="t in tabs"
@@ -179,11 +184,17 @@ onBeforeUnmount(() => {
             @dblclick="$event.preventDefault(); renameTab(t.id, prompt('重命名', t.label) || t.label)"
             @mousedown.stop
           >{{ t.label }}</span>
-          <button class="close" title="关闭" @click.stop="closeTab(t.id)">×</button>
+          <button class="close" title="关闭" @click.stop="closeTab(t.id)">
+            <X :size="12" :stroke-width="2" />
+          </button>
         </div>
       </div>
-      <button class="new-tab" title="新建终端标签" @mousedown.stop @click.stop="openTab()">＋</button>
-      <button class="collapse" title="收起面板（会话保留）" @mousedown.stop @click.stop="toggleExpand()">×</button>
+      <button class="new-tab" title="新建终端标签" @mousedown.stop @click.stop="openTab()">
+        <Plus :size="15" :stroke-width="1.8" />
+      </button>
+      <button class="collapse" title="收起面板（会话保留）" @mousedown.stop @click.stop="toggleExpand()">
+        <X :size="15" :stroke-width="1.8" />
+      </button>
     </div>
     <div v-show="expanded" class="panel-body">
       <TerminalView
@@ -204,8 +215,8 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #1e1e1e;
-  border-top: 1px solid #3a3a3a;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   transition: height 0.18s ease-out;
@@ -224,35 +235,50 @@ onBeforeUnmount(() => {
   height: 32px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 0 8px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
   user-select: none;
   cursor: ns-resize;
+}
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 .new-tab {
   background: none;
   border: none;
-  color: #ccc;
+  color: var(--text-dim);
   cursor: pointer;
-  width: 22px;
-  font-size: 15px;
-  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
 }
 .new-tab:hover {
-  color: #fff;
+  color: var(--text);
+  background: var(--accent-soft);
 }
 .collapse {
   background: none;
   border: none;
-  color: #999;
-  font-size: 15px;
+  color: var(--text-dim);
   cursor: pointer;
-  width: 22px;
-  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
 }
 .collapse:hover {
-  color: #eee;
+  color: var(--text);
+  background: var(--accent-soft);
 }
 .tabs {
   display: flex;
@@ -265,17 +291,17 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  background: #2a2a2a;
+  background: var(--bg);
   border: 1px solid transparent;
   border-radius: 3px;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--text-dim);
 }
 .tab.active {
-  background: #3a3a3a;
-  color: #eee;
-  border-color: #555;
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--border);
 }
 .tab .label {
   max-width: 160px;
@@ -289,6 +315,13 @@ onBeforeUnmount(() => {
   color: inherit;
   cursor: pointer;
   padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+}
+.tab .close:hover {
+  color: var(--text);
+  background: var(--border);
 }
 .panel-body {
   flex: 1;
@@ -300,7 +333,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: var(--text-dim);
   font-size: 13px;
 }
 </style>
