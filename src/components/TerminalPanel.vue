@@ -166,10 +166,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="bridge.kind === 'tauri'" ref="panelRef" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '0px' }" :aria-hidden="!expanded">
     <div class="panel-header" title="拖动调整高度" @mousedown="onDragStart">
-      <button class="toggle" :title="expanded ? '最小化' : '展开'" @click.stop="toggleExpand">
-        {{ expanded ? '▼' : '▲' }}
-      </button>
-      <button class="new-tab" title="新建终端标签" @click.stop="openTab()">＋</button>
+      <button class="new-tab" title="新建终端标签" @mousedown.stop @click.stop="openTab()">＋</button>
       <div class="tabs">
         <div
           v-for="t in tabs"
@@ -186,6 +183,7 @@ onBeforeUnmount(() => {
           <button class="close" title="关闭" @click.stop="closeTab(t.id)">×</button>
         </div>
       </div>
+      <button class="collapse" title="收起面板（会话保留）" @mousedown.stop @click.stop="toggleExpand()">×</button>
     </div>
     <div v-show="expanded" class="panel-body">
       <TerminalView
@@ -232,14 +230,6 @@ onBeforeUnmount(() => {
   user-select: none;
   cursor: ns-resize;
 }
-.toggle {
-  background: none;
-  border: none;
-  color: #ccc;
-  font-size: 12px;
-  cursor: pointer;
-  width: 22px;
-}
 .new-tab {
   background: #2a2a2a;
   border: 1px solid #3a3a3a;
@@ -249,6 +239,18 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
+}
+.collapse {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 15px;
+  cursor: pointer;
+  width: 22px;
+  line-height: 1;
+}
+.collapse:hover {
+  color: #eee;
 }
 .tabs {
   display: flex;
