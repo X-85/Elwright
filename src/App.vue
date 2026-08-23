@@ -3,11 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import ChatView from './components/ChatView.vue'
+import PeopleChatView from './components/PeopleChatView.vue'
 import SettingsCenter from './components/SettingsCenter.vue'
 import WorkbenchView from './components/WorkbenchView.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
-import { Blocks, ListTodo, Sparkles, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
+import { Blocks, ListTodo, MessageCircle, Sparkles, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
 
 const bridge: Bridge = createBridge()
 const capabilities = ref<Capability[]>([])
@@ -18,7 +19,7 @@ const selectedId = ref('')
 const showSettings = ref(false)
 const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('appearance')
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
-const activeView = ref<'toolbox' | 'workbench' | 'chat'>('toolbox')
+const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people'>('toolbox')
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
 const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null)
@@ -160,6 +161,14 @@ function toggleTerminal() {
         >
           <ListTodo :size="18" :stroke-width="1.8" />
         </button>
+        <button
+          :class="{ active: activeView === 'people' }"
+          title="消息会话"
+          aria-label="消息会话"
+          @click="activeView = 'people'"
+        >
+          <MessageCircle :size="18" :stroke-width="1.8" />
+        </button>
       </nav>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions">
@@ -178,18 +187,18 @@ function toggleTerminal() {
       </div>
     </header>
 
-    <div :class="['workspace-shell', { 'left-collapsed': !leftPanelVisible, 'right-collapsed': !rightPanelVisible, 'both-collapsed': !leftPanelVisible && !rightPanelVisible }]">
-      <aside v-if="leftPanelVisible" class="sidebar">
-        <nav v-if="activeView === 'toolbox'" class="filters">
+    <div :class="['workspace-shell', { 'left-collapsed': !leftPanelVisible || activeView !== 'toolbox', 'right-collapsed': !rightPanelVisible, 'both-collapsed': (!leftPanelVisible || activeView !== 'toolbox') && !rightPanelVisible }]">
+      <aside v-if="leftPanelVisible && activeView === 'toolbox'" class="sidebar">
+        <nav class="filters">
           <button v-for="f in ['all', 'script', 'knowledge', 'skill'] as const" :key="f" :class="{ active: filter === f }" @click="filter = f">
             {{ { all: '全部', script: '脚本型', knowledge: '知识型', skill: '技能型' }[f] }}
           </button>
         </nav>
-        <input v-if="activeView === 'toolbox'" v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
-        <div v-if="activeView === 'toolbox'" class="sidebar-row">
+        <input v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
+        <div class="sidebar-row">
           <button class="import-btn" @click="importCapability()">＋ 导入能力…</button>
         </div>
-        <p v-if="activeView === 'toolbox'" class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
+        <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
         <transition name="fade"><p v-if="opMsg" :class="['op-toast', opOk ? 'op-ok' : 'op-err']">{{ opMsg }}</p></transition>
         <div class="update-box">
           <button class="update-btn" :disabled="checking" @click="checkUpdate">{{ checking ? '检查中…' : '检查更新' }}</button>
@@ -201,6 +210,7 @@ function toggleTerminal() {
 
       <main class="content">
         <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" />
+        <PeopleChatView v-else-if="activeView === 'people'" />
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
