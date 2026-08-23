@@ -6,6 +6,8 @@ use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::Manager;
 
+mod chat_store;
+
 // setup 期解析一次（含 bundle 资源目录探测），IPC 命令复用
 static ROOT: OnceLock<PathBuf> = OnceLock::new();
 // 终端 session 注册表（setup 期创建）
@@ -245,6 +247,38 @@ async fn chat_completion(messages: Vec<ChatMessageArg>) -> Result<String, String
     .map_err(|e| format!("对话任务异常: {}", e))?
 }
 
+// ---- AI 对话会话存储（阶段②：本地会话管理）----
+
+#[tauri::command]
+fn chat_list_sessions() -> Result<Vec<chat_store::ChatSessionSummary>, String> {
+    Ok(chat_store::list_sessions())
+}
+
+#[tauri::command]
+fn chat_load_session(id: String) -> Result<Option<chat_store::ChatSession>, String> {
+    Ok(chat_store::load_session(&id))
+}
+
+/// 保存（upsert）。messages 从前端来，role/content 经 chat_completion 已限定
+/// 为 user/assistant；updated_at 服务端写。created_at 已存在则保留。
+#[tauri::command]
+fn chat_save_session(
+    id: String,
+    title: String,
+    messages: Vec<ChatMessageArg>,
+) -> Result<(), String> {
+    let messages: Vec<llm::ChatMessage> = messages
+        .into_iter()
+        .map(|m| llm::ChatMessage { role: m.role, content: m.content })
+        .collect();
+    chat_store::save_session(&id, &title, &messages)
+}
+
+#[tauri::command]
+fn chat_delete_session(id: String) -> Result<(), String> {
+    chat_store::delete_session(&id)
+}
+
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----
 
 #[tauri::command]
@@ -327,6 +361,10 @@ fn main() {
             set_llm_config,
             test_llm_connection,
             chat_completion,
+            chat_list_sessions,
+            chat_load_session,
+            chat_save_session,
+            chat_delete_session,
             terminal_open,
             terminal_write,
             terminal_resize,
