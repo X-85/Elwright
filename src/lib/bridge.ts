@@ -548,7 +548,8 @@ const tauriBridge: Bridge = {
 
 /// 语义与 core::version::is_newer 一致（core 有单测覆盖）：逐段数值比较，
 /// 段内非数字后缀取前导数字，缺段视为 0。返回 >0 表示 a 更新。
-function compareVersions(a: string, b: string): number {
+/// 导出供单测（纯函数，无副作用）。
+export function compareVersions(a: string, b: string): number {
   const seg = (v: string) =>
     v
       .replace(/^v/i, '')

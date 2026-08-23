@@ -35,11 +35,12 @@ struct ImportBundle {
 /// 收集能力引用的文件相对路径（entry/doc/degradeDoc，去重，仅保留存在的）。
 fn referenced_files(cap: &Capability) -> Vec<String> {
     let mut rels: Vec<String> = Vec::new();
-    for field in [&cap.entry, &cap.doc, &cap.degrade_doc] {
-        if let Some(rel) = field {
-            if !rels.contains(rel) {
-                rels.push(rel.clone());
-            }
+    for rel in [&cap.entry, &cap.doc, &cap.degrade_doc]
+        .into_iter()
+        .flatten()
+    {
+        if !rels.contains(rel) {
+            rels.push(rel.clone());
         }
     }
     rels
@@ -55,8 +56,8 @@ pub fn export_capability(reg: &Registry, id: &str) -> Result<String, String> {
         if !path.exists() {
             continue; // 规划中的 entry 尚未导入文件——打包元数据，不阻塞
         }
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("读取 {} 失败: {}", rel, e))?;
+        let content =
+            std::fs::read_to_string(&path).map_err(|e| format!("读取 {} 失败: {}", rel, e))?;
         files.push(BundleFile { path: rel, content });
     }
     let bundle = ExportBundle {
@@ -100,8 +101,8 @@ pub fn import_capability(target_root: &Path, text: &str, force: bool) -> Result<
     }
 
     let reg_path = target_root.join("capabilities.json");
-    let reg_text = std::fs::read_to_string(&reg_path)
-        .unwrap_or_else(|_| "{\"capabilities\":[]}".to_string());
+    let reg_text =
+        std::fs::read_to_string(&reg_path).unwrap_or_else(|_| "{\"capabilities\":[]}".to_string());
     let mut reg_value: serde_json::Value = serde_json::from_str(&reg_text)
         .map_err(|e| format!("解析 {} 失败: {}", reg_path.display(), e))?;
     let caps = reg_value
@@ -110,7 +111,9 @@ pub fn import_capability(target_root: &Path, text: &str, force: bool) -> Result<
         .ok_or("capabilities.json 缺少 capabilities 数组")?;
 
     let id = bundle.capability.id.clone();
-    let existed = caps.iter().any(|c| c.get("id").and_then(|i| i.as_str()) == Some(&id));
+    let existed = caps
+        .iter()
+        .any(|c| c.get("id").and_then(|i| i.as_str()) == Some(&id));
     if existed && !force {
         return Err(format!("能力 {} 已存在；加 --force 覆盖", id));
     }
@@ -131,8 +134,7 @@ pub fn import_capability(target_root: &Path, text: &str, force: bool) -> Result<
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("创建目录 {} 失败: {}", parent.display(), e))?;
         }
-        std::fs::write(&dest, &f.content)
-            .map_err(|e| format!("写入 {} 失败: {}", f.path, e))?;
+        std::fs::write(&dest, &f.content).map_err(|e| format!("写入 {} 失败: {}", f.path, e))?;
     }
     let output = serde_json::to_string_pretty(&reg_value).map_err(|e| e.to_string())?;
     std::fs::write(&reg_path, output + "\n")
@@ -154,7 +156,10 @@ pub fn delete_capability(overlay_root: &Path, reg: &Registry, id: &str) -> Resul
         return Err(format!("未找到能力: {}", id));
     }
     if reg.origin_of(id) != crate::core::registry::Origin::Custom {
-        return Err(format!("{} 是内置能力，不可删除（可被 overlay 同 id 覆盖）", id));
+        return Err(format!(
+            "{} 是内置能力，不可删除（可被 overlay 同 id 覆盖）",
+            id
+        ));
     }
 
     // overlay 注册表现状（条目可能被遮蔽语义合并过，读文件为准）
@@ -193,8 +198,7 @@ pub fn delete_capability(overlay_root: &Path, reg: &Registry, id: &str) -> Resul
         let path = overlay_root.join(&rel);
         // 只清理 overlay 目录内的文件（防误删 base 的同名文件）
         if path.starts_with(overlay_root) && path.is_file() {
-            std::fs::remove_file(&path)
-                .map_err(|e| format!("删除 {} 失败: {}", rel, e))?;
+            std::fs::remove_file(&path).map_err(|e| format!("删除 {} 失败: {}", rel, e))?;
             removed_files += 1;
         }
     }
@@ -203,7 +207,10 @@ pub fn delete_capability(overlay_root: &Path, reg: &Registry, id: &str) -> Resul
     std::fs::write(&reg_path, output + "\n")
         .map_err(|e| format!("写回 {} 失败: {}", reg_path.display(), e))?;
 
-    Ok(format!("已删除自定义能力 {}（清理 {} 个文件）", id, removed_files))
+    Ok(format!(
+        "已删除自定义能力 {}（清理 {} 个文件）",
+        id, removed_files
+    ))
 }
 
 #[cfg(test)]
@@ -271,7 +278,8 @@ mod tests {
     fn import_creates_target_root_when_missing() {
         // 装机首导：overlay 目录还不存在 capabilities.json，应自动创建
         let base = temp_root("imp-base");
-        let overlay = std::env::temp_dir().join(format!("elwright-imp-over-{}", std::process::id()));
+        let overlay =
+            std::env::temp_dir().join(format!("elwright-imp-over-{}", std::process::id()));
         let _ = fs::remove_dir_all(&overlay);
 
         let bundle = r#"{"schema":"elwright-skill/0.1","capability":{"id":"new","name":"新","type":"script","entry":"resources/tools/new/run.py"},"files":[{"path":"resources/tools/new/run.py","content":"print(1)"}]}"#;
@@ -290,7 +298,8 @@ mod tests {
     #[test]
     fn delete_only_custom_and_cleans_files() {
         let base = temp_root("del-base");
-        let overlay = std::env::temp_dir().join(format!("elwright-del-over-{}", std::process::id()));
+        let overlay =
+            std::env::temp_dir().join(format!("elwright-del-over-{}", std::process::id()));
         let _ = fs::remove_dir_all(&overlay);
         fs::create_dir_all(overlay.join("resources/docs")).unwrap();
 
@@ -302,7 +311,8 @@ mod tests {
                 {"id":"shared-a","name":"共A","type":"knowledge","doc":"resources/docs/shared.md"},
                 {"id":"shared-b","name":"共B","type":"knowledge","doc":"resources/docs/shared.md"}
             ]}"#,
-        ).unwrap();
+        )
+        .unwrap();
         fs::write(overlay.join("resources/docs/solo.md"), "solo").unwrap();
         fs::write(overlay.join("resources/docs/shared.md"), "shared").unwrap();
 

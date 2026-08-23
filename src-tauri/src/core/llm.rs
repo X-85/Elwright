@@ -32,7 +32,11 @@ fn read_config_file(path: &Path) -> Option<LlmConfig> {
     let text = std::fs::read_to_string(path).ok()?;
     serde_json::from_str(&text)
         .map_err(|e| {
-            eprintln!("警告: 配置文件 {} 解析失败: {}（已忽略）", path.display(), e);
+            eprintln!(
+                "警告: 配置文件 {} 解析失败: {}（已忽略）",
+                path.display(),
+                e
+            );
             e
         })
         .ok()
@@ -56,7 +60,12 @@ impl ConfigLayers {
         let project_path = root.join("config.local.json");
         let project = read_config_file(&project_path).map(|c| (project_path, c));
         let user = user_config_path().and_then(|p| read_config_file(&p).map(|c| (p, c)));
-        Self { env, project, user, registry_default }
+        Self {
+            env,
+            project,
+            user,
+            registry_default,
+        }
     }
 
     /// 每个字段取最高优先级的非空值；返回 (合并结果, 每字段来源标签)。
@@ -66,9 +75,18 @@ impl ConfigLayers {
         let mut source: [String; 3] = std::array::from_fn(|_| "未设置".to_string());
         let layers: [(&str, &LlmConfig); 4] = [
             ("环境变量", &self.env),
-            ("项目 config.local.json", self.project.as_ref().map(|(_, c)| c).unwrap_or(&empty)),
-            ("用户 ~/.elwright/config.json", self.user.as_ref().map(|(_, c)| c).unwrap_or(&empty)),
-            ("注册表默认 $meta.llmDefault", self.registry_default.as_ref().unwrap_or(&empty)),
+            (
+                "项目 config.local.json",
+                self.project.as_ref().map(|(_, c)| c).unwrap_or(&empty),
+            ),
+            (
+                "用户 ~/.elwright/config.json",
+                self.user.as_ref().map(|(_, c)| c).unwrap_or(&empty),
+            ),
+            (
+                "注册表默认 $meta.llmDefault",
+                self.registry_default.as_ref().unwrap_or(&empty),
+            ),
         ];
         for (label, layer) in layers {
             if cfg.base_url.is_empty() && !layer.base_url.is_empty() {
@@ -111,7 +129,8 @@ impl ChatMessage {
 }
 
 /// AI 对话页的系统提示词：由应用控制，用户输入不可覆盖（chat behavior 的安全要求）。
-pub const CHAT_SYSTEM_PROMPT: &str = "你是 Elwright 桌面应用内置的 AI 助手，帮助用户解答问题、整理思路和起草文本。\
+pub const CHAT_SYSTEM_PROMPT: &str =
+    "你是 Elwright 桌面应用内置的 AI 助手，帮助用户解答问题、整理思路和起草文本。\
 用用户提问的语言回答。回复可使用 Markdown；输出中的命令与代码仅供参考，不会被自动执行。";
 
 /// LLM 配置的生效视图：合并结果 + 每字段来源标签 + 用户层原文。
@@ -174,15 +193,19 @@ pub fn set_user_config(base_url: &str, api_key: &str, model: &str) -> Result<(),
         .ok()
         .and_then(|t| serde_json::from_str(&t).ok())
         .unwrap_or_default();
-    for (key, new) in [("base_url", base_url), ("api_key", api_key), ("model", model)] {
+    for (key, new) in [
+        ("base_url", base_url),
+        ("api_key", api_key),
+        ("model", model),
+    ] {
         if new.is_empty() {
             value.remove(key);
         } else {
             value.insert(key.to_string(), serde_json::Value::String(new.to_string()));
         }
     }
-    let text = serde_json::to_string_pretty(&value)
-        .map_err(|e| format!("序列化配置失败: {}", e))?;
+    let text =
+        serde_json::to_string_pretty(&value).map_err(|e| format!("序列化配置失败: {}", e))?;
     std::fs::write(&path, text + "\n")
         .map_err(|e| format!("写入 {} 失败: {}", path.display(), e))?;
     Ok(())
@@ -206,9 +229,7 @@ pub fn test_connection(base_url: &str, api_key: &str, model: &str) -> Result<Str
     if !api_key.is_empty() {
         req = req.bearer_auth(api_key);
     }
-    let resp = req
-        .send()
-        .map_err(|e| format!("无法连接 {}: {}", url, e))?;
+    let resp = req.send().map_err(|e| format!("无法连接 {}: {}", url, e))?;
     let status = resp.status();
     let text = resp.text().map_err(|e| format!("读取响应失败: {}", e))?;
     if !status.is_success() {
@@ -225,12 +246,20 @@ pub fn test_connection(base_url: &str, api_key: &str, model: &str) -> Result<Str
         choices: Vec<serde_json::Value>,
     }
     serde_json::from_str::<AnyChat>(&text)
-        .map(|c| if c.choices.is_empty() {
-            Err(format!("响应缺少 choices: {}", truncate(&text, 200)))
-        } else {
-            Ok(format!("连接正常（{}，model={}）", url, model))
+        .map(|c| {
+            if c.choices.is_empty() {
+                Err(format!("响应缺少 choices: {}", truncate(&text, 200)))
+            } else {
+                Ok(format!("连接正常（{}，model={}）", url, model))
+            }
         })
-        .unwrap_or_else(|e| Err(format!("响应不是 OpenAI 兼容格式: {}（响应: {}）", e, truncate(&text, 200))))
+        .unwrap_or_else(|e| {
+            Err(format!(
+                "响应不是 OpenAI 兼容格式: {}（响应: {}）",
+                e,
+                truncate(&text, 200)
+            ))
+        })
 }
 
 /// Join a base_url (e.g. `http://localhost:11434/v1`) with the
@@ -343,11 +372,8 @@ mod tests {
     static USER_ROOT_LOCK: Mutex<()> = Mutex::new(());
 
     fn temp_user_root(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "elwright-usercfg-{}-{}",
-            tag,
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("elwright-usercfg-{}-{}", tag, std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -381,7 +407,12 @@ mod tests {
     fn merges_fieldwise_with_priority() {
         let _guard = USER_ROOT_LOCK.lock().unwrap();
         // 清掉可能存在的环境变量，保证优先级测试不受宿主环境影响
-        for k in ["ELWRIGHT_LLM_BASE_URL", "ELWRIGHT_LLM_API_KEY", "ELWRIGHT_LLM_MODEL", "ELWRIGHT_USER_ROOT"] {
+        for k in [
+            "ELWRIGHT_LLM_BASE_URL",
+            "ELWRIGHT_LLM_API_KEY",
+            "ELWRIGHT_LLM_MODEL",
+            "ELWRIGHT_USER_ROOT",
+        ] {
             std::env::remove_var(k);
         }
         let dir = std::env::temp_dir().join(format!("elwright-cfg-{}", std::process::id()));
@@ -419,7 +450,8 @@ mod tests {
         assert_eq!(source[1], "注册表默认 $meta.llmDefault");
 
         // 无任何配置时全空（直接构造避免读宿主 ~/.elwright/config.json）
-        let empty_dir = std::env::temp_dir().join(format!("elwright-cfg-empty-{}", std::process::id()));
+        let empty_dir =
+            std::env::temp_dir().join(format!("elwright-cfg-empty-{}", std::process::id()));
         fs::create_dir_all(&empty_dir).unwrap();
         let empty_layers = ConfigLayers {
             env: LlmConfig::default(),
@@ -560,7 +592,11 @@ mod tests {
         assert_eq!(reply, "你好，我是助手。");
 
         let request = server.join().unwrap();
-        assert!(request.contains("POST /chat/completions"), "实际: {}", request);
+        assert!(
+            request.contains("POST /chat/completions"),
+            "实际: {}",
+            request
+        );
         assert!(request.contains("Bearer sk-test"));
         assert!(request.contains("\"model\":\"mock-model\""));
         // 多轮 role 按原顺序进 body

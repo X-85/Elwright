@@ -32,18 +32,6 @@ fn chats_dir() -> Option<PathBuf> {
     registry::user_root().map(|r| r.join("chats"))
 }
 
-/// 生成会话 id：`时间戳-计数器`，同一毫秒内也保证唯一（静态原子计数器加熵）。
-pub fn new_session_id() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("{:x}-{:x}", ts, n & 0xffff)
-}
-
 /// 列出全部会话摘要，按 updated_at 倒序（最近在前）。
 /// 损坏的 JSON 文件跳过（不影响列表其余项）。
 pub fn list_sessions() -> Vec<ChatSessionSummary> {
@@ -62,10 +50,8 @@ pub fn list_sessions() -> Vec<ChatSessionSummary> {
                 return None;
             }
             // 只读元字段：反序列化为 ChatSession 取前四字段，messages 为空也无妨
-            let session: ChatSession = serde_json::from_str(
-                &std::fs::read_to_string(&path).ok()?,
-            )
-            .ok()?;
+            let session: ChatSession =
+                serde_json::from_str(&std::fs::read_to_string(&path).ok()?).ok()?;
             Some(ChatSessionSummary {
                 id: session.id,
                 title: session.title,
@@ -103,8 +89,8 @@ pub fn save_session(id: &str, title: &str, messages: &[ChatMessage]) -> Result<(
         updated_at: now,
         messages: messages.to_vec(),
     };
-    let text = serde_json::to_string_pretty(&session)
-        .map_err(|e| format!("序列化会话失败: {}", e))?;
+    let text =
+        serde_json::to_string_pretty(&session).map_err(|e| format!("序列化会话失败: {}", e))?;
     std::fs::write(&path, text + "\n").map_err(|e| format!("写入 {}: {}", path.display(), e))?;
     Ok(())
 }
@@ -160,7 +146,7 @@ fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {
 }
 
 fn is_leap(y: u64) -> bool {
-    (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
+    (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400)
 }
 
 #[cfg(test)]
@@ -172,7 +158,8 @@ mod tests {
     static LOCK: Mutex<()> = Mutex::new(());
 
     fn temp_root(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("elwright-chat-{}-{}", tag, std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("elwright-chat-{}-{}", tag, std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -189,7 +176,12 @@ mod tests {
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
 
         let id = "sess-1";
-        save_session(id, "第一对话", &[msg("user", "你好"), msg("assistant", "嗨")]).unwrap();
+        save_session(
+            id,
+            "第一对话",
+            &[msg("user", "你好"), msg("assistant", "嗨")],
+        )
+        .unwrap();
 
         let loaded = load_session(id).unwrap();
         assert_eq!(loaded.id, id);
@@ -274,15 +266,6 @@ mod tests {
     }
 
     #[test]
-    fn new_session_id_unique_and_safe() {
-        let a = new_session_id();
-        let b = new_session_id();
-        assert_ne!(a, b, "两次生成应不同");
-        // 文件名安全：只含十六进制与连字符
-        assert!(a.chars().all(|c| c.is_ascii_hexdigit() || c == '-'));
-    }
-
-    #[test]
     fn now_iso_is_sortable_lexicographically() {
         let _g = LOCK.lock().unwrap();
         let root = temp_root("iso");
@@ -293,7 +276,10 @@ mod tests {
         save_session("s1", "t", &[msg("user", "b")]).unwrap();
         let t2 = load_session("s1").unwrap().updated_at;
         assert!(t2 > t1, "字典序应与时间顺序一致: {t1} vs {t2}");
-        assert!(t1.ends_with('Z') && t1.len() == 20, "格式应为 YYYY-MM-DDTHH:MM:SSZ");
+        assert!(
+            t1.ends_with('Z') && t1.len() == 20,
+            "格式应为 YYYY-MM-DDTHH:MM:SSZ"
+        );
         std::env::remove_var("ELWRIGHT_USER_ROOT");
         std::fs::remove_dir_all(&root).ok();
     }
