@@ -31,7 +31,7 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 1. ~~发 v0.1.1~~ **已完成（2026-08-22）**：更新检查按钮 + 桌面导入/导出/删除 + 模型设置 + 示例注册表全部进包，Release 流水线一次通过。
 2. ~~script-tools Feature 文档补齐~~ **已完成（2026-08-22）**：目录改写为面向 `text-stats` 示例 + executor 通用执行行为，README/behavior/architecture/changelog 四件套齐。
 3. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md ~~——已完成（归档时补建，已入 archive）~~。
-4. **发 v0.1.2（含集成终端）**：终端 v1 已真机端到端验证并归档，但尚未进过任何 Release 包。打 tag 走 release.yml 出 dmg + msi（用户动作：打 tag 发版）。
+4. ~~发 v0.1.2（含集成终端）~~ **已完成**：集成终端与 AI 对话阶段①②随 v0.1.4 进包（release.yml 正常出 dmg + msi）。
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
@@ -49,7 +49,7 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 - **人与人消息会话**：分三阶段实现——①客户端本地消息会话；②轻量身份/邀请与一对一消息传输；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
 - **设置中心后续阶段**：终端主题、字体和字号同步；常规中的启动视图、更新策略与语言；模型档案等配置，均以本地优先、少而明确为准入标准。
 - **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；今日记录、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。
-- **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/active/bugfix-2026-08-app-shell-feedback/`）。三档：
+- **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
   - **第一档（立即）**：CI 加 clippy + rustfmt 检查；前端引入 vitest，先覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数）。
   - **第二档（下个发版周期）**：tauri-driver 或 Playwright e2e 冒烟（打开终端 → 敲命令 → 断言输出，抓集成断线类 bug）；验证清单加「自动化覆盖/需手测」标记，防止未执行的验证被标通过。
   - **第三档（按需）**：eslint（风格已统一，低优先）；覆盖率门槛（等测试有存量）。
@@ -90,3 +90,4 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 - 2026-08-22 全量归档：15 个任务目录（阶段 1–5 全程 + CI/发布/导入导出/模型设置/注册表精简）active→archive，回到干净基线。
 - 2026-08-22 集成终端 v1：底部抽屉 + 多 tab + 本地 shell（portable-pty + Tauri Channel）+「在终端中运行」联动，xterm.js (WebGL) 渲染；代码完成并由用户真机端到端验证通过，任务目录已归档（`docs/work/archive/feature-2026-08-integrated-terminal/`）。尚未随版本发布，发版见 V1 第 4 项。
 - 2026-08-23 AI 对话阶段①②：阶段① 独立对话页 + 多轮消息 + 安全 Markdown 渲染（ADR-002）+ 发送/停止/重试 + 模型状态展示；阶段② 会话侧栏 + `~/.elwright/chats/` 一文件一会话 + 自动保存 + 错误消息不落盘，零新依赖（手写 ISO8601 + AtomicU64 id）。真机验证后顺手修了 4 处 UI 反馈（保存表单自动关闭 / 复制按钮深色背景可见 / 重命名保护不被自动覆盖 / 引导诊断日志）；合并提交 `282d081` `6a8e83c`。三任务目录归档：phase1 / phase2 / bugfix-real-machine-issues。随下次发版（V1 第 4 项或后续 v0.1.3）一同进包。
+- 2026-08-23 应用壳反馈 bugfix + 终端体验批次：修两个真机 bug（终端无回显——Tauri Channel 用法写反；第二 tab 不能输入——组件复用换 prop 不重接线，结构重写为 per-tab 实例）+ 八项交互优化（顶栏直达新建、＋/× 图标成组、拖拽调高、三态主题联动、扁平化等，参考 ZCode UI）。分支 `bugfix/2026-08-app-shell-feedback` 共 13 提交，含延伸落地的工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest 22 例）。任务目录已归档（`docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。分支待合并 main 后随下个版本进包。
