@@ -16,10 +16,14 @@ function resolvedTheme(preference: ThemePreference) {
   return preference === 'system' ? (systemMedia.matches ? 'dark' : 'light') : preference
 }
 
+/** 已解析的当前主题（'light' | 'dark'），跟随偏好与系统变化。 */
+export const resolvedThemeRef = ref<'light' | 'dark'>(resolvedTheme(themePreference.value))
+
 export function applyTheme(preference = themePreference.value) {
   const theme = resolvedTheme(preference)
   document.documentElement.dataset.theme = theme
   document.documentElement.style.colorScheme = theme
+  resolvedThemeRef.value = theme
 }
 
 export function setThemePreference(preference: ThemePreference) {

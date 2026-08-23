@@ -4,7 +4,26 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
+import { resolvedThemeRef } from '../lib/theme'
 import type { TerminalSession } from '../lib/bridge'
+
+// xterm 主题跟随应用主题（system/light/dark 切换即生效）
+const XTERM_THEMES = {
+  dark: {
+    background: '#16181d',
+    foreground: '#e6e9ef',
+    cursor: '#e6e9ef',
+    cursorAccent: '#16181d',
+    selectionBackground: '#3a4254',
+  },
+  light: {
+    background: '#ffffff',
+    foreground: '#24292f',
+    cursor: '#24292f',
+    cursorAccent: '#ffffff',
+    selectionBackground: '#cce0fb',
+  },
+} as const
 
 const props = defineProps<{
   session: TerminalSession
@@ -32,6 +51,7 @@ onMounted(() => {
     cursorBlink: true,
     scrollback: 10000,
     convertEol: true,
+    theme: XTERM_THEMES[resolvedThemeRef.value],
     // macOS/Win 上让 option/alt 作 Meta 键而非发送 ESC；此处保持默认 ESC 由用户按习惯
   })
 
@@ -128,6 +148,11 @@ function onLabelDblClick() {
   if (next && next.trim()) emit('rename', next.trim())
 }
 defineExpose({ onLabelDblClick })
+
+// 主题切换：xterm options.theme 运行时可变，即时重绘
+watch(resolvedThemeRef, (theme) => {
+  if (term) term.options.theme = { ...XTERM_THEMES[theme] }
+})
 </script>
 
 <template>
@@ -140,7 +165,7 @@ defineExpose({ onLabelDblClick })
 .terminal-view {
   width: 100%;
   height: 100%;
-  background: #000;
+  background: var(--panel);
 }
 .terminal-host {
   width: 100%;

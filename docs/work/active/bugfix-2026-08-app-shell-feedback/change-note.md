@@ -18,7 +18,8 @@
 | O3 | 终端窗口允许往上拉 | 表头整体 `cursor: ns-resize` + `mousedown` 拖拽：`heightPct` 20–85vh 夹紧，拖动时全局 cursor/禁选中文本；移除旧 4px 小把手（`.resize-handle`） |
 | O4 | 左侧 ▼ toggle 移到右侧并替换为 × | 表头改为 `[tabs…] [＋] [×]`（O5 迭代后最终布局）：右侧 ＋ = 新建 tab，× = 收起面板（会话保留，再点顶栏终端按钮恢复）；tab 自身 × 仍是关闭该会话。展开后无 tab 时收起路径只剩顶栏按钮（面板 header 随面板隐藏） |
 | O5 | ＋ 移到右侧 × 前面，右侧成组两个按钮 | 最终布局 `[tabs…] [＋] [×]`；＋ 样式从块状按钮改为与 × 一致的轻量文本钮（hover 变亮），视觉成组 |
-| O6 | 表头最左加「终端」标题；面板配色与主界面主题一致；默认标签名可辨识；＋/× 用图标 | ①表头 `[终端] [tabs…] [＋(Plus)] [×(X)]`；②面板/表头/tab 全部改用 CSS 变量（`--panel/--border/--text/--text-dim/--accent-soft/--bg`），跟随亮/暗主题（xterm 内容区保持黑底惯例）；③默认标签名 `终端 1/2/3…` 递增（双击仍可重命名）；④＋/×/tab 关闭换 `lucide-vue-next` 图标（与顶栏同库同风格，Tabler 细线条一致），24px 热区 + hover 圆角高亮 |
+| O6 | 表头最左加「终端」标题；面板配色与主界面主题一致；默认标签名可辨识；＋/× 用图标 | ①表头 `[终端] [tabs…] [＋(Plus)] [×(X)]`；②面板/表头/tab 全部改用 CSS 变量（`--panel/--border/--text/--text-dim/--accent-soft/--bg`），跟随亮/暗主题；③默认标签名 `终端 1/2/3…` 递增（双击仍可重命名）；④＋/×/tab 关闭换 `lucide-vue-next` 图标（与顶栏同库同风格），24px 热区 + hover 圆角高亮 |
+| O7 | 终端随三态主题（系统/深/浅）切换变色 | 配合另一会话的主题设置中心（`1d75359`）：theme.ts 导出响应式 `resolvedThemeRef`（applyTheme 时更新）；TerminalView 用它做 xterm 初始化主题 + watch 运行时切换 `term.options.theme`（xterm 即时重绘，不需重建会话）；深色用 `--bg` 同款底色，浅色白底；外框背景从写死 `#000` 改 `var(--panel)` |
 
 改动文件：`src/lib/bridge.ts`（homeDir 接口 + 双实现）、`src/components/TerminalPanel.vue`（toggleFromToolbar / 拖拽 / 按钮文案）、`src/App.vue`（顶栏按钮接新方法）。
 
