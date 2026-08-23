@@ -48,9 +48,30 @@ Elwright 的主线是帮助个人，尤其是研发与技术工作者，完成�
 
 ## 安装（普通用户）
 
-到 **[Releases](https://github.com/X-85/Elwright/releases)** 页下载最新版安装包：
+**一键安装（推荐）**：
 
-- **macOS**（Apple 芯片）：下载 `.dmg`，打开后把 Elwright 拖入「应用程序」。首次打开若被拦截：右键应用图标 →「打开」→ 再点「打开」（安装包未签名，属正常提示，只需过一次）。
+```bash
+# macOS（Apple 芯片 / Intel 都行）
+curl -fsSL https://raw.githubusercontent.com/X-85/Elwright/main/install.sh | bash
+```
+
+```powershell
+# Windows（PowerShell）
+irm https://raw.githubusercontent.com/X-85/Elwright/main/install.ps1 | iex
+```
+
+脚本会从 GitHub Release 拉最新版本的安装包直接装好（mac 走 `ditto` 进 `/Applications`，Windows 走 `msiexec /quiet`）。默认装最新版；想指定版本：
+
+```bash
+# macOS
+curl -fsSL .../install.sh | ELWRIGHT_VERSION=v0.1.3 bash
+# Windows
+$env:ELWRIGHT_VERSION='v0.1.3'; irm .../install.ps1 | iex
+```
+
+**手动安装**：到 **[Releases](https://github.com/X-85/Elwright/releases)** 页下载：
+
+- **macOS**：下载 `.dmg`，打开后把 Elwright 拖入「应用程序」。首次打开若被拦截：右键应用图标 →「打开」→ 再点「打开」（安装包未签名，属正常提示，只需过一次）。
 - **Windows**：下载 `.msi` 双击安装。SmartScreen 蓝色提示时点「更多信息」→「仍要运行」。
 
 装完即用：可以先打开桌面应用或运行内置示例。**脚本型与知识型能力离网可用**（脚本型需机器上有 Python 3）；个人能力可以通过桌面端导入或 `ew import` 加入用户层。想让技能型接入大模型（可选），见 [LLM 配置指引](docs/release/llm-setup-guide.md)。支持本地 Ollama（免费、数据不出机器）或任意 OpenAI 兼容云端端点；不配置时技能型自动降级为可照做的 SOP 文档。
