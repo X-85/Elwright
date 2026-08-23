@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $Repo        = $env:ELWRIGHT_REPO
 if (-not $Repo) { $Repo = 'X-85/Elwright' }
 $AppName     = 'Elwright'
-$ProductCode = '{653FB0F8-53C0-448C-99E7-AEBC37F313B5}'  # v0.1.3 的 MSI ProductCode，升级版本时需同步改
+$ProductCode = '{6A1BF779-323B-4F05-87A2-58B4DB293160}'  # v0.1.4 的 MSI ProductCode，升级版本时需同步改
 $WorkDir     = Join-Path $env:TEMP "elwright-install-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 
 # ---- 1. 探测已装版本（按 ProductCode 命中即视为已装）----
