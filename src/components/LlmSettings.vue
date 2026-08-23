@@ -76,6 +76,8 @@ async function onSave() {
     fillForm(info.value)
     saveMsg.value = '已保存（写入用户层，桌面与 CLI 共用）'
     saveOk.value = true
+    // 保存成功自动关闭弹层；失败保留便于排查。
+    emit('close')
   } catch (e) {
     saveMsg.value = e instanceof Error ? e.message : String(e)
     saveOk.value = false

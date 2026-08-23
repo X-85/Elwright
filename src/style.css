@@ -974,15 +974,22 @@ button.primary:disabled {
   position: absolute;
   top: 6px;
   right: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.08);
-  color: #d6deeb;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(30, 34, 42, 0.85);
+  color: #e6edf3;
   border-radius: 5px;
   padding: 2px 9px;
   font-size: 11px;
   cursor: pointer;
+  opacity: 0.85;
+  z-index: 1;
 }
 
 .code-copy-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(30, 34, 42, 1);
+  opacity: 1;
+}
+
+.code-copy-btn:active {
+  background: rgba(255, 255, 255, 0.28);
 }

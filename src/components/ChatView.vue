@@ -26,6 +26,8 @@ const messages = ref<UiMessage[]>([])
 const renamingId = ref<string | null>(null)
 const renameText = ref('')
 const sessionsLoading = ref(false)
+// 用户手动改过标题的会话：自动按首条消息算标题时跳过（保留用户命名的稳定性）
+const userRenamed = ref<Set<string>>(new Set())
 
 const input = ref('')
 const sending = ref(false)
@@ -58,15 +60,18 @@ async function persistCurrent() {
   if (!currentId.value) return
   const clean = messages.value.filter((m) => !m.error)
   if (clean.length === 0) return
+  // 用户改过标题则保留原名；否则按首条用户消息自动算
+  const existing = sessions.value.find((s) => s.id === currentId.value)
+  const title = userRenamed.value.has(currentId.value) && existing
+    ? existing.title
+    : titleFor(messages.value)
   try {
-    await props.bridge.saveChatSession(currentId.value, titleFor(messages.value), clean)
-    // 刷新列表中当前项的 title/updatedAt
-    const now = sessions.value.find((s) => s.id === currentId.value)
-    if (now) {
-      now.title = titleFor(messages.value)
-      now.updatedAt = new Date().toISOString()
+    await props.bridge.saveChatSession(currentId.value, title, clean)
+    if (existing) {
+      existing.title = title
+      existing.updatedAt = new Date().toISOString()
       // 移到列表最前
-      sessions.value = [now, ...sessions.value.filter((s) => s.id !== currentId.value)]
+      sessions.value = [existing, ...sessions.value.filter((s) => s.id !== currentId.value)]
     }
   } catch {
     // 持久化失败不影响对话进行（静默；真机可看 console）
@@ -78,8 +83,19 @@ async function refreshConfig() {
   try {
     configInfo.value = await props.bridge.getLlmConfig()
     configState.value = configInfo.value.baseUrl ? 'ready' : 'unconfigured'
-  } catch {
+    // 控制台日志便于真机排错：未配置引导是否显示异常时看这里
+    console.info(
+      '[chat] refreshConfig: baseUrl=%s model=%s source=[%s,%s,%s] state=%s',
+      JSON.stringify(configInfo.value.baseUrl),
+      JSON.stringify(configInfo.value.model),
+      configInfo.value.source[0] || 'unset',
+      configInfo.value.source[1] || 'unset',
+      configInfo.value.source[2] || 'unset',
+      configState.value,
+    )
+  } catch (e) {
     configState.value = 'preview'
+    console.warn('[chat] refreshConfig failed:', e)
   }
 }
 
@@ -101,6 +117,13 @@ async function selectSession(id: string) {
   currentId.value = id
   messages.value = loaded.messages.map((m) => ({ role: m.role, content: m.content }))
   renamingId.value = null
+  // 重启后恢复：磁盘标题若与"按首条消息自动算"的标题不一致，视为用户改过名，
+  // 之后 persistCurrent 不会再覆盖（保持跨重启的命名稳定性）。
+  if (loaded.title && loaded.title !== titleFor(messages.value)) {
+    userRenamed.value = new Set([...userRenamed.value, id])
+    const s = sessions.value.find((x) => x.id === id)
+    if (s) s.title = loaded.title
+  }
   await nextTick()
   chatScroll.value?.scrollTo({ top: chatScroll.value.scrollHeight })
 }
@@ -146,6 +169,8 @@ async function commitRename() {
   const s = sessions.value.find((x) => x.id === id)
   if (!s) return
   s.title = title
+  // 标记：此后按消息自动算标题时跳过该会话
+  userRenamed.value = new Set([...userRenamed.value, id])
   if (id === currentId.value) {
     const clean = messages.value.filter((m) => !m.error)
     if (clean.length) {
