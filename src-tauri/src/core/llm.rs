@@ -386,19 +386,30 @@ mod tests {
         }
         let dir = std::env::temp_dir().join(format!("elwright-cfg-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
+        let project_path = dir.join("config.local.json");
         fs::write(
-            dir.join("config.local.json"),
+            &project_path,
             r#"{"base_url":"http://project:1/v1","model":"proj-model"}"#,
         )
         .unwrap();
-        let layers = ConfigLayers::collect(
-            &dir,
-            Some(LlmConfig {
+        // 直接构造 ConfigLayers 把 user 设为 None，避免读到宿主真实 ~/.elwright/config.json
+        let layers = ConfigLayers {
+            env: LlmConfig::default(),
+            project: Some((
+                project_path,
+                LlmConfig {
+                    base_url: "http://project:1/v1".into(),
+                    api_key: String::new(),
+                    model: "proj-model".into(),
+                },
+            )),
+            user: None,
+            registry_default: Some(LlmConfig {
                 base_url: "http://default:2/v1".into(),
                 api_key: "reg-key".into(),
                 model: "reg-model".into(),
             }),
-        );
+        };
         // 项目文件覆盖 base_url/model，api_key 字段级回退到注册表默认
         let (cfg, source) = layers.merged();
         assert_eq!(cfg.base_url, "http://project:1/v1");
@@ -407,10 +418,16 @@ mod tests {
         assert_eq!(source[0], "项目 config.local.json");
         assert_eq!(source[1], "注册表默认 $meta.llmDefault");
 
-        // 无任何配置时全空
+        // 无任何配置时全空（直接构造避免读宿主 ~/.elwright/config.json）
         let empty_dir = std::env::temp_dir().join(format!("elwright-cfg-empty-{}", std::process::id()));
         fs::create_dir_all(&empty_dir).unwrap();
-        let (cfg2, source2) = ConfigLayers::collect(&empty_dir, None).merged();
+        let empty_layers = ConfigLayers {
+            env: LlmConfig::default(),
+            project: None,
+            user: None,
+            registry_default: None,
+        };
+        let (cfg2, source2) = empty_layers.merged();
         assert!(cfg2.base_url.is_empty());
         assert_eq!(source2[0], "未设置");
         fs::remove_dir_all(&dir).ok();
