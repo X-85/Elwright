@@ -49,8 +49,7 @@ pub fn user_root() -> Option<PathBuf> {
 
 impl Registry {
     pub fn load(root: &Path) -> Result<Self, String> {
-        let overlay =
-            user_root().filter(|p| p.join("capabilities.json").is_file());
+        let overlay = user_root().filter(|p| p.join("capabilities.json").is_file());
         Self::load_with_overlay(root, overlay.as_deref())
     }
 
@@ -141,8 +140,8 @@ fn read_registry_file(root: &Path) -> Result<(Vec<Capability>, Option<llm::LlmCo
         #[serde(rename = "llmDefault", default)]
         llm_default: Option<llm::LlmConfig>,
     }
-    let file: RegistryFile = serde_json::from_str(&text)
-        .map_err(|e| format!("解析 {} 失败: {}", path.display(), e))?;
+    let file: RegistryFile =
+        serde_json::from_str(&text).map_err(|e| format!("解析 {} 失败: {}", path.display(), e))?;
     Ok((file.capabilities, file.meta.and_then(|m| m.llm_default)))
 }
 
@@ -214,11 +213,8 @@ mod tests {
 
     /// temp 目录树: root/capabilities.json + root/nested/child/
     fn temp_root(tag: &str) -> (PathBuf, PathBuf) {
-        let root = std::env::temp_dir().join(format!(
-            "elwright-root-{}-{}",
-            tag,
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("elwright-root-{}-{}", tag, std::process::id()));
         let child = root.join("nested/child");
         fs::create_dir_all(&child).unwrap();
         fs::write(root.join("capabilities.json"), "{\"capabilities\":[]}").unwrap();
@@ -255,10 +251,8 @@ mod tests {
         // 嵌套子目录也能上溯命中
         assert_eq!(find_root_from(&root.join("nested/child")).unwrap(), root);
         // 空目录树上溯到根也不会误报（/ 与 C:\ 等无注册表）
-        let empty_tree = std::env::temp_dir().join(format!(
-            "elwright-empty-{}",
-            std::process::id()
-        ));
+        let empty_tree =
+            std::env::temp_dir().join(format!("elwright-empty-{}", std::process::id()));
         fs::create_dir_all(&empty_tree).unwrap();
         assert_eq!(find_root_from(&empty_tree), None);
         fs::remove_dir_all(&root).ok();
@@ -309,8 +303,10 @@ mod tests {
 
     /// base 根含 demo/builtin-doc 两项，overlay 根含 demo（遮蔽）+ custom 一项。
     fn overlay_roots(tag: &str) -> (PathBuf, PathBuf) {
-        let base = std::env::temp_dir().join(format!("elwright-ov-base-{}-{}", tag, std::process::id()));
-        let over = std::env::temp_dir().join(format!("elwright-ov-over-{}-{}", tag, std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("elwright-ov-base-{}-{}", tag, std::process::id()));
+        let over =
+            std::env::temp_dir().join(format!("elwright-ov-over-{}-{}", tag, std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let _ = fs::remove_dir_all(&over);
         fs::create_dir_all(base.join("resources/docs")).unwrap();
@@ -330,8 +326,13 @@ mod tests {
                 {"id":"demo","name":"用户版","type":"knowledge","doc":"resources/docs/demo.md"},
                 {"id":"custom","name":"自定义","type":"knowledge","doc":"resources/docs/custom.md"}
             ]}"#,
-        ).unwrap();
-        fs::write(over.join("resources/docs/demo.md"), "# 用户 demo（遮蔽内置）").unwrap();
+        )
+        .unwrap();
+        fs::write(
+            over.join("resources/docs/demo.md"),
+            "# 用户 demo（遮蔽内置）",
+        )
+        .unwrap();
         fs::write(over.join("resources/docs/custom.md"), "# 自定义文档").unwrap();
         (base, over)
     }

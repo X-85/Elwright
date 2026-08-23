@@ -179,10 +179,8 @@ fn load_registry() -> Result<registry::Registry, String> {
 
 #[tauri::command]
 fn import_capability(path: String, force: bool) -> Result<String, String> {
-    let overlay = registry::user_root()
-        .ok_or_else(|| "无法定位用户主目录".to_string())?;
-    let text = std::fs::read_to_string(&path)
-        .map_err(|e| format!("读取 {} 失败: {}", path, e))?;
+    let overlay = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("读取 {} 失败: {}", path, e))?;
     export::import_capability(&overlay, &text, force)
 }
 
@@ -197,8 +195,7 @@ fn export_capability(id: String, path: String) -> Result<String, String> {
 #[tauri::command]
 fn delete_capability(id: String) -> Result<String, String> {
     let registry = load_registry()?;
-    let overlay = registry::user_root()
-        .ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let overlay = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
     export::delete_capability(&overlay, &registry, &id)
 }
 
@@ -237,11 +234,10 @@ async fn chat_completion(messages: Vec<ChatMessageArg>) -> Result<String, String
         }
         let client = llm::LlmClient { config };
         let mut all = vec![llm::ChatMessage::new("system", llm::CHAT_SYSTEM_PROMPT)];
-        all.extend(
-            messages
-                .into_iter()
-                .map(|m| llm::ChatMessage { role: m.role, content: m.content }),
-        );
+        all.extend(messages.into_iter().map(|m| llm::ChatMessage {
+            role: m.role,
+            content: m.content,
+        }));
         client.chat_messages(&all)
     })
     .await
@@ -270,7 +266,10 @@ fn chat_save_session(
 ) -> Result<(), String> {
     let messages: Vec<llm::ChatMessage> = messages
         .into_iter()
-        .map(|m| llm::ChatMessage { role: m.role, content: m.content })
+        .map(|m| llm::ChatMessage {
+            role: m.role,
+            content: m.content,
+        })
         .collect();
     chat_store::save_session(&id, &title, &messages)
 }
@@ -292,7 +291,9 @@ fn get_llm_config() -> Result<llm::LlmConfigView, String> {
 /// 保存到用户层 ~/.elwright/config.json。
 /// apiKey 语义：Some(v) 空串=清除、Some(v) 非空=写入、None=保留现值不改。
 /// 环境变量/项目层优先级更高，保存后视图可能仍显示被更高层覆盖的值。
+// 参数名保持 camelCase：与前端 invoke 参数对齐（Tauri IPC 约定）
 #[tauri::command]
+#[allow(non_snake_case)]
 fn set_llm_config(
     baseUrl: String,
     apiKey: Option<String>,
@@ -308,17 +309,17 @@ fn set_llm_config(
 }
 
 /// 连接测试：用表单当前值（未保存也可测）发最小请求。
+// 参数名保持 camelCase：与前端 invoke 参数对齐（Tauri IPC 约定）
 #[tauri::command]
+#[allow(non_snake_case)]
 async fn test_llm_connection(
     baseUrl: String,
     apiKey: String,
     model: String,
 ) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        llm::test_connection(&baseUrl, &apiKey, &model)
-    })
-    .await
-    .map_err(|e| format!("连接测试任务异常: {}", e))?
+    tauri::async_runtime::spawn_blocking(move || llm::test_connection(&baseUrl, &apiKey, &model))
+        .await
+        .map_err(|e| format!("连接测试任务异常: {}", e))?
 }
 
 fn main() {
@@ -377,8 +378,9 @@ fn main() {
 
 // ---- 集成终端 IPC ----
 
-/// 打开新终端会话，返回 (id, channel)。
-/// 前端收到 channel 后立即 `channel.onmessage = (bytes) => term.writeBytes(...)`。
+/// 打开新终端会话。channel 由前端创建并作为参数传入（Tauri CommandArg
+/// 会把它解析回指向 JS onmessage 回调的 channel）；PTY 输出经 pump 线程
+/// 从该 channel 推给前端。
 #[tauri::command]
 async fn terminal_open(
     cols: u16,
@@ -386,7 +388,8 @@ async fn terminal_open(
     cwd: Option<String>,
     shell: Option<String>,
     env: Option<Vec<(String, String)>>,
-) -> Result<(u64, Channel<Vec<u8>>), String> {
+    channel: Channel<Vec<u8>>,
+) -> Result<u64, String> {
     let reg = TERMINAL
         .get()
         .ok_or_else(|| "终端注册表未初始化".to_string())?;
@@ -398,10 +401,8 @@ async fn terminal_open(
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     let env = env.unwrap_or_default();
-    // Channel 单向用：on_message 是前端消息回调（v1 我们不接收前端消息，留 no-op）
-    let channel = Channel::new(|_body: tauri::ipc::InvokeResponseBody| Ok(()));
-    let id = reg.open(&shell, &cwd_path, cols, rows, &env, channel.clone())?;
-    Ok((id.0, channel))
+    let id = reg.open(&shell, &cwd_path, cols, rows, &env, channel)?;
+    Ok(id.0)
 }
 
 #[tauri::command]

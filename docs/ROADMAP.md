@@ -19,11 +19,12 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 ## 当前版本
 
-v0.1.4（2026-08-23，tag `v0.1.4`，GitHub Release 附 dmg + msi。基于 v0.1.3 新增：AI 对话 阶段①（独立对话页 + 多轮消息 + 安全 Markdown 渲染 ADR-002）与阶段②（会话侧栏 + `~/.elwright/chats/` 持久化 + 重命名保护）；v0.1.2 已合入集成终端 v1；v0.1.3 hotfix 已合入「检查更新」IPC 序列化修复）
+v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复（无回显 / 第二 tab 不能输入）+ 终端八项交互优化（ZCode 风格）+ 设置中心第一阶段（三态主题）+ AI 会话图标与新建按钮图标化 + 工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest））
 
 ## 进行中
 
-- **应用壳布局第一阶段**（`enhancement-2026-08-app-shell-layout`）：顶部全局栏、左右面板显隐和按需展开的底部终端抽屉。当前正在实现，暂不增加新业务页面。
+- **设置中心第一阶段**（`feature-2026-08-settings-center-phase1`）：统一设置入口，交付常规/外观/模型设置分组与系统、浅色、深色主题偏好；终端主题同步和更多常规配置留后续阶段。
+- **人与人消息会话第一阶段**（`feature-2026-08-messaging-phase1`）：消息会话客户端基础，支持本地文字/图片/表情和会话状态；跨设备消息传输与实时协作空间后置。
 
 ## V1（短期，做完即发版）
 
@@ -32,10 +33,7 @@ v0.1.4（2026-08-23，tag `v0.1.4`，GitHub Release 附 dmg + msi。基于 v0.1.
 3. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md ~~——已完成（归档时补建，已入 archive）~~。
 4. ~~发 v0.1.2 + v0.1.3 hotfix~~ **已完成（2026-08-23）**：v0.1.2 集成桌面壳内集成终端（PTY + xterm.js）；v0.1.3 hotfix 修「检查更新」按钮 IPC 序列化 bug（`UpdateInfo` 字段命名），见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`。
 5. ~~发 v0.1.4（含 AI 对话 阶段①②）~~ **已完成（2026-08-23）**：`feat/chat` 合并 → `main`（commit `20d4199`）；首次 `release.yml` run #5 因 dmg upload 与并行 CI 的 macos job 冲突失败，删 tag 重打后 run #6 全绿，dmg+msi 已上 GitHub Release。`bugfix-2026-08-check-update-no-prompt` 与 `enhancement-2026-08-script-tools-docs` 一并归档到 `docs/work/archive/`。
-
-## 进行中
-
-（暂无）
+6. **发 v0.1.5（终端 bugfix + 体验批次 + 工程质量第一档）**：`bugfix/2026-08-app-shell-feedback` 合并 → `main`（本条为发版清单项）。
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
@@ -50,7 +48,13 @@ v0.1.4（2026-08-23，tag `v0.1.4`，GitHub Release 附 dmg + msi。基于 v0.1.
 ### 主干优先
 
 - **AI 对话**：分四阶段实现——①多轮对话页面与基础状态；②本地会话管理；③用户确认式能力协作；④流式输出、取消、长上下文和跨平台完善。模型不配置或不可达时保持明确降级提示，能力执行继续复用现有 core。
+- **人与人消息会话**：分三阶段实现——①客户端本地消息会话；②轻量身份/邀请与一对一消息传输；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
+- **设置中心后续阶段**：终端主题、字体和字号同步；常规中的启动视图、更新策略与语言；模型档案等配置，均以本地优先、少而明确为准入标准。
 - **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；今日记录、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。
+- **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
+  - **第一档（立即）**：CI 加 clippy + rustfmt 检查；前端引入 vitest，先覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数）。
+  - **第二档（下个发版周期）**：tauri-driver 或 Playwright e2e 冒烟（打开终端 → 敲命令 → 断言输出，抓集成断线类 bug）；验证清单加「自动化覆盖/需手测」标记，防止未执行的验证被标通过。
+  - **第三档（按需）**：eslint（风格已统一，低优先）；覆盖率门槛（等测试有存量）。
 
 ### 后置验证
 
@@ -76,6 +80,8 @@ v0.1.4（2026-08-23，tag `v0.1.4`，GitHub Release 附 dmg + msi。基于 v0.1.
 
 ## 已完成里程碑
 
+- 2026-08-23 应用壳布局第一阶段：顶部全局操作栏、能力工具箱/AI 对话图标化、左右面板显隐、按需展开的终端抽屉。任务已归档至 `docs/work/archive/enhancement-2026-08-app-shell-layout/`。
+
 - 2026-08-21 阶段 1：Rust 核心 + CLI `ew`（ls/run/view/invoke），公司机跑通。
 - 2026-08-21 阶段 2：LLM 接入（reqwest blocking，ADR-001）+ 离线降级 SOP；6 个技能型 SOP 补齐。
 - 2026-08-21 阶段 3/3b：Vue 3 前端 + Tauri 壳，四 IPC 命令，浏览器/桌面双适配 bridge。
@@ -88,3 +94,4 @@ v0.1.4（2026-08-23，tag `v0.1.4`，GitHub Release 附 dmg + msi。基于 v0.1.
 - 2026-08-23 AI 对话阶段①②：阶段① 独立对话页 + 多轮消息 + 安全 Markdown 渲染（ADR-002）+ 发送/停止/重试 + 模型状态展示；阶段② 会话侧栏 + `~/.elwright/chats/` 一文件一会话 + 自动保存 + 错误消息不落盘，零新依赖（手写 ISO8601 + AtomicU64 id）。真机验证后顺手修了 4 处 UI 反馈（保存表单自动关闭 / 复制按钮深色背景可见 / 重命名保护不被自动覆盖 / 引导诊断日志）；合并提交 `282d081` `6a8e83c`。三任务目录归档：phase1 / phase2 / bugfix-real-machine-issues。
 - 2026-08-23 v0.1.2 + v0.1.3 hotfix：v0.1.2 集成终端 v1 入包；v0.1.3 hotfix 修「检查更新」按钮 IPC 序列化 bug（`UpdateInfo` 字段命名）。见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`。
 - 2026-08-23 v0.1.4：集成终端 v1 + AI 对话阶段①② + 一键安装脚本（macOS/Windows）进包。`feat/chat` 合并 commit `20d4199`；首次 `release.yml` run #5 dmg upload step 跟并行 CI 的 macos job 冲突失败，删 tag 重打后 run #6 全绿，dmg+msi 已上 Release。归档目录：chat phase1 / phase2 / bugfix-real-machine-issues / check-update-no-prompt / script-tools-docs。
+- 2026-08-24 应用壳反馈 bugfix + 终端体验批次（随 v0.1.5 进包）：修两个真机 bug（终端无回显——Tauri Channel 用法写反；第二 tab 不能输入——组件复用换 prop 不重接线，结构重写为 per-tab 实例）+ 八项交互优化（顶栏直达新建、＋/× 图标成组、拖拽调高、三态主题联动、扁平化等，参考 ZCode UI）+ AI 会话图标（Sparkles）与新建按钮图标化。分支 `bugfix/2026-08-app-shell-feedback` 共 17 提交，含延伸落地的工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest 22 例）与设置中心第一阶段。任务目录已归档（`docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。

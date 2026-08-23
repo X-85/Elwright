@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { Plus, X } from 'lucide-vue-next'
 import TerminalView from './TerminalView.vue'
 import type { Bridge, TerminalSession } from '../lib/bridge'
 
@@ -13,8 +14,6 @@ interface Tab {
 
 const props = defineProps<{
   bridge: Bridge
-  /** 默认 shell 列表（首项优先） */
-  defaultShells?: string[]
   /** 应用 cwd 路径 */
   cwd?: string
 }>()
@@ -24,35 +23,40 @@ const emit = defineEmits<{
   (e: 'run-in-terminal', command: string): void
 }>()
 
-// 抽屉状态：最小化时只露标题栏
+// 抽屉状态：收起时完全隐藏，但保留 DOM 以维持 xterm 会话。
 const expanded = ref(false)
-const heightPct = ref(40) // 0-80
+const heightPct = ref(40) // 20-85，百分比视口高
 const tabs = ref<Tab[]>([])
 const activeId = ref<number | null>(null)
 
-const activeTab = computed(() => tabs.value.find((t) => t.id === activeId.value) ?? null)
+/** 新建 tab 的默认 cwd：用户主目录（拿不到时交给后端 current_dir 兜底）。 */
+const homeCwd = ref<string | undefined>(undefined)
+onMounted(async () => {
+  try {
+    homeCwd.value = (await props.bridge.homeDir()) ?? undefined
+  } catch {
+    homeCwd.value = undefined
+  }
+})
 
-watch(
-  () => props.bridge.kind,
-  (kind) => {
-    // 桌面模式才允许打开；浏览器模式面板整块隐藏
-  },
-  { immediate: true },
-)
+/** 默认标签序号：终端 1、终端 2…（双击标签可重命名） */
+let tabSeq = 0
 
-async function openTab(label = 'Terminal') {
+async function openTab(label?: string) {
   if (props.bridge.kind !== 'tauri') return
   try {
-    const session = await props.bridge.openTerminal({ cwd: props.cwd })
+    // 默认落在主目录（顶栏按钮/＋ 新建的语义）；「在终端中运行」显式传 props.cwd
+    const session = await props.bridge.openTerminal({ cwd: homeCwd.value })
     const tab: Tab = {
       id: session.id,
-      label,
+      label: label ?? `终端 ${++tabSeq}`,
       session,
       closed: false,
     }
     tabs.value.push(tab)
     activeId.value = tab.id
     expanded.value = true
+    return tab
   } catch (e) {
     alert(`打开终端失败：${e instanceof Error ? e.message : String(e)}`)
   }
@@ -88,6 +92,44 @@ function toggleExpand() {
   expanded.value = !expanded.value
 }
 
+/** 顶栏终端按钮（ZCode 式）：无 tab → 新建一个并展开；有 → 纯展开/收起切换。 */
+async function toggleFromToolbar() {
+  if (tabs.value.length === 0) {
+    await openTab()
+  } else {
+    toggleExpand()
+  }
+}
+
+// ---- 拖拽调高（ZCode 式：抓住表头上沿整体上下拖） ----
+const panelRef = ref<HTMLElement | null>(null)
+let dragging = false
+
+function onDragStart(e: MouseEvent) {
+  if (e.button !== 0) return
+  dragging = true
+  const startY = e.clientY
+  const startPct = heightPct.value
+  const onMove = (ev: MouseEvent) => {
+    if (!dragging) return
+    // 向上拖（clientY 减小）面板变高：高度 = startPct + (startY - clientY) / vh
+    const deltaPct = ((startY - ev.clientY) / window.innerHeight) * 100
+    heightPct.value = Math.min(85, Math.max(20, startPct + deltaPct))
+  }
+  const onUp = () => {
+    dragging = false
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+  document.body.style.cursor = 'ns-resize'
+  document.body.style.userSelect = 'none'
+  e.preventDefault()
+}
+
 // 「在终端中运行」：open new tab + 写命令
 async function runCommand(command: string) {
   const tab = await openTab(`运行: ${command.slice(0, 20)}`)
@@ -98,7 +140,7 @@ async function runCommand(command: string) {
   }, 150)
 }
 
-defineExpose({ openTab, runCommand })
+defineExpose({ openTab, runCommand, toggleExpand, toggleFromToolbar })
 
 // 把面板的 runCommand 暴露给外部组件（CapabilityDetail 联动）。
 // 通过 window 全局，避免 prop drilling；HMR 重载时 onBeforeUnmount 清理旧引用。
@@ -114,12 +156,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="bridge.kind === 'tauri'" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '32px' }">
-    <div class="panel-header">
-      <button class="toggle" :title="expanded ? '最小化' : '展开'" @click="toggleExpand">
-        {{ expanded ? '▼' : '▲' }}
-      </button>
-      <button class="new-tab" title="新建终端标签" @click="openTab()">＋ 新建</button>
+  <div v-if="bridge.kind === 'tauri'" ref="panelRef" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '0px' }" :aria-hidden="!expanded">
+    <div class="panel-header" title="拖动调整高度" @mousedown="onDragStart">
+      <span class="panel-title" @mousedown.stop>终端</span>
       <div class="tabs">
         <div
           v-for="t in tabs"
@@ -131,21 +170,32 @@ onBeforeUnmount(() => {
             class="label"
             :title="`双击重命名\n${t.label}`"
             @dblclick="$event.preventDefault(); renameTab(t.id, prompt('重命名', t.label) || t.label)"
+            @mousedown.stop
           >{{ t.label }}</span>
-          <button class="close" title="关闭" @click.stop="closeTab(t.id)">×</button>
+          <button class="close" title="关闭" @click.stop="closeTab(t.id)">
+            <X :size="12" :stroke-width="2" />
+          </button>
         </div>
       </div>
-      <div v-if="expanded" class="resize-handle" title="拖动调整高度"></div>
+      <button class="new-tab" title="新建终端标签" @mousedown.stop @click.stop="openTab()">
+        <Plus :size="15" :stroke-width="1.8" />
+      </button>
+      <button class="collapse" title="收起面板（会话保留）" @mousedown.stop @click.stop="toggleExpand()">
+        <X :size="15" :stroke-width="1.8" />
+      </button>
     </div>
-    <div v-if="expanded" class="panel-body">
+    <div v-show="expanded" class="panel-body">
+      <!-- 每个 tab 一个独立 TerminalView（v-show 保留 DOM/xterm 状态：
+           切换即时、各自 scrollback 隔离、隐藏 tab 的后台输出不丢） -->
       <TerminalView
-        v-if="activeTab"
-        :session="activeTab.session"
-        :label="activeTab.label"
-        @exit="onTabExit(activeTab.id)"
-        @rename="(n: string) => renameTab(activeTab!.id, n)"
+        v-for="t in tabs"
+        :key="t.id"
+        v-show="t.id === activeId"
+        class="term-instance"
+        :session="t.session"
+        @exit="onTabExit(t.id)"
       />
-      <div v-else class="empty">点击「＋ 新建」打开终端</div>
+      <div v-if="tabs.length === 0" class="empty">点击「＋」打开终端</div>
     </div>
   </div>
 </template>
@@ -156,38 +206,69 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #1e1e1e;
-  border-top: 1px solid #3a3a3a;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   transition: height 0.18s ease-out;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
   z-index: 50;
+}
+.terminal-panel.expanded {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
 .panel-header {
   height: 32px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 0 8px;
-  border-bottom: 1px solid #2a2a2a;
+  color: var(--text);
   user-select: none;
+  cursor: ns-resize;
 }
-.toggle {
-  background: none;
-  border: none;
-  color: #ccc;
+.panel-title {
   font-size: 12px;
-  cursor: pointer;
-  width: 22px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 .new-tab {
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
-  color: #ccc;
-  padding: 2px 8px;
-  border-radius: 3px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
   cursor: pointer;
-  font-size: 12px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.new-tab:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+.collapse {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.collapse:hover {
+  color: var(--text);
+  background: var(--accent-soft);
 }
 .tabs {
   display: flex;
@@ -199,18 +280,20 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
-  background: #2a2a2a;
-  border: 1px solid transparent;
-  border-radius: 3px;
+  padding: 2px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--text-dim);
+}
+.tab:hover {
+  color: var(--text);
 }
 .tab.active {
-  background: #3a3a3a;
-  color: #eee;
-  border-color: #555;
+  background: var(--accent-soft);
+  color: var(--text);
 }
 .tab .label {
   max-width: 160px;
@@ -224,24 +307,32 @@ onBeforeUnmount(() => {
   color: inherit;
   cursor: pointer;
   padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+}
+.tab .close:hover {
+  color: var(--text);
+  background: var(--border);
 }
 .panel-body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+.term-instance {
+  position: absolute;
+  inset: 0;
 }
 .empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: var(--text-dim);
   font-size: 13px;
-}
-.resize-handle {
-  width: 4px;
-  height: 16px;
-  background: #444;
-  cursor: ns-resize;
 }
 </style>

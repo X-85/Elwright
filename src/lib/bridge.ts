@@ -139,6 +139,8 @@ export interface Bridge {
    * 仅桌面模式可用；浏览器预览模式直接抛错（与现有 import/export 保持一致）。
    */
   openTerminal(options?: { cwd?: string; shell?: string }): Promise<TerminalSession>
+  /** 用户主目录（新终端默认 cwd）。浏览器预览返回 null。 */
+  homeDir(): Promise<string | null>
 }
 
 const browserBridge: Bridge = {
@@ -288,6 +290,11 @@ const browserBridge: Bridge = {
     throw new Error(
       '【预览模式】浏览器无法启动 PTY。\n真实终端请用桌面应用。',
     )
+  },
+
+  async homeDir() {
+    // 浏览器预览无终端面板，不会走到这里；返回 null 保持接口完备
+    return null
   },
 }
 
@@ -479,7 +486,9 @@ const tauriBridge: Bridge = {
       // 后端在 PTY 关闭时不再 send bytes，但仍要触发 exit
       onOutput?.(bytes)
     }
-    // cols/rows 由前端 xterm.js 提供初值，IPC 返回 id 后前端会立即 resize
+    // cols/rows 由前端 xterm.js 提供初值，IPC 返回 id 后前端会立即 resize。
+    // channel 作为参数传入：Tauri 把它解析回指向 onmessage 的回调，
+    // 后端 PTY 输出经此推给前端（返回值只带 id）。
     const cols = 80
     const rows = 24
     const id = await tauriInvoke<number>('terminal_open', {
@@ -530,11 +539,17 @@ const tauriBridge: Bridge = {
     }
     return session
   },
+
+  async homeDir() {
+    const { homeDir } = await import('@tauri-apps/api/path')
+    return homeDir()
+  },
 }
 
 /// 语义与 core::version::is_newer 一致（core 有单测覆盖）：逐段数值比较，
 /// 段内非数字后缀取前导数字，缺段视为 0。返回 >0 表示 a 更新。
-function compareVersions(a: string, b: string): number {
+/// 导出供单测（纯函数，无副作用）。
+export function compareVersions(a: string, b: string): number {
   const seg = (v: string) =>
     v
       .replace(/^v/i, '')

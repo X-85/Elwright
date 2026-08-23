@@ -4,7 +4,8 @@
 
 ```
 ┌─────────────────── 前端 (Vue) ───────────────────┐
-│  TerminalPanel.vue  (底部抽屉, 多 tab)            │
+│  App shell 顶部入口 → TerminalPanel.vue           │
+│  (按需展开的底部抽屉, 多 tab)                     │
 │  ├─ TerminalView.vue (单 tab, xterm.js + WebGL)  │
 │  └─ lib/bridge.ts   (TerminalSession 接口)        │
 └────────────────────┬─────────────────────────────┘

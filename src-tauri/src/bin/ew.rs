@@ -49,7 +49,11 @@ enum Cmd {
     /// 导出能力为单文件（默认打印，给文件名则写入）
     Export { id: String, file: Option<String> },
     /// 导入能力到用户叠加层 ~/.elwright/（.elw.json；id 冲突需 --force）
-    Import { file: String, #[arg(long)] force: bool },
+    Import {
+        file: String,
+        #[arg(long)]
+        force: bool,
+    },
     /// 删除自定义能力（仅用户叠加层条目，内置不可删）
     Delete { id: String },
 }
@@ -64,7 +68,10 @@ enum ConfigAction {
         local: bool,
     },
     /// 删除配置文件；--local 删项目的（默认删用户级）
-    Clear { #[arg(long)] local: bool },
+    Clear {
+        #[arg(long)]
+        local: bool,
+    },
 }
 
 fn main() {
@@ -80,7 +87,14 @@ fn main() {
 
     match cli.cmd {
         Cmd::Ls => {
-            outln!("{:<26} {:<11} {:<9} {:<6} {}", "ID", "TYPE", "OFFLINE", "SRC", "NAME");
+            outln!(
+                "{:<26} {:<11} {:<9} {:<6} {}",
+                "ID",
+                "TYPE",
+                "OFFLINE",
+                "SRC",
+                "NAME"
+            );
             outln!("{}", "-".repeat(78));
             for c in reg.list() {
                 let offline = match c.offline {
@@ -92,7 +106,14 @@ fn main() {
                 } else {
                     "-"
                 };
-                outln!("{:<26} {:<11} {:<9} {:<6} {}", c.id, c.kind, offline, src, c.name);
+                outln!(
+                    "{:<26} {:<11} {:<9} {:<6} {}",
+                    c.id,
+                    c.kind,
+                    offline,
+                    src,
+                    c.name
+                );
             }
             outln!("\n共 {} 项能力", reg.list().len());
         }
@@ -265,9 +286,23 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
                 }
             };
             outln!("当前生效的 LLM 配置：");
-            outln!("  base_url : {}", if cfg.base_url.is_empty() { "（未设置）".into() } else { cfg.base_url.clone() });
+            outln!(
+                "  base_url : {}",
+                if cfg.base_url.is_empty() {
+                    "（未设置）".into()
+                } else {
+                    cfg.base_url.clone()
+                }
+            );
             outln!("    来源   : {}", source[0]);
-            outln!("  model    : {}", if cfg.model.is_empty() { "（未设置）".into() } else { cfg.model.clone() });
+            outln!(
+                "  model    : {}",
+                if cfg.model.is_empty() {
+                    "（未设置）".into()
+                } else {
+                    cfg.model.clone()
+                }
+            );
             outln!("    来源   : {}", source[2]);
             outln!("  api_key  : {}", mask(&cfg.api_key));
             outln!("    来源   : {}", source[1]);

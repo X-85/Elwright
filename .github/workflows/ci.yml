@@ -14,6 +14,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 静态检查（2026-08-23 工程质量治理第一档）：clippy 零警告 + rustfmt 格式。
+  # 只跑一次（ubuntu），比三平台矩阵快——三平台行为差异由下方 rust job 兜。
+  lint:
+    name: Rust lint (clippy + fmt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: rustfmt --check
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      # Linux 需 webkit2gtk 系统库才能通过 clippy --all-targets（编译 tauri 壳）
+      - name: Install Tauri system deps (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: clippy --all-targets
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
   rust:
     name: Rust core (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -116,6 +146,11 @@ jobs:
       - name: npm ci
         working-directory: src
         run: npm ci
+
+      # 纯逻辑模块单测（safeMarkdown 安全底线 / theme 三态 / 版本比较）
+      - name: npm test
+        working-directory: src
+        run: npm test
 
       - name: npm run build
         working-directory: src

@@ -52,18 +52,16 @@ impl SessionRegistry {
         let reg_for_thread = registry.clone();
         thread::Builder::new()
             .name("elwright-terminal-pump".into())
-            .spawn(move || {
-                loop {
-                    {
-                        let mut sessions = reg_for_thread.sessions.lock();
-                        for (_id, entry) in sessions.iter_mut() {
-                            while let Some(bytes) = entry.handle.take_output()() {
-                                entry.channel.send(bytes).ok();
-                            }
+            .spawn(move || loop {
+                {
+                    let mut sessions = reg_for_thread.sessions.lock();
+                    for entry in sessions.values_mut() {
+                        while let Some(bytes) = entry.handle.take_output()() {
+                            entry.channel.send(bytes).ok();
                         }
                     }
-                    thread::sleep(FLUSH_INTERVAL);
                 }
+                thread::sleep(FLUSH_INTERVAL);
             })
             .expect("启动终端 pump 线程失败");
 
@@ -90,13 +88,9 @@ impl SessionRegistry {
     ) -> Result<SessionId, String> {
         let handle = self.backend.spawn(shell, cwd, cols, rows, env)?;
         let id = self.alloc_id();
-        self.sessions.lock().insert(
-            id,
-            SessionEntry {
-                handle,
-                channel,
-            },
-        );
+        self.sessions
+            .lock()
+            .insert(id, SessionEntry { handle, channel });
         Ok(id)
     }
 
