@@ -43,6 +43,26 @@ let fit: FitAddon | null = null
 let webgl: WebglAddon | null = null
 let ro: ResizeObserver | null = null
 
+// 当前接线的 session：onData 回调持有它，tab 切换时更新（见 watch）
+let wiredSession: TerminalSession | null = null
+let offOutput: (() => void) | null = null
+let offExit: (() => void) | null = null
+
+/** 把 PTY 输出/退出事件接到给定 session；先解绑上一个（tab 切换复用本组件）。 */
+function wireSession(session: TerminalSession) {
+  offOutput?.()
+  offExit?.()
+  wiredSession = session
+  offOutput = session.onOutput((bytes) => {
+    // PTY 输出是 UTF-8 文本字节流（TUI 也用 UTF-8）；直接解码写入
+    term?.write(new TextDecoder('utf-8', { fatal: false }).decode(bytes))
+  })
+  offExit = session.onExit(() => {
+    term?.write('\r\n\x1b[31m[会话已结束]\x1b[0m\r\n')
+    emit('exit')
+  })
+}
+
 onMounted(() => {
   if (!containerRef.value) return
 
@@ -79,20 +99,12 @@ onMounted(() => {
     }
   })
 
-  // PTY 输出 → xterm
-  const offOutput = props.session.onOutput((bytes) => {
-    // PTY 输出是 UTF-8 文本字节流（TUI 也用 UTF-8）；直接解码写入
-    term?.write(new TextDecoder('utf-8', { fatal: false }).decode(bytes))
-  })
+  // PTY 输出/退出 → xterm（接线抽到 wireSession，tab 切换时重接）
+  wireSession(props.session)
 
-  const offExit = props.session.onExit(() => {
-    term?.write('\r\n\x1b[31m[会话已结束]\x1b[0m\r\n')
-    emit('exit')
-  })
-
-  // 用户按键 → PTY
+  // 用户按键 → 当前 session 的 PTY（wiredSession 随 tab 切换更新）
   term.onData((data) => {
-    props.session.write(data).catch((e) => {
+    wiredSession?.write(data).catch((e) => {
       console.warn('[terminal] write 失败:', e)
     })
   })
@@ -108,8 +120,9 @@ onMounted(() => {
 
   // dispose hook：组件 unmount 时回收
   onBeforeUnmount(() => {
-    offOutput()
-    offExit()
+    offOutput?.()
+    offExit?.()
+    wiredSession = null
     ro?.disconnect()
     ro = null
     // xterm.js dispose 顺序：先 addon 再 terminal 再 DOM
@@ -129,12 +142,13 @@ onMounted(() => {
   })
 })
 
-// 监听外部传入的 session 替换（如父组件切换 tab）
+// 监听外部传入的 session 替换（父组件切换 tab 复用本组件）：
+// 重接输出/退出事件到新 session，并 fit 对齐新 PTY 尺寸
 watch(
   () => props.session,
-  async (next) => {
+  (next) => {
     if (!term) return
-    // 简单做法：fit 一次让新 session 的 PTY 与新 xterm 对齐
+    wireSession(next)
     requestAnimationFrame(() => {
       fit?.fit()
       const { cols, rows } = term!

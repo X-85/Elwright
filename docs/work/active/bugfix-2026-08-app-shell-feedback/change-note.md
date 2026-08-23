@@ -8,6 +8,7 @@
 | # | 现象 | 复现路径 | 预期 | 根因（Agent 填） | 修复（Agent 填） | 状态 |
 |---|------|---------|------|----------------|----------------|------|
 | 1 | 终端打开后能看到光标，但敲键盘看不到任何回显/输出 | 打开终端 → 点「＋ 新建」→ 敲任意键 | shell prompt 与输入回显正常显示，命令可执行 | `terminal_open` 用 `Channel::new(no-op)` 自建 channel 并塞进返回值；PTY 输出的 `channel.send(bytes)` 只调用本地 no-op 闭包，从未跨 IPC。前端 bridge 传的 `channel` 参数被 Rust 签名忽略。输入其实已写进 PTY（`terminal_write` 链路通），但 shell 回显随输出流进 no-op——前端零输出，看似「不能输入」 | Rust：`terminal_open` 增加 `channel: Channel<Vec<u8>>` 命令参数（Tauri `CommandArg` 自动解析回 JS onmessage 回调），返回值只带 `u64` id，删除自建 no-op channel。前端注释同步说明返回值只有 id（调用处本就只用 id，无需改动） | 代码已修，待真机验证 |
+| 2 | 新建第二个终端 tab 后不能输入（切回第一个正常） | 开 tab1 → 开 tab2 → 在 tab2 敲键 | 每个 tab 独立可输入 | TerminalPanel 用单个 `<TerminalView :session="activeTab.session">`，切 tab 时 Vue **复用同一组件实例**只换 prop；而 TerminalView 的 `onOutput`/`onExit`/`term.onData` 全部只在 `onMounted` 接线一次。第二个 tab 的按键写进**第一个** session（tab1 会莫名出字符），第二个 PTY 输出无人监听 → 看似不能输入。与主目录无关 | TerminalView 抽出 `wireSession()`：持有 `wiredSession` + `offOutput`/`offExit`；`watch(props.session)` 切换时先解绑旧事件再接新 session；`term.onData` 改写 `wiredSession`（闭包不再钉死首个 session）；unmount 清理同步更新 | 代码已修，待真机验证 |
 
 ## 终端交互优化（2026-08-23 第二批，参考 ZCode UI）
 
