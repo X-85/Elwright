@@ -39,8 +39,104 @@ code {
 
 .layout {
   display: grid;
-  grid-template-columns: 230px 1fr;
+  grid-template-rows: 48px minmax(0, 1fr);
   height: 100vh;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  z-index: 20;
+}
+
+.topbar-brand {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.topbar-nav,
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.topbar-nav button,
+.topbar-action {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.topbar-nav button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.topbar-nav button.active::after {
+  position: absolute;
+  right: 7px;
+  bottom: 1px;
+  left: 7px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  content: '';
+}
+
+.topbar-nav button:hover,
+.topbar-nav button.active,
+.topbar-action:hover,
+.topbar-action.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.terminal-entry {
+  font-family: var(--mono);
+}
+
+.workspace-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 230px) minmax(0, 1fr) minmax(0, 260px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-shell.left-collapsed {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 260px);
+}
+
+.workspace-shell.right-collapsed {
+  grid-template-columns: minmax(0, 230px) minmax(0, 1fr);
+}
+
+.workspace-shell.both-collapsed {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar {
@@ -56,7 +152,25 @@ code {
 .content {
   display: grid;
   grid-template-columns: minmax(300px, 380px) 1fr;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
+}
+
+.context-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.context-placeholder {
+  margin-top: 40px;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
 }
 
 .placeholder {

@@ -24,7 +24,7 @@ const emit = defineEmits<{
   (e: 'run-in-terminal', command: string): void
 }>()
 
-// 抽屉状态：最小化时只露标题栏
+// 抽屉状态：收起时完全隐藏，但保留 DOM 以维持 xterm 会话。
 const expanded = ref(false)
 const heightPct = ref(40) // 0-80
 const tabs = ref<Tab[]>([])
@@ -53,6 +53,7 @@ async function openTab(label = 'Terminal') {
     tabs.value.push(tab)
     activeId.value = tab.id
     expanded.value = true
+    return tab
   } catch (e) {
     alert(`打开终端失败：${e instanceof Error ? e.message : String(e)}`)
   }
@@ -98,7 +99,7 @@ async function runCommand(command: string) {
   }, 150)
 }
 
-defineExpose({ openTab, runCommand })
+defineExpose({ openTab, runCommand, toggleExpand })
 
 // 把面板的 runCommand 暴露给外部组件（CapabilityDetail 联动）。
 // 通过 window 全局，避免 prop drilling；HMR 重载时 onBeforeUnmount 清理旧引用。
@@ -114,7 +115,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="bridge.kind === 'tauri'" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '32px' }">
+  <div v-if="bridge.kind === 'tauri'" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '0px' }" :aria-hidden="!expanded">
     <div class="panel-header">
       <button class="toggle" :title="expanded ? '最小化' : '展开'" @click="toggleExpand">
         {{ expanded ? '▼' : '▲' }}
@@ -137,7 +138,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="expanded" class="resize-handle" title="拖动调整高度"></div>
     </div>
-    <div v-if="expanded" class="panel-body">
+    <div v-show="expanded" class="panel-body">
       <TerminalView
         v-if="activeTab"
         :session="activeTab.session"
@@ -161,7 +162,16 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   transition: height 0.18s ease-out;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
   z-index: 50;
+}
+.terminal-panel.expanded {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
 .panel-header {
   height: 32px;

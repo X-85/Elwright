@@ -71,6 +71,8 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 
 ## 已完成里程碑
 
+- 2026-08-23 应用壳布局第一阶段：顶部全局操作栏、能力工具箱/AI 对话图标化、左右面板显隐、按需展开的终端抽屉。任务已归档至 `docs/work/archive/enhancement-2026-08-app-shell-layout/`。
+
 - 2026-08-21 阶段 1：Rust 核心 + CLI `ew`（ls/run/view/invoke），公司机跑通。
 - 2026-08-21 阶段 2：LLM 接入（reqwest blocking，ADR-001）+ 离线降级 SOP；6 个技能型 SOP 补齐。
 - 2026-08-21 阶段 3/3b：Vue 3 前端 + Tauri 壳，四 IPC 命令，浏览器/桌面双适配 bridge。

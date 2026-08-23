@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Lucide Workflow-inspired candidate: human work flowing into an Elwright tool. -->
+  <rect width="1024" height="1024" rx="224" fill="#18212b"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="212" y="212" width="184" height="184" rx="42" stroke="#f4f7f9" stroke-width="52"/>
+    <path d="M304 396v108c0 62 50 112 112 112h108" stroke="#39c5b0" stroke-width="52"/>
+    <rect x="628" y="628" width="184" height="184" rx="42" stroke="#f4f7f9" stroke-width="52"/>
+  </g>
+  <circle cx="524" cy="616" r="34" fill="#39c5b0"/>
+</svg>
