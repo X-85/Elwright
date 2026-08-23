@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
+import { MessageSquarePlus } from 'lucide-vue-next'
 import { renderChatMarkdown } from '../lib/safeMarkdown'
 import type { Bridge, ChatMessage, ChatSessionSummary, LlmConfigInfo } from '../lib/bridge'
 
@@ -272,7 +273,9 @@ const render = renderChatMarkdown
     <aside class="chat-sessions">
       <div class="sessions-head">
         <span>会话</span>
-        <button class="new-btn" title="新建会话" @click="newSession">＋</button>
+        <button class="new-btn" title="新建会话" aria-label="新建会话" @click="newSession">
+          <MessageSquarePlus :size="14" :stroke-width="1.8" />
+        </button>
       </div>
       <ul class="session-list">
         <li

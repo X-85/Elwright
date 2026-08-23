@@ -963,17 +963,21 @@ button.primary:disabled {
 }
 
 .new-btn {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: 6px;
-  padding: 3px 10px;
-  font-size: 12px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
   cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
 }
 
 .new-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  color: var(--text);
+  background: var(--accent-soft);
 }
 
 .session-list {

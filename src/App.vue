@@ -6,7 +6,7 @@ import ChatView from './components/ChatView.vue'
 import SettingsCenter from './components/SettingsCenter.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
-import { Blocks, MessagesSquare, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
+import { Blocks, BotMessageSquare, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
 
 const bridge: Bridge = createBridge()
 const capabilities = ref<Capability[]>([])
@@ -149,7 +149,7 @@ function toggleTerminal() {
           aria-label="AI 对话"
           @click="activeView = 'chat'"
         >
-          <MessagesSquare :size="18" :stroke-width="1.8" />
+          <BotMessageSquare :size="18" :stroke-width="1.8" />
         </button>
       </nav>
       <div class="topbar-spacer"></div>
