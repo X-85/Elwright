@@ -69,6 +69,8 @@ curl -fsSL .../install.sh | ELWRIGHT_VERSION=v0.1.3 bash
 $env:ELWRIGHT_VERSION='v0.1.3'; irm .../install.ps1 | iex
 ```
 
+完整说明（环境变量、故障排查、跟手动安装的关系）见 [docs/install/one-line-install.md](docs/install/one-line-install.md)。
+
 **手动安装**：到 **[Releases](https://github.com/X-85/Elwright/releases)** 页下载：
 
 - **macOS**：下载 `.dmg`，打开后把 Elwright 拖入「应用程序」。首次打开若被拦截：右键应用图标 →「打开」→ 再点「打开」（安装包未签名，属正常提示，只需过一次）。
@@ -80,7 +82,7 @@ $env:ELWRIGHT_VERSION='v0.1.3'; irm .../install.ps1 | iex
 
 ## 当前状态
 
-✅ **v0.1.1 已发布**：阶段 1–4 已完成，包含 Rust 核心与 CLI、LLM 客户端与离线降级、Tauri 桌面壳、macOS dmg 与 Windows msi、能力导入/导出/删除、模型设置和 GitHub Release 流程。当前正在完善用户能力层与更多可复用能力；内置注册表暂保留 3 个真实示例（文本统计、能力类型说明、周报生成），个人能力通过导入加入 `~/.elwright/`。
+✅ **v0.1.3 已发布**：v0.1.2 集成了桌面壳内的集成终端（PTY）；v0.1.3 hotfix 修了「检查更新」按钮永远显示「已是最新版本」的 IPC 序列化 bug（详见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`）。阶段 1–4 已完成：Rust 核心 + CLI、LLM 客户端与离线降级、Tauri 桌面壳、macOS dmg 与 Windows msi、能力导入/导出/删除、模型设置、集成终端、检查更新、GitHub Release 流程。当前正在完善用户能力层与更多可复用能力；内置注册表暂保留 3 个真实示例（文本统计、能力类型说明、周报生成），个人能力通过导入加入 `~/.elwright/`。
 
 ## 快速开始（开发者）
 
