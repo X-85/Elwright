@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Plus, X } from 'lucide-vue-next'
 import TerminalView from './TerminalView.vue'
 import type { Bridge, TerminalSession } from '../lib/bridge'
@@ -14,8 +14,6 @@ interface Tab {
 
 const props = defineProps<{
   bridge: Bridge
-  /** 默认 shell 列表（首项优先） */
-  defaultShells?: string[]
   /** 应用 cwd 路径 */
   cwd?: string
 }>()
@@ -30,16 +28,6 @@ const expanded = ref(false)
 const heightPct = ref(40) // 20-85，百分比视口高
 const tabs = ref<Tab[]>([])
 const activeId = ref<number | null>(null)
-
-const activeTab = computed(() => tabs.value.find((t) => t.id === activeId.value) ?? null)
-
-watch(
-  () => props.bridge.kind,
-  (kind) => {
-    // 桌面模式才允许打开；浏览器模式面板整块隐藏
-  },
-  { immediate: true },
-)
 
 /** 新建 tab 的默认 cwd：用户主目录（拿不到时交给后端 current_dir 兜底）。 */
 const homeCwd = ref<string | undefined>(undefined)
@@ -197,14 +185,17 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <div v-show="expanded" class="panel-body">
+      <!-- 每个 tab 一个独立 TerminalView（v-show 保留 DOM/xterm 状态：
+           切换即时、各自 scrollback 隔离、隐藏 tab 的后台输出不丢） -->
       <TerminalView
-        v-if="activeTab"
-        :session="activeTab.session"
-        :label="activeTab.label"
-        @exit="onTabExit(activeTab.id)"
-        @rename="(n: string) => renameTab(activeTab!.id, n)"
+        v-for="t in tabs"
+        :key="t.id"
+        v-show="t.id === activeId"
+        class="term-instance"
+        :session="t.session"
+        @exit="onTabExit(t.id)"
       />
-      <div v-else class="empty">点击「＋」打开终端</div>
+      <div v-if="tabs.length === 0" class="empty">点击「＋」打开终端</div>
     </div>
   </div>
 </template>
@@ -328,8 +319,15 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+.term-instance {
+  position: absolute;
+  inset: 0;
 }
 .empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
