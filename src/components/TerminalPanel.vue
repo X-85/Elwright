@@ -26,7 +26,7 @@ const emit = defineEmits<{
 
 // 抽屉状态：收起时完全隐藏，但保留 DOM 以维持 xterm 会话。
 const expanded = ref(false)
-const heightPct = ref(40) // 0-80
+const heightPct = ref(40) // 20-85，百分比视口高
 const tabs = ref<Tab[]>([])
 const activeId = ref<number | null>(null)
 
@@ -40,10 +40,21 @@ watch(
   { immediate: true },
 )
 
+/** 新建 tab 的默认 cwd：用户主目录（拿不到时交给后端 current_dir 兜底）。 */
+const homeCwd = ref<string | undefined>(undefined)
+onMounted(async () => {
+  try {
+    homeCwd.value = (await props.bridge.homeDir()) ?? undefined
+  } catch {
+    homeCwd.value = undefined
+  }
+})
+
 async function openTab(label = 'Terminal') {
   if (props.bridge.kind !== 'tauri') return
   try {
-    const session = await props.bridge.openTerminal({ cwd: props.cwd })
+    // 默认落在主目录（顶栏按钮/＋ 新建的语义）；「在终端中运行」显式传 props.cwd
+    const session = await props.bridge.openTerminal({ cwd: homeCwd.value })
     const tab: Tab = {
       id: session.id,
       label,
@@ -89,6 +100,44 @@ function toggleExpand() {
   expanded.value = !expanded.value
 }
 
+/** 顶栏终端按钮（ZCode 式）：无 tab → 新建一个并展开；有 → 纯展开/收起切换。 */
+async function toggleFromToolbar() {
+  if (tabs.value.length === 0) {
+    await openTab()
+  } else {
+    toggleExpand()
+  }
+}
+
+// ---- 拖拽调高（ZCode 式：抓住表头上沿整体上下拖） ----
+const panelRef = ref<HTMLElement | null>(null)
+let dragging = false
+
+function onDragStart(e: MouseEvent) {
+  if (e.button !== 0) return
+  dragging = true
+  const startY = e.clientY
+  const startPct = heightPct.value
+  const onMove = (ev: MouseEvent) => {
+    if (!dragging) return
+    // 向上拖（clientY 减小）面板变高：高度 = startPct + (startY - clientY) / vh
+    const deltaPct = ((startY - ev.clientY) / window.innerHeight) * 100
+    heightPct.value = Math.min(85, Math.max(20, startPct + deltaPct))
+  }
+  const onUp = () => {
+    dragging = false
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+  document.body.style.cursor = 'ns-resize'
+  document.body.style.userSelect = 'none'
+  e.preventDefault()
+}
+
 // 「在终端中运行」：open new tab + 写命令
 async function runCommand(command: string) {
   const tab = await openTab(`运行: ${command.slice(0, 20)}`)
@@ -99,7 +148,7 @@ async function runCommand(command: string) {
   }, 150)
 }
 
-defineExpose({ openTab, runCommand, toggleExpand })
+defineExpose({ openTab, runCommand, toggleExpand, toggleFromToolbar })
 
 // 把面板的 runCommand 暴露给外部组件（CapabilityDetail 联动）。
 // 通过 window 全局，避免 prop drilling；HMR 重载时 onBeforeUnmount 清理旧引用。
@@ -115,12 +164,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="bridge.kind === 'tauri'" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '0px' }" :aria-hidden="!expanded">
-    <div class="panel-header">
-      <button class="toggle" :title="expanded ? '最小化' : '展开'" @click="toggleExpand">
+  <div v-if="bridge.kind === 'tauri'" ref="panelRef" class="terminal-panel" :class="{ expanded }" :style="{ height: expanded ? `${heightPct}vh` : '0px' }" :aria-hidden="!expanded">
+    <div class="panel-header" title="拖动调整高度" @mousedown="onDragStart">
+      <button class="toggle" :title="expanded ? '最小化' : '展开'" @click.stop="toggleExpand">
         {{ expanded ? '▼' : '▲' }}
       </button>
-      <button class="new-tab" title="新建终端标签" @click="openTab()">＋ 新建</button>
+      <button class="new-tab" title="新建终端标签" @click.stop="openTab()">＋</button>
       <div class="tabs">
         <div
           v-for="t in tabs"
@@ -132,11 +181,11 @@ onBeforeUnmount(() => {
             class="label"
             :title="`双击重命名\n${t.label}`"
             @dblclick="$event.preventDefault(); renameTab(t.id, prompt('重命名', t.label) || t.label)"
+            @mousedown.stop
           >{{ t.label }}</span>
           <button class="close" title="关闭" @click.stop="closeTab(t.id)">×</button>
         </div>
       </div>
-      <div v-if="expanded" class="resize-handle" title="拖动调整高度"></div>
     </div>
     <div v-show="expanded" class="panel-body">
       <TerminalView
@@ -146,7 +195,7 @@ onBeforeUnmount(() => {
         @exit="onTabExit(activeTab.id)"
         @rename="(n: string) => renameTab(activeTab!.id, n)"
       />
-      <div v-else class="empty">点击「＋ 新建」打开终端</div>
+      <div v-else class="empty">点击「＋」打开终端</div>
     </div>
   </div>
 </template>
@@ -181,6 +230,7 @@ onBeforeUnmount(() => {
   padding: 0 8px;
   border-bottom: 1px solid #2a2a2a;
   user-select: none;
+  cursor: ns-resize;
 }
 .toggle {
   background: none;
@@ -194,10 +244,11 @@ onBeforeUnmount(() => {
   background: #2a2a2a;
   border: 1px solid #3a3a3a;
   color: #ccc;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 3px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1;
 }
 .tabs {
   display: flex;
@@ -247,11 +298,5 @@ onBeforeUnmount(() => {
   height: 100%;
   color: #666;
   font-size: 13px;
-}
-.resize-handle {
-  width: 4px;
-  height: 16px;
-  background: #444;
-  cursor: ns-resize;
 }
 </style>

@@ -139,6 +139,8 @@ export interface Bridge {
    * 仅桌面模式可用；浏览器预览模式直接抛错（与现有 import/export 保持一致）。
    */
   openTerminal(options?: { cwd?: string; shell?: string }): Promise<TerminalSession>
+  /** 用户主目录（新终端默认 cwd）。浏览器预览返回 null。 */
+  homeDir(): Promise<string | null>
 }
 
 const browserBridge: Bridge = {
@@ -288,6 +290,11 @@ const browserBridge: Bridge = {
     throw new Error(
       '【预览模式】浏览器无法启动 PTY。\n真实终端请用桌面应用。',
     )
+  },
+
+  async homeDir() {
+    // 浏览器预览无终端面板，不会走到这里；返回 null 保持接口完备
+    return null
   },
 }
 
@@ -531,6 +538,11 @@ const tauriBridge: Bridge = {
       },
     }
     return session
+  },
+
+  async homeDir() {
+    const { homeDir } = await import('@tauri-apps/api/path')
+    return homeDir()
   },
 }
 

@@ -120,7 +120,8 @@ function onSettingsClose() {
 }
 
 function toggleTerminal() {
-  terminalRef.value?.toggleExpand()
+  // ZCode 式：无 tab 时新建一个（主目录）并展开；有 tab 纯展开/收起切换
+  terminalRef.value?.toggleFromToolbar()
 }
 </script>
 
