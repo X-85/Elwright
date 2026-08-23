@@ -6,6 +6,8 @@ use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::Manager;
 
+mod chat_store;
+
 // setup 期解析一次（含 bundle 资源目录探测），IPC 命令复用
 static ROOT: OnceLock<PathBuf> = OnceLock::new();
 // 终端 session 注册表（setup 期创建）
@@ -200,6 +202,84 @@ fn delete_capability(id: String) -> Result<String, String> {
     export::delete_capability(&overlay, &registry, &id)
 }
 
+// ---- AI 对话（阶段①：多轮非流式）----
+
+/// chat_completion 的入参消息：只接受 user/assistant（system 由 Rust 侧
+/// 固定前置，前端无法注入——chat behavior 的安全要求）。
+#[derive(Deserialize)]
+struct ChatMessageArg {
+    role: String,
+    content: String,
+}
+
+/// 多轮对话：合并 LLM 配置链（与 invoke_skill 同链路），前置系统提示词，
+/// 非流式返回 assistant 回复。未配置/失败返回中文 Err——对话无降级 SOP，
+/// 会话保留与重试由前端负责。
+#[tauri::command]
+async fn chat_completion(messages: Vec<ChatMessageArg>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if messages.is_empty() {
+            return Err("消息列表为空".to_string());
+        }
+        for m in &messages {
+            if m.role != "user" && m.role != "assistant" {
+                return Err(format!(
+                    "不支持的消息角色: {}（仅 user/assistant，system 由应用控制）",
+                    m.role
+                ));
+            }
+        }
+        let registry = load_registry()?;
+        let layers = llm::ConfigLayers::collect(&registry.root, registry.llm_default.clone());
+        let (config, _) = layers.merged();
+        if config.base_url.is_empty() {
+            return Err("未配置 LLM：请在「⚙ 模型设置」填写 base_url 后使用 AI 对话".to_string());
+        }
+        let client = llm::LlmClient { config };
+        let mut all = vec![llm::ChatMessage::new("system", llm::CHAT_SYSTEM_PROMPT)];
+        all.extend(
+            messages
+                .into_iter()
+                .map(|m| llm::ChatMessage { role: m.role, content: m.content }),
+        );
+        client.chat_messages(&all)
+    })
+    .await
+    .map_err(|e| format!("对话任务异常: {}", e))?
+}
+
+// ---- AI 对话会话存储（阶段②：本地会话管理）----
+
+#[tauri::command]
+fn chat_list_sessions() -> Result<Vec<chat_store::ChatSessionSummary>, String> {
+    Ok(chat_store::list_sessions())
+}
+
+#[tauri::command]
+fn chat_load_session(id: String) -> Result<Option<chat_store::ChatSession>, String> {
+    Ok(chat_store::load_session(&id))
+}
+
+/// 保存（upsert）。messages 从前端来，role/content 经 chat_completion 已限定
+/// 为 user/assistant；updated_at 服务端写。created_at 已存在则保留。
+#[tauri::command]
+fn chat_save_session(
+    id: String,
+    title: String,
+    messages: Vec<ChatMessageArg>,
+) -> Result<(), String> {
+    let messages: Vec<llm::ChatMessage> = messages
+        .into_iter()
+        .map(|m| llm::ChatMessage { role: m.role, content: m.content })
+        .collect();
+    chat_store::save_session(&id, &title, &messages)
+}
+
+#[tauri::command]
+fn chat_delete_session(id: String) -> Result<(), String> {
+    chat_store::delete_session(&id)
+}
+
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----
 
 #[tauri::command]
@@ -281,6 +361,11 @@ fn main() {
             get_llm_config,
             set_llm_config,
             test_llm_connection,
+            chat_completion,
+            chat_list_sessions,
+            chat_load_session,
+            chat_save_session,
+            chat_delete_session,
             terminal_open,
             terminal_write,
             terminal_resize,

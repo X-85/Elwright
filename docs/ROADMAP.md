@@ -19,17 +19,23 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 ## 当前版本
 
-v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 新增：桌面导入/导出/删除、模型设置、检查更新按钮、注册表精简为 3 条示例、CLI delete/import 用户层）
+v0.1.4（2026-08-23，tag `v0.1.4`，待打。基于 v0.1.3 新增：AI 对话 阶段①（独立对话页 + 多轮消息 + 安全 Markdown 渲染 ADR-002）与阶段②（会话侧栏 + `~/.elwright/chats/` 持久化 + 重命名保护）。v0.1.2 已合入集成终端 v1；v0.1.3 hotfix 已合入「检查更新」IPC 序列化修复）
 
 ## 进行中
 
-- **集成终端 v1**（feature-2026-08-integrated-terminal）：底部抽屉 + 多 tab + 本地 shell + 「在终端中运行」联动。Rust 端 SessionRegistry + LocalBackend(portable-pty) + Tauri Channel 二进制流；前端 xterm.js (WebGL) + addon-fit。代码完成，**待真机端到端验证**（用户动作：双机分别跑一次 `npm run dev` + 桌面构建，验证 PTY 启动/WebGL 渲染/resize/「在终端中运行」）。
+（暂无）
 
 ## V1（短期，做完即发版）
 
 1. ~~发 v0.1.1~~ **已完成（2026-08-22）**：更新检查按钮 + 桌面导入/导出/删除 + 模型设置 + 示例注册表全部进包，Release 流水线一次通过。
-2. **script-tools Feature 文档补齐**：`docs/features/script-tools/` 缺 behavior / architecture / changelog。**2026-08-22 范围变化**：原 3 个脚本（doc-keyword-search/xlsx-to-md/docx-to-md）已随注册表精简移除，该 feature 目录需改写为面向 `text-stats` 示例或降级说明。
+2. ~~script-tools Feature 文档补齐~~ **已完成（2026-08-22）**：目录改写为面向 `text-stats` 示例 + executor 通用执行行为，README/behavior/architecture/changelog 四件套齐。
 3. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md ~~——已完成（归档时补建，已入 archive）~~。
+4. ~~发 v0.1.2 + v0.1.3 hotfix~~ **已完成（2026-08-23）**：v0.1.2 集成桌面壳内集成终端（PTY + xterm.js）；v0.1.3 hotfix 修「检查更新」按钮 IPC 序列化 bug（`UpdateInfo` 字段命名），见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`。
+5. **发 v0.1.4（含 AI 对话 阶段①②）**：chat phase 1+2 已真机端到端验证、4 处 UI 反馈已修、`feat/chat` 合并到 `main` 后续打 tag。Release 流水线自动出 dmg + msi（用户动作：见下文"打包验证通过后归档"）。
+
+## 进行中
+
+- 打包验证通过后归档（用户动作）：v0.1.4 release 工作流跑完后，把 release 相关 task 目录归档到 `docs/work/archive/`，并把 AGENTS 当前进度同步到「v0.1.4 已发」。
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
@@ -78,3 +84,5 @@ v0.1.1（2026-08-22，tag `v0.1.1`，GitHub Release 附 dmg + msi。自 v0.1.0 �
 - 2026-08-22 注册表精简：内置注册表从 24 条种子清单改为 3 条真实示例（text-stats / capability-types / weekly-report），个人能力全面转向用户叠加层 `~/.elwright/`；旧脚本/SOP/知识文档移除，「公司机原版批量导入」计划作废。
 - 2026-08-22 桌面端模型设置：⚙ 弹层（key 打码/测试连接/来源标签），写用户层与 `ew config` 互通。
 - 2026-08-22 全量归档：15 个任务目录（阶段 1–5 全程 + CI/发布/导入导出/模型设置/注册表精简）active→archive，回到干净基线。
+- 2026-08-22 集成终端 v1：底部抽屉 + 多 tab + 本地 shell（portable-pty + Tauri Channel）+「在终端中运行」联动，xterm.js (WebGL) 渲染；代码完成并由用户真机端到端验证通过，任务目录已归档（`docs/work/archive/feature-2026-08-integrated-terminal/`）。尚未随版本发布，发版见 V1 第 4 项。
+- 2026-08-23 AI 对话阶段①②：阶段① 独立对话页 + 多轮消息 + 安全 Markdown 渲染（ADR-002）+ 发送/停止/重试 + 模型状态展示；阶段② 会话侧栏 + `~/.elwright/chats/` 一文件一会话 + 自动保存 + 错误消息不落盘，零新依赖（手写 ISO8601 + AtomicU64 id）。真机验证后顺手修了 4 处 UI 反馈（保存表单自动关闭 / 复制按钮深色背景可见 / 重命名保护不被自动覆盖 / 引导诊断日志）；合并提交 `282d081` `6a8e83c`。三任务目录归档：phase1 / phase2 / bugfix-real-machine-issues。随下次发版（V1 第 4 项或后续 v0.1.3）一同进包。

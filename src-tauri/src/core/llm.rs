@@ -93,6 +93,27 @@ pub struct LlmClient {
     pub config: LlmConfig,
 }
 
+/// 多轮对话消息（OpenAI 兼容 role/content）。
+/// system 角色由应用侧控制（AI 对话页固定用 CHAT_SYSTEM_PROMPT），不经前端传入。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
+impl ChatMessage {
+    pub fn new(role: &str, content: impl Into<String>) -> Self {
+        Self {
+            role: role.to_string(),
+            content: content.into(),
+        }
+    }
+}
+
+/// AI 对话页的系统提示词：由应用控制，用户输入不可覆盖（chat behavior 的安全要求）。
+pub const CHAT_SYSTEM_PROMPT: &str = "你是 Elwright 桌面应用内置的 AI 助手，帮助用户解答问题、整理思路和起草文本。\
+用用户提问的语言回答。回复可使用 Markdown；输出中的命令与代码仅供参考，不会被自动执行。";
+
 /// LLM 配置的生效视图：合并结果 + 每字段来源标签 + 用户层原文。
 /// 桌面设置界面与 `ew config` 共用；api_key 下发前打码（不回传明文）。
 #[derive(Debug, Clone, serde::Serialize)]
@@ -239,13 +260,19 @@ impl LlmClient {
     /// Any transport or protocol failure is returned as Err so the caller
     /// can degrade to the offline SOP instead of crashing.
     pub fn chat(&self, system: &str, user: &str) -> Result<String, String> {
+        self.chat_messages(&[
+            ChatMessage::new("system", system),
+            ChatMessage::new("user", user),
+        ])
+    }
+
+    /// 多轮对话请求：调用方控制完整消息列表（桌面 AI 对话页前置
+    /// CHAT_SYSTEM_PROMPT 后传入）。传输/协议失败以 Err 返回。
+    pub fn chat_messages(&self, messages: &[ChatMessage]) -> Result<String, String> {
         let url = chat_url(&self.config.base_url);
         let body = serde_json::json!({
             "model": self.config.model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "messages": messages,
         });
 
         let http = reqwest::blocking::Client::builder()
@@ -359,19 +386,30 @@ mod tests {
         }
         let dir = std::env::temp_dir().join(format!("elwright-cfg-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
+        let project_path = dir.join("config.local.json");
         fs::write(
-            dir.join("config.local.json"),
+            &project_path,
             r#"{"base_url":"http://project:1/v1","model":"proj-model"}"#,
         )
         .unwrap();
-        let layers = ConfigLayers::collect(
-            &dir,
-            Some(LlmConfig {
+        // 直接构造 ConfigLayers 把 user 设为 None，避免读到宿主真实 ~/.elwright/config.json
+        let layers = ConfigLayers {
+            env: LlmConfig::default(),
+            project: Some((
+                project_path,
+                LlmConfig {
+                    base_url: "http://project:1/v1".into(),
+                    api_key: String::new(),
+                    model: "proj-model".into(),
+                },
+            )),
+            user: None,
+            registry_default: Some(LlmConfig {
                 base_url: "http://default:2/v1".into(),
                 api_key: "reg-key".into(),
                 model: "reg-model".into(),
             }),
-        );
+        };
         // 项目文件覆盖 base_url/model，api_key 字段级回退到注册表默认
         let (cfg, source) = layers.merged();
         assert_eq!(cfg.base_url, "http://project:1/v1");
@@ -380,10 +418,16 @@ mod tests {
         assert_eq!(source[0], "项目 config.local.json");
         assert_eq!(source[1], "注册表默认 $meta.llmDefault");
 
-        // 无任何配置时全空
+        // 无任何配置时全空（直接构造避免读宿主 ~/.elwright/config.json）
         let empty_dir = std::env::temp_dir().join(format!("elwright-cfg-empty-{}", std::process::id()));
         fs::create_dir_all(&empty_dir).unwrap();
-        let (cfg2, source2) = ConfigLayers::collect(&empty_dir, None).merged();
+        let empty_layers = ConfigLayers {
+            env: LlmConfig::default(),
+            project: None,
+            user: None,
+            registry_default: None,
+        };
+        let (cfg2, source2) = empty_layers.merged();
         assert!(cfg2.base_url.is_empty());
         assert_eq!(source2[0], "未设置");
         fs::remove_dir_all(&dir).ok();
@@ -447,5 +491,102 @@ mod tests {
         // 端口几乎必然无人监听；只验证错误是中文可读的传输错误
         let err = super::test_connection("http://127.0.0.1:1/v1", "", "m").unwrap_err();
         assert!(err.contains("无法连接"), "实际: {}", err);
+    }
+
+    /// 单连接 mock 端点：读完请求后回一个合法 chat completion。
+    /// 返回收到的原始请求文本供断言（body / 鉴权 / 多轮 role 序列）。
+    fn spawn_mock_llm(reply_content: &str) -> (String, std::thread::JoinHandle<String>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let reply = reply_content.to_string();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 8192];
+            let mut raw = Vec::new();
+            // 读到 header 结束且 body 长度收满为止
+            loop {
+                let n = stream.read(&mut buf).unwrap_or(0);
+                if n == 0 {
+                    break;
+                }
+                raw.extend_from_slice(&buf[..n]);
+                let text = String::from_utf8_lossy(&raw);
+                if let Some(pos) = text.find("\r\n\r\n") {
+                    let len: usize = text[..pos]
+                        .lines()
+                        .find(|l| l.to_ascii_lowercase().starts_with("content-length:"))
+                        .and_then(|l| l.split(':').nth(1))
+                        .and_then(|v| v.trim().parse().ok())
+                        .unwrap_or(0);
+                    if raw.len() >= pos + 4 + len {
+                        break;
+                    }
+                }
+            }
+            let body = format!(
+                r#"{{"choices":[{{"message":{{"role":"assistant","content":{}}}}}]}}"#,
+                serde_json::to_string(&reply).unwrap()
+            );
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(resp.as_bytes()).unwrap();
+            String::from_utf8_lossy(&raw).into_owned()
+        });
+        (format!("http://{}", addr), handle)
+    }
+
+    #[test]
+    fn chat_messages_round_trips_via_mock_endpoint() {
+        let (base_url, server) = spawn_mock_llm("你好，我是助手。");
+        let client = super::LlmClient {
+            config: super::LlmConfig {
+                base_url,
+                api_key: "sk-test".into(),
+                model: "mock-model".into(),
+            },
+        };
+        let reply = client
+            .chat_messages(&[
+                super::ChatMessage::new("system", "sys-prompt"),
+                super::ChatMessage::new("user", "hi"),
+                super::ChatMessage::new("assistant", "hello"),
+                super::ChatMessage::new("user", "again"),
+            ])
+            .unwrap();
+        assert_eq!(reply, "你好，我是助手。");
+
+        let request = server.join().unwrap();
+        assert!(request.contains("POST /chat/completions"), "实际: {}", request);
+        assert!(request.contains("Bearer sk-test"));
+        assert!(request.contains("\"model\":\"mock-model\""));
+        // 多轮 role 按原顺序进 body
+        assert!(request.contains("\"role\":\"system\",\"content\":\"sys-prompt\""));
+        assert!(request.contains("\"role\":\"user\",\"content\":\"hi\""));
+        assert!(request.contains("\"role\":\"assistant\",\"content\":\"hello\""));
+        assert!(request.contains("\"role\":\"user\",\"content\":\"again\""));
+    }
+
+    #[test]
+    fn chat_is_two_message_wrapper_of_chat_messages() {
+        // chat(system,user) = chat_messages([system,user])，invoke 路径行为不变
+        let (base_url, server) = spawn_mock_llm("ok");
+        let client = super::LlmClient {
+            config: super::LlmConfig {
+                base_url,
+                api_key: String::new(),
+                model: "m".into(),
+            },
+        };
+        let reply = client.chat("tpl", "input").unwrap();
+        assert_eq!(reply, "ok");
+        let request = server.join().unwrap();
+        assert!(request.contains("\"role\":\"system\",\"content\":\"tpl\""));
+        assert!(request.contains("\"role\":\"user\",\"content\":\"input\""));
+        // 无 api_key 时不带 Authorization 头
+        assert!(!request.contains("Authorization"));
     }
 }

@@ -16,8 +16,8 @@ core::llm（多轮 OpenAI-compatible 请求）
 
 ## 分阶段技术方案
 
-- 阶段 1：将 `llm.rs` 的单轮 `system/user` 请求扩展为受控 `ChatMessage[]`，先采用非流式返回；新增 `chat` IPC 与 Bridge 方法。
-- 阶段 2：桌面壳增加会话文件存储和生命周期管理，存放在 `~/.elwright/chats/` 或等价用户目录；API Key 永不进入会话模型。
+- 阶段 1（已实现 2026-08-22）：`llm.rs` 单轮 `system/user` 请求已扩展为受控 `ChatMessage[]`（`chat_messages`，原 `chat()` 改为其封装），非流式返回；IPC `chat_completion` 与 Bridge `chat()` 已接入。system 提示词（`CHAT_SYSTEM_PROMPT`）由 Rust 侧前置，IPC 层拒绝 user/assistant 之外的角色。停止为前端序号丢弃（请求级取消属阶段④）。模型输出渲染走 `src/lib/safeMarkdown.ts`（ADR-002）。
+- 阶段 2（代码完成 2026-08-23）：会话存储为桌面壳模块 `src-tauri/src/chat_store.rs`（`main.rs` 二进制内 `mod`，**不进 core**）：`~/.elwright/chats/<id>.json` 一文件一会话，`ChatSession{id,title,created_at,updated_at,messages}`；时间戳为手写 UTC ISO8601（`YYYY-MM-DDTHH:MM:SSZ`，字典序即时间序），id = `{ts-hex}-{counter-hex}`（`AtomicU64` 计数器，不引 uuid/chrono）。IPC 四命令 `chat_list_sessions` / `chat_load_session` / `chat_save_session` / `chat_delete_session`；前端会话 id 在 UI 侧生成（同格式），保存为 upsert、保留原 created_at。列表排序按 updated_at 降序，损坏文件跳过。浏览器预览：list→`[]`、load→`null`、save/delete 静默忽略。API Key 永不进入会话模型。
 - 阶段 3：增加能力协作协议。模型推荐结果先解析为展示模型，用户确认后才转调用现有能力接口；不把任意模型输出当作可执行指令。
 - 阶段 4：用 Tauri Channel 推送增量文本，增加请求 id、取消、超时、上下文长度提示和跨平台验证。
 

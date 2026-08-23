@@ -82,7 +82,7 @@ $env:ELWRIGHT_VERSION='v0.1.3'; irm .../install.ps1 | iex
 
 ## 当前状态
 
-✅ **v0.1.3 已发布**：v0.1.2 集成了桌面壳内的集成终端（PTY）；v0.1.3 hotfix 修了「检查更新」按钮永远显示「已是最新版本」的 IPC 序列化 bug（详见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`）。阶段 1–4 已完成：Rust 核心 + CLI、LLM 客户端与离线降级、Tauri 桌面壳、macOS dmg 与 Windows msi、能力导入/导出/删除、模型设置、集成终端、检查更新、GitHub Release 流程。当前正在完善用户能力层与更多可复用能力；内置注册表暂保留 3 个真实示例（文本统计、能力类型说明、周报生成），个人能力通过导入加入 `~/.elwright/`。
+✅ **v0.1.4 已发布**：v0.1.2 集成桌面壳内的集成终端（PTY）；v0.1.3 hotfix 修了「检查更新」按钮永远显示「已是最新版本」的 IPC 序列化 bug（详见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`）；v0.1.4 新增 **AI 对话 阶段①（独立对话页 + 多轮消息 + 安全 Markdown 渲染 ADR-002）**与**阶段②（会话侧栏 + `~/.elwright/chats/` 持久化 + 重命名保护）**。阶段 1–4 已完成：Rust 核心 + CLI、LLM 客户端与离线降级、Tauri 桌面壳、macOS dmg 与 Windows msi、能力导入/导出/删除、模型设置、集成终端、检查更新、AI 对话、GitHub Release 流程。当前正在完善用户能力层与更多可复用能力；内置注册表暂保留 3 个真实示例（文本统计、能力类型说明、周报生成），个人能力通过导入加入 `~/.elwright/`。
 
 ## 快速开始（开发者）
 

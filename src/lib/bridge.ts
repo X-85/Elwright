@@ -56,6 +56,28 @@ export interface LlmConfigInfo {
   userConfigPath?: string
 }
 
+/** 多轮对话消息（前端只传 user/assistant；system 由 Rust 侧固定前置） */
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** 会话摘要（列表项，不含 messages） */
+export interface ChatSessionSummary {
+  id: string
+  title: string
+  updatedAt: string
+}
+
+/** 完整会话（含 messages） */
+export interface ChatSession {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messages: ChatMessage[]
+}
+
 /**
  * 前端可见的终端会话抽象。
  * - `onData`：Rust 通过 Tauri Channel 推送的 PTY 输出（已 flush 的批次）
@@ -96,6 +118,19 @@ export interface Bridge {
   setLlmConfig(baseUrl: string, apiKey: string | null, model: string): Promise<LlmConfigInfo>
   /** 用表单当前值测试连接（未保存也可测）。 */
   testLlmConnection(baseUrl: string, apiKey: string, model: string): Promise<string>
+  /**
+   * 多轮 AI 对话（非流式）：发送 user/assistant 历史，返回 assistant 回复。
+   * system 提示词由后端固定前置；未配置/请求失败抛中文错误（对话无降级 SOP）。
+   */
+  chat(messages: ChatMessage[]): Promise<string>
+  /** 列出本地会话摘要（按更新时间倒序）。 */
+  listChatSessions(): Promise<ChatSessionSummary[]>
+  /** 加载单个会话（含 messages）；不存在返回 null。 */
+  loadChatSession(id: string): Promise<ChatSession | null>
+  /** 保存（upsert）会话：id/title/messages。 */
+  saveChatSession(id: string, title: string, messages: ChatMessage[]): Promise<void>
+  /** 删除会话（幂等）。 */
+  deleteChatSession(id: string): Promise<void>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -225,6 +260,28 @@ const browserBridge: Bridge = {
     })
     if (!res.ok) throw new Error(`端点返回 HTTP ${res.status}：${(await res.text()).slice(0, 300)}`)
     return '连接正常（浏览器直连测试）'
+  },
+
+  async chat() {
+    // 对话需要读用户配置链并经桌面壳前置 system 提示词；预览模式明确降级，不模拟
+    throw new Error('【预览模式】浏览器无法发起 AI 对话。\n真实对话请用桌面应用。')
+  },
+
+  async listChatSessions() {
+    // 浏览器无文件系统访问用户层；预览模式固定空列表（UI 显示「无会话」）
+    return []
+  },
+
+  async loadChatSession() {
+    return null
+  },
+
+  async saveChatSession() {
+    // 静默丢弃——预览模式下会话不持久化，刷新即失（与 chat() 的降级口径一致）
+  },
+
+  async deleteChatSession() {
+    // 同上，静默成功
   },
 
   async openTerminal() {
@@ -370,6 +427,45 @@ const tauriBridge: Bridge = {
 
   async testLlmConnection(baseUrl, apiKey, model) {
     return tauriInvoke<string>('test_llm_connection', { baseUrl, apiKey, model })
+  },
+
+  async chat(messages) {
+    return tauriInvoke<string>('chat_completion', { messages })
+  },
+
+  async listChatSessions() {
+    const raw = await tauriInvoke<unknown[]>('chat_list_sessions')
+    return (raw as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id ?? ''),
+      title: String(r.title ?? ''),
+      updatedAt: String(r.updated_at ?? ''),
+    }))
+  },
+
+  async loadChatSession(id) {
+    const raw = (await tauriInvoke<Record<string, unknown> | null>('chat_load_session', { id })) as
+      | Record<string, unknown>
+      | null
+    if (!raw) return null
+    const msgs = (raw.messages as Record<string, unknown>[] | undefined) ?? []
+    return {
+      id: String(raw.id ?? ''),
+      title: String(raw.title ?? ''),
+      createdAt: String(raw.created_at ?? ''),
+      updatedAt: String(raw.updated_at ?? ''),
+      messages: msgs.map((m) => ({
+        role: (String(m.role ?? 'user') === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+        content: String(m.content ?? ''),
+      })),
+    }
+  },
+
+  async saveChatSession(id, title, messages) {
+    await tauriInvoke<void>('chat_save_session', { id, title, messages })
+  },
+
+  async deleteChatSession(id) {
+    await tauriInvoke<void>('chat_delete_session', { id })
   },
 
   async openTerminal(options) {

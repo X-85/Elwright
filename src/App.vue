@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
+import ChatView from './components/ChatView.vue'
 import LlmSettings from './components/LlmSettings.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
@@ -13,6 +14,9 @@ const filter = ref<'all' | 'script' | 'knowledge' | 'skill'>('all')
 const search = ref('')
 const selectedId = ref('')
 const showLlmSettings = ref(false)
+// 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
+const activeView = ref<'toolbox' | 'chat'>('toolbox')
+const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null)
 const terminalRef = ref<InstanceType<typeof import('./components/TerminalPanel.vue').default> | null>(null)
 // 应用 cwd：浏览器预览用空字符串，桌面用 process.cwd()（简单做法）
 const cwd = ref('')
@@ -105,6 +109,12 @@ const selected = computed(
 function select(id: string) {
   selectedId.value = selectedId.value === id ? '' : id
 }
+
+// 设置弹层关闭后刷新对话页的模型状态条（可能刚保存了配置）
+function onSettingsClose() {
+  showLlmSettings.value = false
+  chatViewRef.value?.refreshConfig()
+}
 </script>
 
 <template>
@@ -112,7 +122,17 @@ function select(id: string) {
     <aside class="sidebar">
       <h1 class="brand">Elwright</h1>
       <p class="tagline">个人工作流工具箱</p>
-      <nav class="filters">
+      <nav class="main-nav">
+        <button
+          :class="{ active: activeView === 'toolbox' }"
+          @click="activeView = 'toolbox'"
+        >🧰 能力工具箱</button>
+        <button
+          :class="{ active: activeView === 'chat' }"
+          @click="activeView = 'chat'"
+        >💬 AI 对话</button>
+      </nav>
+      <nav v-if="activeView === 'toolbox'" class="filters">
         <button
           v-for="f in ['all', 'script', 'knowledge', 'skill'] as const"
           :key="f"
@@ -122,12 +142,12 @@ function select(id: string) {
           {{ { all: '全部', script: '脚本型', knowledge: '知识型', skill: '技能型' }[f] }}
         </button>
       </nav>
-      <input v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
-      <div class="sidebar-row">
+      <input v-if="activeView === 'toolbox'" v-model="search" class="search" placeholder="搜索 id / 名称 / 分类…" />
+      <div v-if="activeView === 'toolbox'" class="sidebar-row">
         <button class="import-btn" @click="importCapability()">＋ 导入能力…</button>
         <button class="import-btn settings-btn" @click="showLlmSettings = true">⚙ 模型设置</button>
       </div>
-      <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
+      <p v-if="activeView === 'toolbox'" class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
       <transition name="fade">
         <p v-if="opMsg" :class="['op-toast', opOk ? 'op-ok' : 'op-err']">{{ opMsg }}</p>
       </transition>
@@ -148,25 +168,33 @@ function select(id: string) {
     </aside>
 
     <main class="content">
-      <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
-      <CapabilityList
-        v-else
-        :capabilities="filtered"
-        :selected-id="selectedId"
-        @select="select"
-      />
-      <CapabilityDetail
-        v-if="selected"
-        :cap="selected"
+      <ChatView
+        v-if="activeView === 'chat'"
+        ref="chatViewRef"
         :bridge="bridge"
-        @notify="notify"
-        @deleted="onDeleted"
         @open-settings="showLlmSettings = true"
       />
-      <div v-else-if="!loadError" class="placeholder">← 选择一项能力查看详情</div>
+      <template v-else>
+        <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
+        <CapabilityList
+          v-else
+          :capabilities="filtered"
+          :selected-id="selectedId"
+          @select="select"
+        />
+        <CapabilityDetail
+          v-if="selected"
+          :cap="selected"
+          :bridge="bridge"
+          @notify="notify"
+          @deleted="onDeleted"
+          @open-settings="showLlmSettings = true"
+        />
+        <div v-else-if="!loadError" class="placeholder">← 选择一项能力查看详情</div>
+      </template>
     </main>
 
-    <LlmSettings v-if="showLlmSettings" :bridge="bridge" @close="showLlmSettings = false" />
+    <LlmSettings v-if="showLlmSettings" :bridge="bridge" @close="onSettingsClose" />
 
     <TerminalPanel ref="terminalRef" :bridge="bridge" :cwd="cwd" />
   </div>

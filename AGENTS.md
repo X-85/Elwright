@@ -64,7 +64,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-看 `docs/ROADMAP.md`（活文档，唯一排期视图）。一句话现状：v0.1.1 已发（桌面导入/导出/删除、模型设置、更新检查、注册表精简），进行中=集成终端 v1（xterm.js + portable-pty + Tauri Channel，代码完成待真机端到端验证）。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
+看 `docs/ROADMAP.md`（活文档，唯一排期视图）。一句话现状：v0.1.2 + v0.1.3 hotfix 已发；`feat/chat` 合并到 main 进行中（合并后打 v0.1.4 tag 出 dmg + msi）。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
 
 ## 前端约定（src/）
 
