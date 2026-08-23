@@ -237,7 +237,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  border-bottom: 1px solid var(--border);
   color: var(--text);
   user-select: none;
   cursor: ns-resize;
@@ -290,18 +289,20 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
-  background: var(--bg);
-  border: 1px solid transparent;
-  border-radius: 3px;
+  padding: 2px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
   color: var(--text-dim);
 }
+.tab:hover {
+  color: var(--text);
+}
 .tab.active {
   background: var(--accent-soft);
   color: var(--text);
-  border-color: var(--border);
 }
 .tab .label {
   max-width: 160px;

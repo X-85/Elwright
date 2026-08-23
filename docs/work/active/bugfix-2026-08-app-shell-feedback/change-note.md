@@ -19,7 +19,8 @@
 | O4 | 左侧 ▼ toggle 移到右侧并替换为 × | 表头改为 `[tabs…] [＋] [×]`（O5 迭代后最终布局）：右侧 ＋ = 新建 tab，× = 收起面板（会话保留，再点顶栏终端按钮恢复）；tab 自身 × 仍是关闭该会话。展开后无 tab 时收起路径只剩顶栏按钮（面板 header 随面板隐藏） |
 | O5 | ＋ 移到右侧 × 前面，右侧成组两个按钮 | 最终布局 `[tabs…] [＋] [×]`；＋ 样式从块状按钮改为与 × 一致的轻量文本钮（hover 变亮），视觉成组 |
 | O6 | 表头最左加「终端」标题；面板配色与主界面主题一致；默认标签名可辨识；＋/× 用图标 | ①表头 `[终端] [tabs…] [＋(Plus)] [×(X)]`；②面板/表头/tab 全部改用 CSS 变量（`--panel/--border/--text/--text-dim/--accent-soft/--bg`），跟随亮/暗主题；③默认标签名 `终端 1/2/3…` 递增（双击仍可重命名）；④＋/×/tab 关闭换 `lucide-vue-next` 图标（与顶栏同库同风格），24px 热区 + hover 圆角高亮 |
-| O7 | 终端随三态主题（系统/深/浅）切换变色 | 配合另一会话的主题设置中心（`1d75359`）：theme.ts 导出响应式 `resolvedThemeRef`（applyTheme 时更新）；TerminalView 用它做 xterm 初始化主题 + watch 运行时切换 `term.options.theme`（xterm 即时重绘，不需重建会话）；深色用 `--bg` 同款底色，浅色白底；外框背景从写死 `#000` 改 `var(--panel)` |
+| O7 | 终端随三态主题（系统/深/浅）切换变色 | 配合另一会话的主题设置中心（`1d75359`）：theme.ts 导出响应式 `resolvedThemeRef`（applyTheme 时更新）；TerminalView 用它做 xterm 初始化主题 + watch 运行时切换 `term.options.theme`（xterm 即时重绘，不需重建会话）；外框背景从写死 `#000` 改 `var(--panel)` |
+| O8 | 终端区扁平化（向 ZCode 看齐）：消除「内容区像凸出来」的观感 | 三个来源：①xterm 底色原用 `--bg`(#16181d)，与面板 `--panel`(#202329) 有色差圈→改 `#202329` 同值，表头与终端区同一平面；②表头 border-bottom 横线去掉（保留面板顶部 border-top 作为抽屉边界）；③非激活 tab 从 `--bg` 填充块改透明底（激活态保留 accent-soft 高亮） |
 
 改动文件：`src/lib/bridge.ts`（homeDir 接口 + 双实现）、`src/components/TerminalPanel.vue`（toggleFromToolbar / 拖拽 / 按钮文案）、`src/App.vue`（顶栏按钮接新方法）。
 

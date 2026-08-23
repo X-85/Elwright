@@ -7,13 +7,14 @@ import '@xterm/xterm/css/xterm.css'
 import { resolvedThemeRef } from '../lib/theme'
 import type { TerminalSession } from '../lib/bridge'
 
-// xterm 主题跟随应用主题（system/light/dark 切换即生效）
+// xterm 主题跟随应用主题（system/light/dark 切换即生效）。
+// 底色取 --panel 同值：终端区与表头同一平面（扁平一体，无色差块）。
 const XTERM_THEMES = {
   dark: {
-    background: '#16181d',
+    background: '#202329',
     foreground: '#e6e9ef',
     cursor: '#e6e9ef',
-    cursorAccent: '#16181d',
+    cursorAccent: '#202329',
     selectionBackground: '#3a4254',
   },
   light: {
