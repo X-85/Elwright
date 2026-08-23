@@ -52,6 +52,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 - LLM 配置链（字段级合并，高→低）：环境变量 `ELWRIGHT_LLM_*` > 项目 `config.local.json` > 用户 `~/.elwright/config.json` > 注册表 `$meta.llmDefault`。CLI 用 `ew config` 查看/设置。LLM 客户端用 reqwest **blocking**（ADR-001，见 `docs/features/llm-invoke/decisions/`）。
 - 资源根三段式解析（`registry::resolve_root`）：`ELWRIGHT_ROOT` env 覆盖 > cwd 上溯 > bundle 资源目录/exe 相邻探测。两壳都已接入；改根解析逻辑时同步跑 registry 单测。
 - 正式打包：自 `src-tauri/` 跑 `../src/node_modules/.bin/tauri build`（`npx tauri` 在 `src/` 下找不到配置）。dmg 首次打包可能因 Finder AppleScript 超时（-1712）失败，重试即过。产物未签名。`resources/` 文件名保持 ASCII 且全局不重名（含隐藏占位文件）——WiX msi 打包对重名 basename 直接失败，macOS zip 会静默容错掩盖问题。
+- 一键安装脚本（`install.sh` / `install.ps1`）从 GitHub Release 拉 dmg/msi 装到本机。**升级版本时记得同步 `install.ps1` 顶部的 `ProductCode`**——`file <msi>` 的 `Revision Number` 字段就是新版本的产品 ID，PowerShell 用它做"是否已装"探测；忘了改会导致同一台机器重复装两遍。脚本本身走 GitHub raw 域名分发，**任何改 commit 后即可用**，不需要发版流程。
 - 本仓库在公司 Windows（走代理、GNU 工具链）与家里 macOS 双机共建，机器/网络特定配置勿写入仓库。家里 Mac 的 cargo 在 `~/.cargo/bin`（zsh 非登录 shell 可能不在 PATH）。
 - `resources/docs/AI_CODE_AGENT_MAINTENANCE.md` 定义了本项目的 Agent 开发维护文档规则，新增功能文档时遵循它。
 
