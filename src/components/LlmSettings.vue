@@ -2,8 +2,8 @@
 import { onMounted, ref } from 'vue'
 import type { Bridge, LlmConfigInfo } from '../lib/bridge'
 
-const props = defineProps<{ bridge: Bridge }>()
-const emit = defineEmits<{ close: [] }>()
+const props = withDefaults(defineProps<{ bridge: Bridge; embedded?: boolean }>(), { embedded: false })
+const emit = defineEmits<{ close: []; saved: [] }>()
 
 const info = ref<LlmConfigInfo | null>(null)
 const loadError = ref('')
@@ -76,8 +76,9 @@ async function onSave() {
     fillForm(info.value)
     saveMsg.value = '已保存（写入用户层，桌面与 CLI 共用）'
     saveOk.value = true
-    // 保存成功自动关闭弹层；失败保留便于排查。
-    emit('close')
+    emit('saved')
+    // 独立弹层保存后自动关闭；嵌入设置中心时保留当前页面。
+    if (!props.embedded) emit('close')
   } catch (e) {
     saveMsg.value = e instanceof Error ? e.message : String(e)
     saveOk.value = false
@@ -88,58 +89,49 @@ async function onSave() {
 </script>
 
 <template>
-  <div class="modal-mask" @click.self="emit('close')">
-    <div class="modal">
-      <header class="modal-head">
+  <div :class="{ 'modal-mask': !embedded, 'embedded-settings-form': embedded }" @click.self="!embedded && emit('close')">
+    <div :class="{ modal: !embedded }">
+      <header v-if="!embedded" class="modal-head">
         <h3>⚙ 模型设置</h3>
         <button class="modal-close" @click="emit('close')">×</button>
       </header>
+      <div class="llm-settings-content">
+        <p v-if="loadError" class="error">{{ loadError }}</p>
 
-      <p v-if="loadError" class="error">{{ loadError }}</p>
+        <template v-else>
+          <p class="llm-hint">
+            OpenAI 兼容端点（云端 API 或本地 Ollama / llama.cpp）。保存在
+            <code>{{ info?.userConfigPath ?? '~/.elwright/config.json' }}</code
+            >，桌面应用与 CLI（ew config）共用。
+          </p>
 
-      <template v-else>
-        <p class="llm-hint">
-          OpenAI 兼容端点（云端 API 或本地 Ollama / llama.cpp）。保存在
-          <code>{{ info?.userConfigPath ?? '~/.elwright/config.json' }}</code
-          >，桌面应用与 CLI（ew config）共用。
-        </p>
+          <label class="llm-field">
+            <span>base_url <em v-if="info?.source[0]" class="src">来源：{{ info.source[0] }}</em></span>
+            <input v-model="baseUrl" class="search" placeholder="如 https://api.xxx.com/v1 或 http://localhost:11434/v1" />
+          </label>
 
-        <label class="llm-field">
-          <span>base_url <em v-if="info?.source[0]" class="src">来源：{{ info.source[0] }}</em></span>
-          <input v-model="baseUrl" class="search" placeholder="如 https://api.xxx.com/v1 或 http://localhost:11434/v1" />
-        </label>
+          <label class="llm-field">
+            <span>model <em v-if="info?.source[2]" class="src">来源：{{ info.source[2] }}</em></span>
+            <input v-model="model" class="search" placeholder="如 gpt-4o-mini / qwen3:8b" />
+          </label>
 
-        <label class="llm-field">
-          <span>model <em v-if="info?.source[2]" class="src">来源：{{ info.source[2] }}</em></span>
-          <input v-model="model" class="search" placeholder="如 gpt-4o-mini / qwen3:8b" />
-        </label>
+          <label class="llm-field">
+            <span>
+              api_key <em v-if="info?.source[1]" class="src">来源：{{ info.source[1] }}</em>
+              <em v-if="info?.apiKeyMasked" class="src">已存：{{ info.apiKeyMasked }}</em>
+            </span>
+            <input v-model="apiKey" type="password" class="search" placeholder="留空 = 不修改已保存的 key" @input="onApiKeyInput" />
+          </label>
 
-        <label class="llm-field">
-          <span>
-            api_key <em v-if="info?.source[1]" class="src">来源：{{ info.source[1] }}</em>
-            <em v-if="info?.apiKeyMasked" class="src">已存：{{ info.apiKeyMasked }}</em>
-          </span>
-          <input
-            v-model="apiKey"
-            type="password"
-            class="search"
-            placeholder="留空 = 不修改已保存的 key"
-            @input="onApiKeyInput"
-          />
-        </label>
+          <div class="llm-actions">
+            <button :disabled="testing || !baseUrl.trim()" @click="onTest">{{ testing ? '测试中…' : '测试连接' }}</button>
+            <button class="primary" :disabled="saving" @click="onSave">{{ saving ? '保存中…' : '保存' }}</button>
+          </div>
 
-        <div class="llm-actions">
-          <button :disabled="testing || !baseUrl.trim()" @click="onTest">
-            {{ testing ? '测试中…' : '测试连接' }}
-          </button>
-          <button class="primary" :disabled="saving" @click="onSave">
-            {{ saving ? '保存中…' : '保存' }}
-          </button>
-        </div>
-
-        <p v-if="testMsg" :class="testOk ? 'op-ok-inline' : 'error'">{{ testMsg }}</p>
-        <p v-if="saveMsg" :class="saveOk ? 'op-ok-inline' : 'error'">{{ saveMsg }}</p>
-      </template>
+          <p v-if="testMsg" :class="testOk ? 'op-ok-inline' : 'error'">{{ testMsg }}</p>
+          <p v-if="saveMsg" :class="saveOk ? 'op-ok-inline' : 'error'">{{ saveMsg }}</p>
+        </template>
+      </div>
     </div>
   </div>
 </template>

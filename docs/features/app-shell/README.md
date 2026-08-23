@@ -1,6 +1,6 @@
 # 应用壳布局（App Shell）
 
-> 状态：**第一阶段进行中**。本 Feature 描述 Elwright 桌面端的工作区布局与全局入口，不承载具体业务模块。
+> 状态：**第一阶段已完成**。本 Feature 描述 Elwright 桌面端的工作区布局与全局入口，不承载具体业务模块。
 
 应用壳为能力工具箱、AI 对话和后续工作流工具提供统一的工作区。它采用顶部全局操作栏、可隐藏的左侧导航、始终保留的中间主工作区、可隐藏的右侧上下文面板，以及按需展开的底部终端抽屉。
 
@@ -32,4 +32,4 @@
 - [behavior.md](./behavior.md)：布局交互和边界行为。
 - [architecture.md](./architecture.md)：组件结构和状态边界。
 - [changelog.md](./changelog.md)：重要变化。
-- [当前任务](../../work/active/enhancement-2026-08-app-shell-layout/plan.md)
+- [已归档任务](../../work/archive/enhancement-2026-08-app-shell-layout/plan.md)

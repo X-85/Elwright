@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import ChatView from './components/ChatView.vue'
-import LlmSettings from './components/LlmSettings.vue'
+import SettingsCenter from './components/SettingsCenter.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
 import { Blocks, MessagesSquare, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
@@ -14,7 +14,8 @@ const loadError = ref('')
 const filter = ref<'all' | 'script' | 'knowledge' | 'skill'>('all')
 const search = ref('')
 const selectedId = ref('')
-const showLlmSettings = ref(false)
+const showSettings = ref(false)
+const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('appearance')
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
 const activeView = ref<'toolbox' | 'chat'>('toolbox')
 const leftPanelVisible = ref(true)
@@ -114,8 +115,12 @@ function select(id: string) {
 }
 
 // 设置弹层关闭后刷新对话页的模型状态条（可能刚保存了配置）
-function onSettingsClose() {
-  showLlmSettings.value = false
+function openSettings(section: 'general' | 'appearance' | 'model' | 'terminal' = 'appearance') {
+  settingsSection.value = section
+  showSettings.value = true
+}
+
+function onSettingsSaved() {
   chatViewRef.value?.refreshConfig()
 }
 
@@ -158,7 +163,7 @@ function toggleTerminal() {
         <button v-if="bridge.kind === 'tauri'" class="topbar-action" title="打开或收起终端" aria-label="打开或收起终端" @click="toggleTerminal">
           <Terminal :size="17" :stroke-width="1.8" />
         </button>
-        <button class="topbar-action" title="模型设置" aria-label="模型设置" @click="showLlmSettings = true">
+        <button class="topbar-action" title="打开设置" aria-label="打开设置" @click="openSettings()">
           <Settings2 :size="17" :stroke-width="1.8" />
         </button>
       </div>
@@ -186,11 +191,11 @@ function toggleTerminal() {
       </aside>
 
       <main class="content">
-        <ChatView v-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="showLlmSettings = true" />
+        <ChatView v-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
           <CapabilityList v-else :capabilities="filtered" :selected-id="selectedId" @select="select" />
-          <CapabilityDetail v-if="selected" :cap="selected" :bridge="bridge" @notify="notify" @deleted="onDeleted" @open-settings="showLlmSettings = true" />
+          <CapabilityDetail v-if="selected" :cap="selected" :bridge="bridge" @notify="notify" @deleted="onDeleted" @open-settings="openSettings('model')" />
           <div v-else-if="!loadError" class="placeholder">← 选择一项能力查看详情</div>
         </template>
       </main>
@@ -200,7 +205,7 @@ function toggleTerminal() {
       </aside>
     </div>
 
-    <LlmSettings v-if="showLlmSettings" :bridge="bridge" @close="onSettingsClose" />
+    <SettingsCenter v-if="showSettings" :bridge="bridge" :initial-section="settingsSection" @close="showSettings = false" @saved="onSettingsSaved" />
 
     <TerminalPanel ref="terminalRef" :bridge="bridge" :cwd="cwd" />
   </div>
