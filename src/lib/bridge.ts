@@ -479,7 +479,9 @@ const tauriBridge: Bridge = {
       // 后端在 PTY 关闭时不再 send bytes，但仍要触发 exit
       onOutput?.(bytes)
     }
-    // cols/rows 由前端 xterm.js 提供初值，IPC 返回 id 后前端会立即 resize
+    // cols/rows 由前端 xterm.js 提供初值，IPC 返回 id 后前端会立即 resize。
+    // channel 作为参数传入：Tauri 把它解析回指向 onmessage 的回调，
+    // 后端 PTY 输出经此推给前端（返回值只带 id）。
     const cols = 80
     const rows = 24
     const id = await tauriInvoke<number>('terminal_open', {

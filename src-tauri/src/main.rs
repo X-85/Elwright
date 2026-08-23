@@ -376,8 +376,9 @@ fn main() {
 
 // ---- 集成终端 IPC ----
 
-/// 打开新终端会话，返回 (id, channel)。
-/// 前端收到 channel 后立即 `channel.onmessage = (bytes) => term.writeBytes(...)`。
+/// 打开新终端会话。channel 由前端创建并作为参数传入（Tauri CommandArg
+/// 会把它解析回指向 JS onmessage 回调的 channel）；PTY 输出经 pump 线程
+/// 从该 channel 推给前端。
 #[tauri::command]
 async fn terminal_open(
     cols: u16,
@@ -385,7 +386,8 @@ async fn terminal_open(
     cwd: Option<String>,
     shell: Option<String>,
     env: Option<Vec<(String, String)>>,
-) -> Result<(u64, Channel<Vec<u8>>), String> {
+    channel: Channel<Vec<u8>>,
+) -> Result<u64, String> {
     let reg = TERMINAL
         .get()
         .ok_or_else(|| "终端注册表未初始化".to_string())?;
@@ -397,10 +399,8 @@ async fn terminal_open(
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     let env = env.unwrap_or_default();
-    // Channel 单向用：on_message 是前端消息回调（v1 我们不接收前端消息，留 no-op）
-    let channel = Channel::new(|_body: tauri::ipc::InvokeResponseBody| Ok(()));
-    let id = reg.open(&shell, &cwd_path, cols, rows, &env, channel.clone())?;
-    Ok((id.0, channel))
+    let id = reg.open(&shell, &cwd_path, cols, rows, &env, channel)?;
+    Ok(id.0)
 }
 
 #[tauri::command]
