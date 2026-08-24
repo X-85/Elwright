@@ -18,7 +18,8 @@
 
 ## Step 4 Playwright e2e
 
-- `cd src && npm run test:e2e`：**5/5 绿**（chromium 1.1s）。
+- `cd src && npm run test:e2e`：**5/5 绿**（chromium）。
+  - 勘误（2026-08-24）：首轮本地验证跑在 5173 端口复用的**其他工作区 dev server** 上（reuseExistingServer + 本机常驻 5173 进程），当时页面快照含本分支没有的「消息会话」导航。已改用独占端口 5273 + strictPort 重跑，确认 5/5 绿跑在本分支真实代码上；CI runner 无既有 server，不受此影响。
   - 覆盖：3 能力加载与计数徽标、筛选/搜索联动、知识型 doc 经 /api/file 渲染 markdown（接缝断开即失败）、脚本型运行【预览模式】降级文案、终端按钮不渲染、AI 对话预览提示。
 - `npm run build` 与 `npm test`（vitest 22 例）不受影响，全绿。
 - 首跑 1 例失败为选择器过宽（markdown 正文含多个 h2 触发 strict mode），改用 `.detail-head h2` 限定后通过——非产品代码问题。
