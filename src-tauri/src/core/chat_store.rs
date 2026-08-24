@@ -6,8 +6,8 @@
 
 use std::path::PathBuf;
 
-use elwright_core::core::llm::ChatMessage;
-use elwright_core::core::registry;
+use super::llm::ChatMessage;
+use super::registry;
 
 /// 一个完整会话：元数据 + 消息列表。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -152,10 +152,7 @@ fn is_leap(y: u64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    // user_root 读进程级环境变量，测试间串行
-    static LOCK: Mutex<()> = Mutex::new(());
+    use crate::core::test_env::env_serialization_guard;
 
     fn temp_root(tag: &str) -> PathBuf {
         let dir =
@@ -171,7 +168,7 @@ mod tests {
 
     #[test]
     fn save_load_list_delete_roundtrip() {
-        let _g = LOCK.lock().unwrap();
+        let _g = env_serialization_guard();
         let root = temp_root("roundtrip");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
 
@@ -215,7 +212,7 @@ mod tests {
 
     #[test]
     fn list_sorted_by_updated_at_desc() {
-        let _g = LOCK.lock().unwrap();
+        let _g = env_serialization_guard();
         let root = temp_root("sort");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
 
@@ -234,7 +231,7 @@ mod tests {
 
     #[test]
     fn corrupted_file_skipped_in_list_and_load() {
-        let _g = LOCK.lock().unwrap();
+        let _g = env_serialization_guard();
         let root = temp_root("corrupt");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
         let dir = root.join("chats");
@@ -256,7 +253,7 @@ mod tests {
 
     #[test]
     fn delete_missing_is_ok() {
-        let _g = LOCK.lock().unwrap();
+        let _g = env_serialization_guard();
         let root = temp_root("delmissing");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
         // 不存在也成功（幂等）
@@ -267,7 +264,7 @@ mod tests {
 
     #[test]
     fn now_iso_is_sortable_lexicographically() {
-        let _g = LOCK.lock().unwrap();
+        let _g = env_serialization_guard();
         let root = temp_root("iso");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
         save_session("s1", "t", &[msg("user", "a")]).unwrap();
