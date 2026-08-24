@@ -25,7 +25,9 @@
 
 ## CI
 
--（待填，push 后贴 run 结果）
+- 分支 `enhancement/2026-08-quality-tier2-e2e` 已推 origin。本仓库 ci.yml 仅在 push main / PR / 手动触发时运行，分支直推不触发（既有配置，非本任务改动）。
+- 待合并到 main 后首次 CI run 验证全部 job（含 frontend job 新增的 Playwright e2e 步骤），回填 run 结果于此。
+- 本地等价验证已全绿：cargo build/test（37+6）/ clippy -D warnings / fmt --check / npm test（22）/ npm run test:e2e（5）/ npm run build。
 
 ## 手测项
 

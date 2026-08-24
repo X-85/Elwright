@@ -21,7 +21,7 @@
 
 - [x] 【自动化】工具箱加载 3 能力 + 打开 text-stats 详情（browser bridge ↔ /api 接缝）— `cd src && npm run test:e2e`
 - [x] 【自动化】降级守卫：浏览器下终端按钮不渲染 + AI 对话页显示「预览模式」提示
-- [ ] 【自动化】CI frontend job 新增 e2e 步骤绿（本地已绿；推分支后首次 CI run 验证，回填 run 链接）
+- [ ] 【自动化】CI frontend job 新增 e2e 步骤绿（本地等价命令已绿；ci.yml 仅 main/PR 触发，合并 main 后首次 run 回填链接）
 
 ## Step 5 文档
 
