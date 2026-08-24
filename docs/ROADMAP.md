@@ -64,7 +64,7 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；今日记录、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。
 - **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
   - **第一档（立即）**：CI 加 clippy + rustfmt 检查；前端引入 vitest，先覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数）。
-  - **第二档（下个发版周期）**：tauri-driver 或 Playwright e2e 冒烟（打开终端 → 敲命令 → 断言输出，抓集成断线类 bug）；验证清单加「自动化覆盖/需手测」标记，防止未执行的验证被标通过。
+  - **第二档（已完成 2026-08-24，`enhancement-2026-08-quality-tier2-e2e`）**：分层 e2e 冒烟——IPC 层用 tauri mock runtime 真协议测试（`src-tauri/tests/terminal_ipc.rs`，macOS/Linux 走真 PTY 全链路，Windows+CI 跳真 PTY 用例），浏览器层用 Playwright chromium（`src/e2e/`，接缝 + 降级守卫）；验证清单 `【自动化】/【手测】` 标记约定已写入 AI_CODE_AGENT_MAINTENANCE.md §6。tauri-driver 弃选（Windows CI 无 WinAppDriver），取舍见 `docs/features/engineering-quality/decisions/ADR-001-e2e-layering.md`。
   - **第三档（按需）**：eslint（风格已统一，低优先）；覆盖率门槛（等测试有存量）。
 
 ### 后置验证
@@ -105,4 +105,5 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - 2026-08-23 AI 对话阶段①②：阶段① 独立对话页 + 多轮消息 + 安全 Markdown 渲染（ADR-002）+ 发送/停止/重试 + 模型状态展示；阶段② 会话侧栏 + `~/.elwright/chats/` 一文件一会话 + 自动保存 + 错误消息不落盘，零新依赖（手写 ISO8601 + AtomicU64 id）。真机验证后顺手修了 4 处 UI 反馈（保存表单自动关闭 / 复制按钮深色背景可见 / 重命名保护不被自动覆盖 / 引导诊断日志）；合并提交 `282d081` `6a8e83c`。三任务目录归档：phase1 / phase2 / bugfix-real-machine-issues。
 - 2026-08-23 v0.1.2 + v0.1.3 hotfix：v0.1.2 集成终端 v1 入包；v0.1.3 hotfix 修「检查更新」按钮 IPC 序列化 bug（`UpdateInfo` 字段命名）。见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`。
 - 2026-08-23 v0.1.4：集成终端 v1 + AI 对话阶段①② + 一键安装脚本（macOS/Windows）进包。`feat/chat` 合并 commit `20d4199`；首次 `release.yml` run #5 dmg upload step 跟并行 CI 的 macos job 冲突失败，删 tag 重打后 run #6 全绿，dmg+msi 已上 Release。归档目录：chat phase1 / phase2 / bugfix-real-machine-issues / check-update-no-prompt / script-tools-docs。
+- 2026-08-24 工程质量治理第二档（分支 `enhancement/2026-08-quality-tier2-e2e`）：分层 e2e——IPC 层 tauri mock runtime 真协议测试（6 用例，macOS/Linux 真 PTY 全链路）+ 浏览器层 Playwright chromium（5 用例，接缝与降级守卫）；配套 IPC 命令层从 main.rs 下沉 `core/commands.rs`（AppCtx 注入，行为零变化）+ 存量测试环境变量锁统一（并行缺陷修复）。验证清单 `【自动化】/【手测】` 标记约定入 AI_CODE_AGENT_MAINTENANCE.md §6；新 Feature 文档 `docs/features/engineering-quality/`（含 ADR-001 e2e 分层取舍）。tauri-driver 弃选（Windows CI 无 WinAppDriver）。
 - 2026-08-24 应用壳反馈 bugfix + 终端体验批次（随 v0.1.5 进包）：修两个真机 bug（终端无回显——Tauri Channel 用法写反；第二 tab 不能输入——组件复用换 prop 不重接线，结构重写为 per-tab 实例）+ 八项交互优化（顶栏直达新建、＋/× 图标成组、拖拽调高、三态主题联动、扁平化等，参考 ZCode UI）+ AI 会话图标（Sparkles）与新建按钮图标化。分支 `bugfix/2026-08-app-shell-feedback` 共 17 提交，含延伸落地的工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest 22 例）与设置中心第一阶段。任务目录已归档（`docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。

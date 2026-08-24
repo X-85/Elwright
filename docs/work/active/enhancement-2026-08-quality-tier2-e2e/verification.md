@@ -4,19 +4,28 @@
 
 ## Step 2 命令层下沉
 
-（待填）
+- `cargo build` 通过；`cargo test` 37/37 绿（lib 单测），行为零变化闸门通过。
+- clippy `--all-targets -D warnings` 与 `cargo fmt --check` 通过。
+- 存量缺陷顺带修复：三把局部 Mutex 各自保护同一批进程级环境变量（ELWRIGHT_USER_ROOT/ELWRIGHT_ROOT/ELWRIGHT_LLM_*），并行测试下存在竞态假保护；统一为 `core::test_env::env_serialization_guard()` 全局锁后，全量并跑稳定绿。
 
 ## Step 3 IPC 冒烟
 
-（待填）
+- `cd src-tauri && cargo test --test terminal_ipc`：**6/6 绿**（macOS 本机，含真 PTY 用例，0.3s）。
+  - `real_pty_open_write_exit_roundtrip`：open → write `echo`/`exit` → 轮询断言 write 报错（broken pipe），真 PTY 双向链路。
+  - `open_wires_channel_and_ids_increment`：`__CHANNEL__:N` 参数经完整 CommandArg 解析接到 session，EchoBackend 注入输出断言到达命令签名里的 channel（Bug#1 出错路径）。
+  - 其余：双会话写入隔离 / 未知 id 中文报错 / close 后 write 报错 / list_capabilities 3 条。
+- 全量 `cargo test`：37（lib）+ 6（IPC）= 43 绿，无回归。
 
 ## Step 4 Playwright e2e
 
-（待填）
+- `cd src && npm run test:e2e`：**5/5 绿**（chromium 1.1s）。
+  - 覆盖：3 能力加载与计数徽标、筛选/搜索联动、知识型 doc 经 /api/file 渲染 markdown（接缝断开即失败）、脚本型运行【预览模式】降级文案、终端按钮不渲染、AI 对话预览提示。
+- `npm run build` 与 `npm test`（vitest 22 例）不受影响，全绿。
+- 首跑 1 例失败为选择器过宽（markdown 正文含多个 h2 触发 strict mode），改用 `.detail-head h2` 限定后通过——非产品代码问题。
 
 ## CI
 
-（待填，push 后贴 run 结果）
+-（待填，push 后贴 run 结果）
 
 ## 手测项
 
