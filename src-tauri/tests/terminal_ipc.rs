@@ -104,9 +104,12 @@ impl TerminalHandle for EchoHandle {
     fn kill(&self) {}
 }
 
+/// 每 session 的写入缓冲。
+type SharedBuf = Arc<Mutex<Vec<u8>>>;
+
 /// RecordBackend：记录每个 session 的写入（互不串扰断言用）。
 struct RecordBackend {
-    inputs: Arc<Mutex<Vec<Arc<Mutex<Vec<u8>>>>>>,
+    inputs: Arc<Mutex<Vec<SharedBuf>>>,
 }
 
 impl TerminalBackend for RecordBackend {
@@ -195,11 +198,17 @@ fn request(cmd: &str, body: serde_json::Value) -> InvokeRequest {
 }
 
 /// 响应统一转 JSON Value（Ok 与 Err 都能看）。
-fn call(wv: &Wv, cmd: &str, body: serde_json::Value) -> Result<serde_json::Value, serde_json::Value> {
-    get_ipc_response(wv, request(cmd, body)).map(|b| {
-        match &b {
-            tauri::ipc::InvokeResponseBody::Json(s) => serde_json::from_str(s).unwrap_or(serde_json::Value::Null),
-            tauri::ipc::InvokeResponseBody::Raw(bytes) => serde_json::from_slice(bytes).unwrap_or(serde_json::Value::Null),
+fn call(
+    wv: &Wv,
+    cmd: &str,
+    body: serde_json::Value,
+) -> Result<serde_json::Value, serde_json::Value> {
+    get_ipc_response(wv, request(cmd, body)).map(|b| match &b {
+        tauri::ipc::InvokeResponseBody::Json(s) => {
+            serde_json::from_str(s).unwrap_or(serde_json::Value::Null)
+        }
+        tauri::ipc::InvokeResponseBody::Raw(bytes) => {
+            serde_json::from_slice(bytes).unwrap_or(serde_json::Value::Null)
         }
     })
 }
@@ -223,10 +232,17 @@ fn open_session(wv: &Wv, channel_id: u32) -> u64 {
 }
 
 fn write(wv: &Wv, id: u64, data: &str) -> Result<(), String> {
-    match call(wv, "terminal_write", json!({ "id": id, "data": data.as_bytes() })) {
+    match call(
+        wv,
+        "terminal_write",
+        json!({ "id": id, "data": data.as_bytes() }),
+    ) {
         Ok(_) => Ok(()),
         Err(e) => {
-            let msg = e.as_str().map(str::to_string).unwrap_or_else(|| e.to_string());
+            let msg = e
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| e.to_string());
             Err(msg)
         }
     }
@@ -248,11 +264,7 @@ fn real_pty_open_write_exit_roundtrip() {
 
     let id = open_session(&wv, 7);
 
-    let exit_cmd = if cfg!(windows) {
-        "exit\r"
-    } else {
-        "exit\n"
-    };
+    let exit_cmd = if cfg!(windows) { "exit\r" } else { "exit\n" };
     write(&wv, id, "echo ELWRIGHT_PTY_OK\n").expect("写入应成功");
     write(&wv, id, exit_cmd).expect("写入 exit 应成功");
 
@@ -337,7 +349,10 @@ fn write_unknown_id_errors_in_chinese() {
     let wv = build_webview(backend, repo_root());
 
     let err = write(&wv, 9999, "x").expect_err("未知 id 应报错");
-    assert!(err.contains("不存在") || err.contains("已结束"), "中文错误: {err}");
+    assert!(
+        err.contains("不存在") || err.contains("已结束"),
+        "中文错误: {err}"
+    );
 }
 
 /// close 后 write：中文错误。
@@ -351,7 +366,10 @@ fn close_then_write_errors() {
     let id = open_session(&wv, 3);
     call_ok(&wv, "terminal_close", json!({ "id": id }));
     let err = write(&wv, id, "x").expect_err("close 后 write 应报错");
-    assert!(err.contains("不存在") || err.contains("已结束"), "中文错误: {err}");
+    assert!(
+        err.contains("不存在") || err.contains("已结束"),
+        "中文错误: {err}"
+    );
 }
 
 /// 非 terminal 命令同协议冒烟：内置注册表恰 3 条、含 text-stats。
