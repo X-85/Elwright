@@ -28,7 +28,7 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 
 - **`npm run dev` 只覆盖「查看类」功能**：真正可用仅 `listCapabilities`（`/api/capabilities`）、`viewDoc`（`/api/file`）、`exportCapability`（Blob 下载）、`checkUpdate`（直连 GitHub）。其余在浏览器里是 stub / 抛错：**runScript / invokeSkill（永远降级，不真调 LLM）/ importCapability / deleteCapability / getLlmConfig / setLlmConfig / chat / 会话持久化 / openTerminal** 全部失效或抛「【预览模式】…请用桌面应用」。
 - **功能开发无法在本机 `npm run dev` 验证**：终端、AI 对话、能力增删、模型配置、技能调用等核心功能，浏览器预览验不了，必须进真机运行时。
-- **MSVC 决策（2026-08-24）**：为能本地 `tauri dev` / `tauri build` 出桌面 `.exe` 并点测上述功能，已装 VS Build Tools（VCTools + Win11 SDK）到 `D:\VSBuildTools`。装后 GNU 那套不受影响，两套工具链并存；`cargo +stable-x86_64-pc-windows-msvc` 可用于桌面二进制。
+- **MSVC 决策（2026-08-24，受阻）**：为能本地 `tauri dev` / `tauri build` 出桌面 `.exe` 并点测上述功能，决定装 VS Build Tools（VCTools + Win11 SDK）。但**公司网关封锁 `download.visualstudio.microsoft.com`（403）**，在线安装走不通（引导器与后续包均来自该 CDN）。待定路径：① 公司软件中心 / 内部镜像；② 回家用 `vs_buildtools.exe --layout` 做离线包带回；③ 维持 CI-only（msi 仍由 GitHub CI 出）。当前 GNU 仍是本机可用工具链。
 - **漂移风险**：浏览器预览依赖 `vite` 的 `/api/*` 开发中间件镜像 Rust 命令；改注册表 schema 时这套中间件与 Rust 侧需同步。
 - **渲染差异**：WebView2（真机）≠ Chrome（`vite dev`）：排版基本一致，但字体回退 / 滚动条 / 个别 CSS / Tauri CSP 以真机为准。
 
