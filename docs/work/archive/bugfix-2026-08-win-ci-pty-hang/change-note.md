@@ -21,7 +21,7 @@ v0.1.5 发版后 main 的 CI run 32653634306：6/7 job 绿，`Rust core (windows
 
 非 Windows 路径行为不变（macOS/Linux CI 继续真实执行该测试）。
 
-## 验证
+## 验证（已通过）
 
 - macOS 本机：`cargo test --lib` 31 例全过（含本测试真实执行 ok）；fmt/clippy 全绿。
 - Windows CI：待本提交推送后观察 run（期望：跳过打印 + cargo test 步骤正常完成）。
