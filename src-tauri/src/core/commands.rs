@@ -90,8 +90,8 @@ pub fn view_doc(ctx: State<AppCtx>, id: String) -> Result<ViewDocResult, String>
 }
 
 #[tauri::command]
-pub async fn run_script(
-    ctx: tauri::AppHandle,
+pub async fn run_script<R: tauri::Runtime>(
+    ctx: tauri::AppHandle<R>,
     id: String,
     args: Vec<String>,
 ) -> Result<RunScriptResult, String> {
@@ -130,8 +130,8 @@ pub async fn run_script(
 }
 
 #[tauri::command]
-pub async fn invoke_skill(
-    ctx: tauri::AppHandle,
+pub async fn invoke_skill<R: tauri::Runtime>(
+    ctx: tauri::AppHandle<R>,
     id: String,
     prompt: String,
 ) -> Result<invoke::InvokeOutcome, String> {
@@ -235,8 +235,8 @@ pub struct ChatMessageArg {
 /// 非流式返回 assistant 回复。未配置/失败返回中文 Err——对话无降级 SOP，
 /// 会话保留与重试由前端负责。
 #[tauri::command]
-pub async fn chat_completion(
-    ctx: tauri::AppHandle,
+pub async fn chat_completion<R: tauri::Runtime>(
+    ctx: tauri::AppHandle<R>,
     messages: Vec<ChatMessageArg>,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -357,8 +357,8 @@ pub async fn test_llm_connection(
 /// 会把它解析回指向 JS onmessage 回调的 channel）；PTY 输出经 pump 线程
 /// 从该 channel 推给前端。
 #[tauri::command]
-pub async fn terminal_open(
-    ctx: tauri::AppHandle,
+pub async fn terminal_open<R: tauri::Runtime>(
+    ctx: tauri::AppHandle<R>,
     cols: u16,
     rows: u16,
     cwd: Option<String>,
