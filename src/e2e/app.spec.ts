@@ -1,0 +1,56 @@
+import { expect, test } from '@playwright/test'
+
+// 黑盒浏览器级冒烟：走 vite dev 的只读端点（/api/capabilities、/api/file），
+// 覆盖 browserBridge ↔ dev 插件接缝与预览模式降级守卫。
+// 真实 IPC（桌面壳）由 src-tauri/tests/terminal_ipc.rs 覆盖，两层互补。
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('/')
+  // 等首屏能力加载完（列表渲染出条目）再断言，避免竞态
+  await expect(page.locator('.cap-item').first()).toBeVisible()
+})
+
+test('工具箱加载内置 3 能力，计数徽标同步', async ({ page }) => {
+  await expect(page.locator('.cap-item')).toHaveCount(3)
+  await expect(page.locator('.count')).toHaveText('3 / 3 项')
+  await expect(page.locator('.bridge-badge')).toHaveText('预览模式 · 浏览器')
+})
+
+test('筛选与搜索联动：script 过滤只剩文本统计', async ({ page }) => {
+  await page.click('.filters button:text-is("脚本型")')
+  await expect(page.locator('.cap-item')).toHaveCount(1)
+  await expect(page.locator('.cap-name').first()).toHaveText('文本统计')
+
+  // 清过滤后搜索无结果 → 空态
+  await page.click('.filters button:text-is("全部")')
+  await page.fill('.search', '不存在的关键字xyz')
+  await expect(page.locator('.cap-empty')).toBeVisible()
+})
+
+test('知识型详情读 doc（/api/file 接缝），脚本型运行有降级文案', async ({ page }) => {
+  // 知识型：view 走 doc 字段，经 /api/file 读真实文件渲染 markdown
+  await page.click('.cap-item:has-text("能力类型速览")')
+  const detail = page.locator('.detail')
+  await expect(detail).toBeVisible()
+  await expect(detail.locator('.detail-head h2')).toHaveText('能力类型速览')
+  await expect(detail.locator('.markdown')).toBeVisible()
+  // 接缝断开时 view.ok=false，只会渲染 .error 而非 .markdown
+  await expect(detail.locator('.error')).toHaveCount(0)
+
+  // 脚本型：浏览器无法 spawn 进程，运行按钮给出明确降级文案而非报错
+  await page.click('.cap-item:has-text("文本统计")')
+  await expect(detail.locator('.detail-head h2')).toHaveText('文本统计')
+  await detail.locator('button.primary').click()
+  await expect(detail.locator('.output')).toContainText('【预览模式】')
+})
+
+test('降级守卫：浏览器下终端按钮不渲染', async ({ page }) => {
+  await expect(page.locator('button[title="打开或收起终端"]')).toHaveCount(0)
+})
+
+test('降级守卫：AI 对话页显示预览模式提示', async ({ page }) => {
+  await page.click('button[aria-label="AI 对话"]')
+  const note = page.locator('.chat-preview-note')
+  await expect(note).toBeVisible()
+  await expect(note).toContainText('【预览模式】')
+})

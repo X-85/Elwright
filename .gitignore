@@ -24,3 +24,7 @@ config.local.json
 .vscode/
 .DS_Store
 *.log
+
+# Playwright e2e 产物（本地跑失败时的截图/trace，不入库）
+src/test-results/
+src/playwright-report/
