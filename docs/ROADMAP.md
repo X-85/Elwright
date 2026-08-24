@@ -21,6 +21,17 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复（无回显 / 第二 tab 不能输入）+ 终端八项交互优化（ZCode 风格）+ 设置中心第一阶段（三态主题）+ AI 会话图标与新建按钮图标化 + 工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest））
 
+## 开发预览环境约束（本机 Windows / GNU-only）
+
+> 适用：公司机（Win11，原仅 GNU+MinGW 工具链，无 MSVC 链接器）。家里 macOS 不受影响。
+> 根因：`src/lib/bridge.ts` 有 `browserBridge` / `tauriBridge` 双实现，`npm run dev`（vite，浏览器）走 `browserBridge`。
+
+- **`npm run dev` 只覆盖「查看类」功能**：真正可用仅 `listCapabilities`（`/api/capabilities`）、`viewDoc`（`/api/file`）、`exportCapability`（Blob 下载）、`checkUpdate`（直连 GitHub）。其余在浏览器里是 stub / 抛错：**runScript / invokeSkill（永远降级，不真调 LLM）/ importCapability / deleteCapability / getLlmConfig / setLlmConfig / chat / 会话持久化 / openTerminal** 全部失效或抛「【预览模式】…请用桌面应用」。
+- **功能开发无法在本机 `npm run dev` 验证**：终端、AI 对话、能力增删、模型配置、技能调用等核心功能，浏览器预览验不了，必须进真机运行时。
+- **MSVC 决策（2026-08-24）**：为能本地 `tauri dev` / `tauri build` 出桌面 `.exe` 并点测上述功能，已装 VS Build Tools（VCTools + Win11 SDK）到 `D:\VSBuildTools`。装后 GNU 那套不受影响，两套工具链并存；`cargo +stable-x86_64-pc-windows-msvc` 可用于桌面二进制。
+- **漂移风险**：浏览器预览依赖 `vite` 的 `/api/*` 开发中间件镜像 Rust 命令；改注册表 schema 时这套中间件与 Rust 侧需同步。
+- **渲染差异**：WebView2（真机）≠ Chrome（`vite dev`）：排版基本一致，但字体回退 / 滚动条 / 个别 CSS / Tauri CSP 以真机为准。
+
 ## 进行中
 
 - **设置中心第一阶段**（`feature-2026-08-settings-center-phase1`）：统一设置入口，交付常规/外观/模型设置分组与系统、浅色、深色主题偏好；终端主题同步和更多常规配置留后续阶段。
