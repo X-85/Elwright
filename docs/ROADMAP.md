@@ -36,6 +36,7 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 
 - **设置中心第一阶段**（`feature-2026-08-settings-center-phase1`）：统一设置入口，交付常规/外观/模型设置分组与系统、浅色、深色主题偏好；终端主题同步和更多常规配置留后续阶段。
 - **人与人消息会话第一阶段**（`feature-2026-08-messaging-phase1`）：消息会话客户端基础，支持本地文字/图片/表情和会话状态；跨设备消息传输与实时协作空间后置。
+- **CLI `ew` 打入 msi 并写入 PATH（`packaging-2026-08-ew-cli-bundle`）**：让 Windows 安装包同时包含 `ew.exe`（与桌面 `Elwright.exe` 同目录）并把安装目录写入系统 PATH，实现「装完 msi 直接敲 `ew`」的 claude 式体验（见下方 FAQ 第 7 章「Windows 上下载与安装」）。实现：桌面 app 与 `ew` 同属一个 cargo workspace，CI `cargo build --release` 已产出 `target/release/ew.exe`；外部二进制走 `tauri.windows.conf.json` 的 `bundle.externalBin`（指向 `binaries/ew-<triple>.exe`，CI 增加拷贝步骤），PATH 走 wix fragment（`<Environment Name="PATH">` 写入安装目录）。**先做 Windows**；macOS dmg 暂不含 `ew`（桌面 app 不受影响）。验证：开 PR → `ci.yml` 的 msi job 真打一遍 msi 制品。
 
 ## V1（短期，做完即发版）
 

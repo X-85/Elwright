@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- packaging-2026-08-ew-cli-bundle: 把安装目录写入用户 PATH，
+         使装完 msi 后任意终端可直接敲 ew（与桌面 Elwright.exe 同目录）。 -->
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="AddInstallDirToPath" Guid="*">
+        <Environment
+          Id="AddToPathEnv"
+          Name="PATH"
+          Value="[INSTALLDIR]"
+          Permanent="no"
+          Part="last"
+          Action="set"
+          System="no" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>
