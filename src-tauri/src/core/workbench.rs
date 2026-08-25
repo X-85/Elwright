@@ -142,7 +142,7 @@ fn validate_date(date: &str) -> Result<(), String> {
         date[5..7].parse::<u32>().unwrap(),
         date[8..10].parse::<u32>().unwrap(),
     );
-    if !(1..=12).contains(&m) || !(1..=31).contains(&d) || y < 1970 || y > 9999 {
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) || !(1970..=9999).contains(&y) {
         return Err(format!("日期数值无效: {}", date));
     }
     Ok(())
