@@ -84,7 +84,10 @@ fn setup(tag: &str) -> (PathBuf, impl Drop) {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
-    struct Guard(#[allow(dead_code)] std::sync::MutexGuard<'static, ()>, PathBuf);
+    struct Guard(
+        #[allow(dead_code)] std::sync::MutexGuard<'static, ()>,
+        PathBuf,
+    );
     impl Drop for Guard {
         fn drop(&mut self) {
             std::env::remove_var("ELWRIGHT_USER_ROOT");
