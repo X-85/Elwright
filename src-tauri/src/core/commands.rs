@@ -19,6 +19,7 @@ use tauri::ipc::Channel;
 use tauri::{Manager, State};
 
 use super::chat_store;
+use super::workbench;
 use super::{executor, export, invoke, llm, registry, terminal, version};
 
 /// 桌面壳全局状态：setup 期填充，经 `.manage()` 注入，命令层只读。
@@ -303,6 +304,45 @@ pub fn chat_save_session(
 #[tauri::command]
 pub fn chat_delete_session(id: String) -> Result<(), String> {
     chat_store::delete_session(&id)
+}
+
+// ---- 工作工具栏（Workbench 第一阶段：Todo + 今日记录）----
+
+#[tauri::command]
+pub fn todo_list() -> Result<Vec<workbench::TodoItem>, String> {
+    Ok(workbench::todo_list())
+}
+
+#[tauri::command]
+pub fn todo_add(text: String) -> Result<workbench::TodoItem, String> {
+    workbench::todo_add(&text)
+}
+
+#[tauri::command]
+pub fn todo_toggle(id: u64) -> Result<workbench::TodoItem, String> {
+    workbench::todo_toggle(id)
+}
+
+#[tauri::command]
+pub fn todo_remove(id: u64) -> Result<(), String> {
+    workbench::todo_remove(id)
+}
+
+/// 读某日记录；无记录返回 null（前端显示空编辑器）。
+#[tauri::command]
+pub fn note_get(date: String) -> Result<Option<String>, String> {
+    workbench::note_get(&date)
+}
+
+#[tauri::command]
+pub fn note_save(date: String, content: String) -> Result<(), String> {
+    workbench::note_save(&date, &content)
+}
+
+/// 已有记录的日期列表（倒序，最近在前）。
+#[tauri::command]
+pub fn note_list() -> Result<Vec<String>, String> {
+    Ok(workbench::note_list_dates())
 }
 
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----

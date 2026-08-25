@@ -11,3 +11,4 @@ pub mod terminal;
 #[cfg(test)]
 pub mod test_env;
 pub mod version;
+pub mod workbench;
