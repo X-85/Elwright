@@ -8,7 +8,12 @@
 
 ## 当前状态
 
-已规划，尚未实现。主干 V2 只验证工具栏基础框架、收藏/最近使用、Todo、书签和少量高频研发转换工具；今日记录、泛化工具扩充和桌宠联动后置或转入实验分支。
+**第一阶段已实现（2026-08-25，`feature-2026-08-workbench-phase1`）**：Todo 清单 + 今日记录（轻量记事本），顶栏第三导航入口。范围调整：今日记录由「后置」提前与 Todo 一并交付；收藏/最近使用、书签、高频转换工具顺延为后续阶段。
+
+- 存储：`~/.elwright/todos.json`（顶层对象含 nextId，进程内 Mutex 串行化）+ `~/.elwright/notes/YYYY-MM-DD.md` 一天一文件；日期参数严格校验防路径穿越。
+- IPC：7 条命令（todo_list/add/toggle/remove + note_get/save/list），core/commands.rs。
+- 前端：WorkbenchView.vue 双栏（Todo 列 + 今日记录），浏览器预览走进程内模拟存储（刷新即失），桌面壳真实持久化。
+- 测试：core 单测 5 例 + IPC 冒烟 4 例 + vitest 4 例 + Playwright 1 场景。
 
 ## 首批工具
 
