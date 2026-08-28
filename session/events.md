@@ -41,3 +41,9 @@
 - 本轮方案：查询当前分支的 GitHub Actions workflow runs，并核对 CI 触发条件。
 - 实际结果：已验证，当前分支没有远端 workflow run；CI 仅在 `main` push 或 PR 时触发，直接推送 feature 分支不会执行。
 - 下一步：创建草稿 PR 或调整 CI 的 push 触发范围后，再检查 Browser smoke job 结果。
+
+### Q2 | 第6次处理
+- 问题或新增信息：用户选择创建草稿 PR 来触发远端 CI。
+- 本轮方案：检查当前分支、远端提交和 GitHub CLI/API 认证条件。
+- 实际结果：已验证，分支已推送到 `origin`，但本机没有 `gh` 且没有 GitHub API token，无法安全执行外部 PR 创建。
+- 下一步：用户安装并登录 `gh` 后继续创建草稿 PR，再检查 Actions 结果。
