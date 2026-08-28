@@ -12,3 +12,4 @@ pub mod terminal;
 pub mod test_env;
 pub mod version;
 pub mod workbench;
+pub mod workspace;

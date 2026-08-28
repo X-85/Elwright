@@ -20,7 +20,7 @@ use tauri::{Manager, State};
 
 use super::chat_store;
 use super::workbench;
-use super::{executor, export, invoke, llm, registry, terminal, version};
+use super::{executor, export, invoke, llm, registry, terminal, version, workspace};
 
 /// 桌面壳全局状态：setup 期填充，经 `.manage()` 注入，命令层只读。
 pub struct AppCtx {
@@ -438,6 +438,160 @@ pub fn terminal_resize(ctx: State<AppCtx>, id: u64, cols: u16, rows: u16) -> Res
 pub fn terminal_close(ctx: State<AppCtx>, id: u64) -> Result<(), String> {
     ctx.terminal.kill(terminal::SessionId(id));
     Ok(())
+}
+
+// ---- 资源管理与课题工作区（feature-2026-08-progressive-capabilities /
+// enhancement-2026-08-software-shortcuts）。数据层在 core::workspace，
+// 根目录用用户主目录（~/.elwright/workspace），与资源根 ctx.root 无关。
+
+fn workspace_root() -> Result<PathBuf, String> {
+    registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())
+}
+
+#[derive(Serialize)]
+pub struct TopicReportResult {
+    source: String,
+    content: String,
+    note: Option<String>,
+}
+
+#[tauri::command]
+pub fn workspace_load() -> Result<workspace::WorkspaceData, String> {
+    workspace::load(&workspace_root()?)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub fn workspace_create_folder(
+    name: String,
+    parentId: Option<String>,
+) -> Result<workspace::Folder, String> {
+    workspace::create_folder(&workspace_root()?, &name, parentId)
+}
+
+#[tauri::command]
+pub fn workspace_delete_folder(id: String) -> Result<(), String> {
+    workspace::delete_folder(&workspace_root()?, &id)
+}
+
+#[tauri::command]
+pub fn workspace_create_resource(resource: workspace::Resource) -> Result<workspace::Resource, String> {
+    workspace::create_resource(&workspace_root()?, resource)
+}
+
+#[tauri::command]
+pub fn workspace_delete_resource(id: String) -> Result<(), String> {
+    workspace::delete_resource(&workspace_root()?, &id)
+}
+
+#[tauri::command]
+pub fn workspace_launch_app(id: String) -> Result<String, String> {
+    workspace::launch_app(&workspace_root()?, &id)?;
+    Ok("软件已启动".to_string())
+}
+
+#[tauri::command]
+pub fn workspace_create_topic(title: String, question: String) -> Result<workspace::Topic, String> {
+    workspace::create_topic(&workspace_root()?, &title, &question)
+}
+
+#[tauri::command]
+pub fn workspace_update_topic(topic: workspace::Topic) -> Result<(), String> {
+    workspace::update_topic(&workspace_root()?, topic)
+}
+
+#[tauri::command]
+pub fn workspace_delete_topic(id: String) -> Result<(), String> {
+    workspace::delete_topic(&workspace_root()?, &id)
+}
+
+#[tauri::command]
+pub async fn workspace_generate_report<R: tauri::Runtime>(
+    ctx: tauri::AppHandle<R>,
+    id: String,
+) -> Result<TopicReportResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let ctx = ctx.state::<AppCtx>();
+        let root = workspace_root()?;
+        let mut data = workspace::load(&root)?;
+        let topic = data
+            .topics
+            .iter()
+            .find(|t| t.id == id)
+            .cloned()
+            .ok_or_else(|| "课题不存在".to_string())?;
+        let mut source = String::new();
+        for rid in &topic.resource_ids {
+            if let Some(resource) = data.resources.iter().find(|r| r.id == *rid) {
+                source.push_str(&format!(
+                    "\n### {} [{}]\n{}\n",
+                    resource.title, resource.kind, resource.value
+                ));
+                if resource.kind == "path" {
+                    if let Ok(text) = std::fs::read_to_string(&resource.value) {
+                        source.push_str(&text.chars().take(6000).collect::<String>());
+                        source.push('\n');
+                    }
+                }
+                if !resource.note.trim().is_empty() {
+                    source.push_str(&format!("备注：{}\n", resource.note));
+                }
+            }
+        }
+        let user_prompt = format!(
+            "请围绕课题《{}》生成一份完整、有深度、可执行的研究报告。\n研究问题：{}\n相关资源：{}\n要求：先给结论摘要，再给概念框架、证据与引用、实践步骤、风险和后续问题；不要虚构资源中没有的事实。",
+            topic.title,
+            topic.question,
+            if source.is_empty() { "（暂无资源）" } else { &source }
+        );
+        let registry = load_registry(&ctx)?;
+        let layers = llm::ConfigLayers::collect(&registry.root, registry.llm_default.clone());
+        let (config, _) = layers.merged();
+        let result = if config.base_url.is_empty() {
+            TopicReportResult {
+                source: "offline".into(),
+                content: offline_report(&topic, &source),
+                note: Some("未配置 LLM，已生成离线报告草稿。".into()),
+            }
+        } else {
+            match (llm::LlmClient { config }).chat_messages(&[
+                llm::ChatMessage::new("system", "你是严谨的研究助理，输出结构化中文 Markdown 报告。"),
+                llm::ChatMessage::new("user", &user_prompt),
+            ]) {
+                Ok(content) => TopicReportResult { source: "llm".into(), content, note: None },
+                Err(error) => TopicReportResult {
+                    source: "offline".into(),
+                    content: offline_report(&topic, &source),
+                    note: Some(format!("LLM 调用失败，已降级为离线草稿：{}", error)),
+                },
+            }
+        };
+        if let Some(saved) = data.topics.iter_mut().find(|t| t.id == topic.id) {
+            saved.report = result.content.clone();
+            saved.updated_at = format!("{}", chrono_like_now());
+            workspace::save(&root, &data)?;
+        }
+        Ok(result)
+    })
+    .await
+    .map_err(|e| format!("报告生成任务异常: {}", e))?
+}
+
+fn chrono_like_now() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+}
+
+fn offline_report(topic: &workspace::Topic, source: &str) -> String {
+    let resources = if source.is_empty() { "暂无已关联资源。" } else { source };
+    format!(
+        "# {}\n\n## 研究问题\n{}\n\n## 当前资料\n{}\n## 分析框架\n1. 明确核心概念与边界。\n2. 对照资料中的事实、示例和限制。\n3. 将结论拆解为可验证的实践步骤。\n\n## 待补充\n- 为每个关键判断补充原始出处与反例。\n- 用实际案例验证结论，并记录版本与环境。\n\n> 这是离线报告草稿。配置 LLM 后可再次生成完整研究报告。",
+        topic.title,
+        if topic.question.is_empty() { "（未填写）" } else { &topic.question },
+        resources
+    )
 }
 
 #[cfg(test)]

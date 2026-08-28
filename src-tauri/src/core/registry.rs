@@ -16,6 +16,16 @@ pub struct Capability {
     pub prompt: Option<String>,
     #[serde(rename = "degradeDoc")]
     pub degrade_doc: Option<String>,
+    /// 渐进式发布档位：1 = 核心，数值越高越晚释放。
+    #[serde(rename = "releaseTier", default = "default_release_tier")]
+    pub release_tier: u8,
+    /// 可选：达到指定本地使用次数后解锁。
+    #[serde(rename = "unlockAfterUses", default)]
+    pub unlock_after_uses: Option<u32>,
+}
+
+fn default_release_tier() -> u8 {
+    1
 }
 
 /// Loaded capability registry, bound to an Elwright project root.
@@ -203,7 +213,7 @@ fn find_root_from(start: &Path) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_root_from, resolve_root, Registry};
+    use super::{find_root_from, resolve_root, Capability, Registry};
     use std::fs;
     use std::path::PathBuf;
 
@@ -289,6 +299,8 @@ mod tests {
             offline: None,
             prompt: None,
             degrade_doc: Some("resources/docs/example.md".to_string()),
+            release_tier: 1,
+            unlock_after_uses: None,
         };
 
         let value = serde_json::to_value(capability).unwrap();
@@ -296,6 +308,14 @@ mod tests {
         assert_eq!(value["degradeDoc"], "resources/docs/example.md");
         assert!(value.get("kind").is_none());
         assert!(value.get("degrade_doc").is_none());
+    }
+
+    #[test]
+    fn missing_release_metadata_defaults_to_core() {
+        let value: Capability =
+            serde_json::from_str(r#"{"id":"x","name":"X","type":"knowledge"}"#).unwrap();
+        assert_eq!(value.release_tier, 1);
+        assert!(value.unlock_after_uses.is_none());
     }
 
     // ---- 叠加层（overlay）----
