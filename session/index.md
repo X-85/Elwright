@@ -3,4 +3,4 @@
 | 编号 | 问题 | 状态 | 最近进展 | 下一步 |
 | --- | --- | --- | --- | --- |
 | Q1 | 启用本次会话台账 | 已解决 | 已创建并校验基础台账结构 | 后续会话按协议维护 |
-| Q2 | Elwright 自动化交互测试 | 已解决 | Playwright Chromium 冒烟、CI job 和隔离规则已实现并在本机通过 | 推送后确认 GitHub Actions 远端执行结果 |
+| Q2 | Elwright 自动化交互测试 | 已解决 | Playwright Chromium 冒烟、CI job 和隔离规则已实现并推送到远端分支 | 确认 GitHub Actions 远端执行结果 |

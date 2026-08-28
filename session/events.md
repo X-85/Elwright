@@ -29,3 +29,9 @@
 - 本轮方案：依据失败 DOM 快照，将调用按钮和资源复选框改为稳定的可访问名称片段定位；测试资源改用 `virtual://` URI，避免与任何真实路径混淆。
 - 实际结果：已验证，Playwright Chromium 3/3、Vitest 22/22、Rust 41/41、前端构建、格式检查和 CI YAML 解析全部通过；`npm ci` 干净安装通过。
 - 下一步：推送分支后确认 GitHub Actions 的 Browser smoke job 运行结果。
+
+### Q2 | 第4次处理
+- 问题或新增信息：用户要求推送当前工作。
+- 本轮方案：明确排除 `.zcode/` 和未纳入本次实现的 traffic-light 任务目录，提交已核对的功能、文档和测试文件并推送当前分支。
+- 实际结果：已验证，提交 `4215c1c` 已推送至 `origin/codex/feature-2026-08-progressive-capabilities`。
+- 下一步：确认 GitHub Actions 的 Browser smoke job 远端结果。
