@@ -35,3 +35,9 @@
 - 本轮方案：明确排除 `.zcode/` 和未纳入本次实现的 traffic-light 任务目录，提交已核对的功能、文档和测试文件并推送当前分支。
 - 实际结果：已验证，提交 `4215c1c` 已推送至 `origin/codex/feature-2026-08-progressive-capabilities`。
 - 下一步：确认 GitHub Actions 的 Browser smoke job 远端结果。
+
+### Q2 | 第5次处理
+- 问题或新增信息：用户询问远端 GitHub Actions 如何确认，以及是否会主动检查。
+- 本轮方案：查询当前分支的 GitHub Actions workflow runs，并核对 CI 触发条件。
+- 实际结果：已验证，当前分支没有远端 workflow run；CI 仅在 `main` push 或 PR 时触发，直接推送 feature 分支不会执行。
+- 下一步：创建草稿 PR 或调整 CI 的 push 触发范围后，再检查 Browser smoke job 结果。
