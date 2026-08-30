@@ -68,12 +68,12 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - **代码浏览器**：作为研发代码上下文入口，排在 AI 对话阶段③之后；分阶段交付：①本地项目只读查看与轻量符号跳转（接口→实现、JavaBean 类型→类定义）；②项目关系索引与 Todo/书签/流程图联动；③再评估 Java Language Server 和受控补丁编辑。默认不启动高内存后台索引服务。
 - **人与人消息会话**：分三阶段实现——①客户端本地消息会话；②轻量身份/邀请与一对一消息传输；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
 - **设置中心后续阶段**：终端主题、字体和字号同步；常规中的启动视图、更新策略与语言；模型档案等配置，均以本地优先、少而明确为准入标准。
-- **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；~~今日记录~~（2026-08-25 调整：与 Todo 一并提前进第一阶段）、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。
+- **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；~~今日记录~~（2026-08-25 调整：与 Todo 一并提前进第一阶段）、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。第一阶段（Todo + 今日记录，`feature-2026-08-workbench-phase1`）已并入 main（2026-08-30）。
 - **能力渐进式发布**：在 MVP 基础上增加透明的解锁规则、成长提示和本地可重置的使用记录；高级用户始终可以显式查看全部能力，社区提案/审核/签名能力包另行排期。
 - **会话问题台账基准技能**：将会话问题、决定、验证和下一步沉淀为本地 `session/` 协议；Codex Skill 负责可写工作区的自动维护，Elwright 内置技能负责生成指令并在离线时提供 SOP。
 - **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
-  - **第一档（立即）**：CI 加 clippy + rustfmt 检查；前端引入 vitest，先覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数）。
-  - **第二档（已完成 2026-08-24，`enhancement-2026-08-quality-tier2-e2e`）**：分层 e2e 冒烟——IPC 层用 tauri mock runtime 真协议测试（`src-tauri/tests/terminal_ipc.rs`，macOS/Linux 走真 PTY 全链路，Windows+CI 跳真 PTY 用例），浏览器层用 Playwright chromium（`src/e2e/`，接缝 + 降级守卫）；验证清单 `【自动化】/【手测】` 标记约定已写入 AI_CODE_AGENT_MAINTENANCE.md §6。tauri-driver 弃选（Windows CI 无 WinAppDriver），取舍见 `docs/features/engineering-quality/decisions/ADR-001-e2e-layering.md`。
+  - ~~**第一档（立即）**~~ **已完成（2026-08-23）**：CI clippy + rustfmt 闸门；vitest 覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数），随 v0.1.5 进包。
+  - **第二档（已完成 2026-08-24，`enhancement-2026-08-quality-tier2-e2e`）**：分层 e2e 冒烟——IPC 层用 tauri mock runtime 真协议测试（`src-tauri/tests/terminal_ipc.rs`，macOS/Linux 走真 PTY 全链路，Windows+CI 跳真 PTY 用例），浏览器层用 Playwright chromium（`src/e2e/`，接缝 + 降级守卫）；验证清单 `【自动化】/【手测】` 标记约定已写入 AI_CODE_AGENT_MAINTENANCE.md §6。tauri-driver 弃选（Windows CI 无 WinAppDriver），取舍见 `docs/features/engineering-quality/decisions/ADR-001-e2e-layering.md`。已并入 main（`6f84109`）。
   - **第三档（按需）**：eslint（风格已统一，低优先）；覆盖率门槛（等测试有存量）。
 
 ### 后置验证
@@ -98,6 +98,8 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - **扩展工作台工具（实验方向）**：通用 Todo/笔记增强、更多转换工具、时序图/架构图/ER 图、SSH/服务器管理等仅限独立实验分支；不以“替代现有成熟软件”为目标，满足主干红线后才可另行立项。
 
 ## 已完成里程碑
+
+- 2026-08-30 工程质量第二档：分层 e2e 冒烟（IPC 真协议 6 用例 + 浏览器层 6 用例 + 独占端口 5273 修复）并入 main（`6f84109`），五道闸（cargo/clippy/fmt/vitest/e2e）全绿。
 
 - 2026-08-23 应用壳布局第一阶段：顶部全局操作栏、能力工具箱/AI 对话图标化、左右面板显隐、按需展开的终端抽屉。任务已归档至 `docs/work/archive/enhancement-2026-08-app-shell-layout/`。
 
