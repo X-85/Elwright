@@ -1,7 +1,13 @@
 # 合并准备：rebase 到 main 的冲突清单与 e2e 去重方案
 
 > 2026-08-30 用 `git merge-tree` 预演生成（当时 main = `a58705d`，tier2 已并入，
-> workbench 待合并）。实际 rebase 在 workbench 合并后执行，届时需重跑 merge-tree 复核。
+> workbench 待合并）。
+>
+> **执行进度（2026-08-30）**：已提前对 tier2 状态的 main 完成一轮 rebase（force-with-lease
+> 推送至 `cbe9a75`），全部冲突按本清单解决，五道闸全绿（cargo 42+6 / clippy / fmt /
+> vitest 22 / e2e 8 场景合跑）。适配项：内置注册表 3→4 条（session-ledger）后
+> terminal_ipc 与 app.spec 计数断言同步更新。**剩余**：workbench 合并后再做一轮
+> 小规模 rebase（预期仅 App.vue/main.rs 局部），届时重跑 merge-tree 复核。
 
 ## 预演冲突文件（6 个）
 
