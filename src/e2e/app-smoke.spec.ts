@@ -13,7 +13,8 @@ test('能力详情可点击调用，并展示预览模式的离线 SOP', async (
   await expect(invoke).toBeEnabled()
 
   await invoke.click()
-  await expect(page.getByText('预览模式', { exact: false })).toBeVisible()
+  // 降级提示与侧栏「预览模式 · 浏览器」徽标都含「预览模式」，必须锁定详情区内的提示
+  await expect(page.locator('.detail').getByText('预览模式', { exact: false })).toBeVisible()
   await expect(page.getByText('周报生成 · 离线 SOP', { exact: true })).toBeVisible()
 })
 
