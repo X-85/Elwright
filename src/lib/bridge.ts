@@ -92,7 +92,7 @@ export interface TodoItem {
 }
 
 /** 工作工具栏 · 今日记录日期（YYYY-MM-DD）列表 */
-export type NoteDate = string,
+export type NoteDate = string
 export interface WorkspaceFolder {
   id: string
   name: string
@@ -408,7 +408,9 @@ const browserBridge: Bridge = {
   },
 
   async noteList() {
-    return [...browserWorkbenchNotes.keys()].sort().reverse(),
+    return [...browserWorkbenchNotes.keys()].sort().reverse()
+  },
+
   async loadWorkspace() {
     const raw = localStorage.getItem('elwright-workspace')
     if (!raw) return { folders: [], resources: [], topics: [] }
@@ -744,7 +746,9 @@ const tauriBridge: Bridge = {
   },
 
   async noteList() {
-    return tauriInvoke<string[]>('note_list'),
+    return tauriInvoke<string[]>('note_list')
+  },
+
   loadWorkspace() {
     return tauriInvoke<WorkspaceData>('workspace_load')
   },
