@@ -27,4 +27,9 @@
 
 ## 手测项
 
-- 桌面壳持久化冒烟：（待用户执行后回填）
+- 桌面壳持久化冒烟：**已由 Agent GUI 点验完成（2026-08-30，真机 tauri dev + 辅助功能自动化）**
+  - Todo：真实 UI 添加「桌面验证待办」→ IPC todo_add → `~/.elwright/todos.json` 落盘（camelCase、nextId 正确）→ UI 回读；勾选 → completedAt 落盘 → 计数「1 / 1 完成」
+  - 今日记录读取：文件放置 → UI 切日期 → note_get 经真实 IPC 加载渲染完整；日期前后翻页正常
+  - 持久化闭环：File→Close Window 正常退出 → 重启 → Todo（含勾选状态）与笔记完整保留
+  - 终端：terminal_open 成功建会话（tab「终端 1」出现）
+  - 工具边界（非产品缺陷）：textarea 的 AX 自动写值在 WKWebView 不生效，故「UI 键入笔记→自动保存」与「终端敲命令回显」两点未由 GUI 自动化覆盖；两者分别由 Playwright 浏览器用例（同组件代码）与 terminal_ipc.rs 真 PTY 用例覆盖，且写入通道与 Todo 完全相同（已真机验证）
