@@ -80,8 +80,11 @@ jobs:
             echo "cargo test 全绿"
           else
             # ::error:: workflow command 会变成 check-run annotation（无鉴权可读）
-            grep -E "test result:|^---- |panicked at|failures:$|^error" /tmp/ct.log | head -30 | while IFS= read -r line; do
-              echo "::error::${line:0:400}"
+            grep -E "test result:|^---- |panicked at|failures:$|^error" /tmp/ct.log | head -8 | while IFS= read -r line; do
+              echo "::error::G|${line:0:300}"
+            done
+            tail -12 /tmp/ct.log | while IFS= read -r line; do
+              echo "::error::T|${line:0:300}"
             done
             {
               echo "### cargo test 失败详情"
