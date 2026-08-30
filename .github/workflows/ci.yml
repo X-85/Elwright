@@ -152,6 +152,14 @@ jobs:
         working-directory: src
         run: npm test
 
+      # 浏览器级 e2e（chromium）：browserBridge ↔ dev 插件接缝 + 预览模式降级守卫。
+      # 桌面壳 IPC 层由 rust matrix job 的 tests/terminal_ipc.rs 覆盖。
+      - name: Playwright e2e
+        working-directory: src
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
       - name: npm run build
         working-directory: src
         run: npm run build

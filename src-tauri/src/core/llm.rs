@@ -366,10 +366,8 @@ mod tests {
     use super::{chat_url, mask_key, set_user_config, ConfigLayers, LlmConfig};
     use std::fs;
     use std::path::PathBuf;
-    use std::sync::Mutex;
 
-    // set_user_config/user_config_path 读进程级环境变量，测试间需串行
-    static USER_ROOT_LOCK: Mutex<()> = Mutex::new(());
+    use crate::core::test_env::env_serialization_guard;
 
     fn temp_user_root(tag: &str) -> PathBuf {
         let dir =
@@ -405,7 +403,7 @@ mod tests {
 
     #[test]
     fn merges_fieldwise_with_priority() {
-        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         // 清掉可能存在的环境变量，保证优先级测试不受宿主环境影响
         for k in [
             "ELWRIGHT_LLM_BASE_URL",
@@ -468,7 +466,7 @@ mod tests {
 
     #[test]
     fn set_user_config_merges_and_clears_fieldwise() {
-        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let root = temp_user_root("merge");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
 
@@ -494,7 +492,7 @@ mod tests {
 
     #[test]
     fn set_user_config_preserves_unknown_keys() {
-        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let root = temp_user_root("preserve");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
         fs::write(

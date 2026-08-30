@@ -206,10 +206,9 @@ mod tests {
     use super::{find_root_from, resolve_root, Registry};
     use std::fs;
     use std::path::PathBuf;
-    use std::sync::Mutex;
 
     // resolve_root 读进程级环境变量与 cwd，测试间需串行
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    use crate::core::test_env::env_serialization_guard;
 
     /// temp 目录树: root/capabilities.json + root/nested/child/
     fn temp_root(tag: &str) -> (PathBuf, PathBuf) {
@@ -223,7 +222,7 @@ mod tests {
 
     #[test]
     fn env_override_wins() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let (root, _) = temp_root("env");
         std::env::set_var("ELWRIGHT_ROOT", &root);
         let resolved = resolve_root(&[]);
@@ -234,7 +233,7 @@ mod tests {
 
     #[test]
     fn cwd_walkup_finds_ancestor() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let (root, child) = temp_root("cwd");
         // 本仓库内运行时 cwd 上溯会命中仓库根；这里仅验证上溯语义：
         // 从 child 起找（借道 find_root_from 的纯函数）
@@ -244,7 +243,7 @@ mod tests {
 
     #[test]
     fn probe_dir_matches_bundle_layout() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let (root, _) = temp_root("probe");
         // bundle 布局：资源目录下直接是 capabilities.json（如 Contents/Resources）
         assert_eq!(find_root_from(&root).unwrap(), root);

@@ -31,3 +31,8 @@ crossbeam-channel = "0.5"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+# IPC 冒烟测试（tests/terminal_ipc.rs）用 mock runtime；
+# dev-dependencies 不进发布二进制
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
