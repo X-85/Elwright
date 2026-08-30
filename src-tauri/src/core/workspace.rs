@@ -26,6 +26,8 @@ pub struct Folder {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resource {
+    /// 前端新建时不带 id（服务端生成），必须 default 才能反序列化。
+    #[serde(default)]
     pub id: String,
     pub title: String,
     pub kind: String,
