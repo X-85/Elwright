@@ -78,6 +78,18 @@ export interface ChatSession {
   messages: ChatMessage[]
 }
 
+/** 工作工具栏 · Todo 条目（与 core::workbench::TodoItem 对应，camelCase） */
+export interface TodoItem {
+  id: number
+  text: string
+  done: boolean
+  createdAt: string
+  completedAt: string | null
+}
+
+/** 工作工具栏 · 今日记录日期（YYYY-MM-DD）列表 */
+export type NoteDate = string
+
 /**
  * 前端可见的终端会话抽象。
  * - `onData`：Rust 通过 Tauri Channel 推送的 PTY 输出（已 flush 的批次）
@@ -131,6 +143,21 @@ export interface Bridge {
   saveChatSession(id: string, title: string, messages: ChatMessage[]): Promise<void>
   /** 删除会话（幂等）。 */
   deleteChatSession(id: string): Promise<void>
+  // ---- 工作工具栏（Todo + 今日记录）----
+  /** 全量 Todo（创建序）。 */
+  todoList(): Promise<TodoItem[]>
+  /** 新增一条，返回完整条目。 */
+  todoAdd(text: string): Promise<TodoItem>
+  /** 勾选/取消勾选。 */
+  todoToggle(id: number): Promise<TodoItem>
+  /** 删除。 */
+  todoRemove(id: number): Promise<void>
+  /** 读某日记录；无记录返回 null。 */
+  noteGet(date: string): Promise<string | null>
+  /** 保存某日记录（整文件覆盖）。 */
+  noteSave(date: string, content: string): Promise<void>
+  /** 已有记录的日期列表（倒序）。 */
+  noteList(): Promise<string[]>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -286,6 +313,51 @@ const browserBridge: Bridge = {
     // 同上，静默成功
   },
 
+  // 工作工具栏：进程内模拟存储——UI 可在浏览器预览完整体验，
+  // 但不持久化（刷新即失），真实数据走桌面壳 IPC 写 ~/.elwright/。
+  async todoList() {
+    return [...browserWorkbenchTodos]
+  },
+
+  async todoAdd(text) {
+    const item: TodoItem = {
+      id: browserWorkbenchNextId++,
+      text,
+      done: false,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    }
+    browserWorkbenchTodos.push(item)
+    return { ...item }
+  },
+
+  async todoToggle(id) {
+    const item = browserWorkbenchTodos.find((t) => t.id === id)
+    if (!item) throw new Error(`Todo ${id} 不存在或已删除`)
+    item.done = !item.done
+    item.completedAt = item.done ? new Date().toISOString() : null
+    return { ...item }
+  },
+
+  async todoRemove(id) {
+    const idx = browserWorkbenchTodos.findIndex((t) => t.id === id)
+    if (idx === -1) throw new Error(`Todo ${id} 不存在或已删除`)
+    browserWorkbenchTodos.splice(idx, 1)
+  },
+
+  async noteGet(date) {
+    return browserWorkbenchNotes.get(date) ?? null
+  },
+
+  async noteSave(date, content) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`日期格式无效（应为 YYYY-MM-DD）: ${date}`)
+    browserWorkbenchNotes.set(date, content)
+  },
+
+  async noteList() {
+    return [...browserWorkbenchNotes.keys()].sort().reverse()
+  },
+
   async openTerminal() {
     throw new Error(
       '【预览模式】浏览器无法启动 PTY。\n真实终端请用桌面应用。',
@@ -297,6 +369,11 @@ const browserBridge: Bridge = {
     return null
   },
 }
+
+// browserBridge 工作工具栏的进程内模拟存储（模块级，刷新即重置）
+const browserWorkbenchTodos: TodoItem[] = []
+let browserWorkbenchNextId = 1
+const browserWorkbenchNotes = new Map<string, string>()
 
 async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/core')
@@ -473,6 +550,35 @@ const tauriBridge: Bridge = {
 
   async deleteChatSession(id) {
     await tauriInvoke<void>('chat_delete_session', { id })
+  },
+
+  // 工作工具栏：真实 IPC（core::workbench，camelCase 自动对齐）
+  async todoList() {
+    return tauriInvoke<TodoItem[]>('todo_list')
+  },
+
+  async todoAdd(text) {
+    return tauriInvoke<TodoItem>('todo_add', { text })
+  },
+
+  async todoToggle(id) {
+    return tauriInvoke<TodoItem>('todo_toggle', { id })
+  },
+
+  async todoRemove(id) {
+    await tauriInvoke<void>('todo_remove', { id })
+  },
+
+  async noteGet(date) {
+    return tauriInvoke<string | null>('note_get', { date })
+  },
+
+  async noteSave(date, content) {
+    await tauriInvoke<void>('note_save', { date, content })
+  },
+
+  async noteList() {
+    return tauriInvoke<string[]>('note_list')
   },
 
   async openTerminal(options) {

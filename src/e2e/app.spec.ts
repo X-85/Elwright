@@ -54,3 +54,39 @@ test('降级守卫：AI 对话页显示预览模式提示', async ({ page }) => 
   await expect(note).toBeVisible()
   await expect(note).toContainText('【预览模式】')
 })
+
+test('工作台：Todo 添加/勾选/删除与今日记录自动保存（预览模式模拟存储）', async ({ page }) => {
+  await page.click('button[aria-label="工作台"]')
+
+  // Todo 添加 → 出现 → 计数
+  await page.fill('.wb-input', 'e2e 待办事项')
+  await page.click('.wb-add button[type="submit"]')
+  const item = page.locator('.todo-item', { hasText: 'e2e 待办事项' })
+  await expect(item).toBeVisible()
+  await expect(item.locator('.todo-text')).toHaveText('e2e 待办事项')
+
+  // 勾选 → 划线样式 + 计数 1/1
+  await item.locator('input[type="checkbox"]').check()
+  await expect(item).toHaveClass(/done/)
+  await expect(page.locator('.wb-count')).toHaveText('1 / 1 完成')
+
+  // 删除 → 消失 → 空态
+  await item.locator('.todo-del').click()
+  await expect(page.locator('.wb-empty').first()).toBeVisible()
+
+  // 今日记录：输入 → 防抖后「已保存」徽标（模拟存储）
+  await page.fill('.wb-note-editor', '# e2e 记录\n- 内容')
+  await expect(page.locator('.wb-save-state')).toHaveText('已保存', { timeout: 5000 })
+
+  // 预览切换：markdown 渲染出标题
+  await page.click('.wb-preview-toggle')
+  await expect(page.locator('.wb-note-preview h1')).toHaveText('e2e 记录')
+
+  // 预览模式口径提示在
+  await expect(page.locator('.wb-preview-note')).toContainText('【预览模式】')
+
+  // 日期翻页：切前一天编辑器清空回空态
+  await page.click('.wb-preview-toggle') // 回编辑态
+  await page.click('button[aria-label="前一天"]')
+  await expect(page.locator('.wb-note-editor')).toHaveValue('')
+})

@@ -4,9 +4,10 @@ import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import ChatView from './components/ChatView.vue'
 import SettingsCenter from './components/SettingsCenter.vue'
+import WorkbenchView from './components/WorkbenchView.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
-import { Blocks, Sparkles, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
+import { Blocks, ListTodo, Sparkles, PanelLeft, PanelRight, Settings2, Terminal } from 'lucide-vue-next'
 
 const bridge: Bridge = createBridge()
 const capabilities = ref<Capability[]>([])
@@ -17,7 +18,7 @@ const selectedId = ref('')
 const showSettings = ref(false)
 const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('appearance')
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
-const activeView = ref<'toolbox' | 'chat'>('toolbox')
+const activeView = ref<'toolbox' | 'workbench' | 'chat'>('toolbox')
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
 const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null)
@@ -151,6 +152,14 @@ function toggleTerminal() {
         >
           <Sparkles :size="18" :stroke-width="1.8" />
         </button>
+        <button
+          :class="{ active: activeView === 'workbench' }"
+          title="工作台"
+          aria-label="工作台"
+          @click="activeView = 'workbench'"
+        >
+          <ListTodo :size="18" :stroke-width="1.8" />
+        </button>
       </nav>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions">
@@ -191,7 +200,8 @@ function toggleTerminal() {
       </aside>
 
       <main class="content">
-        <ChatView v-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
+        <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" />
+        <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
           <CapabilityList v-else :capabilities="filtered" :selected-id="selectedId" @select="select" />

@@ -60,7 +60,14 @@ fn main() {
             commands::terminal_open,
             commands::terminal_write,
             commands::terminal_resize,
-            commands::terminal_close
+            commands::terminal_close,
+            commands::todo_list,
+            commands::todo_add,
+            commands::todo_toggle,
+            commands::todo_remove,
+            commands::note_get,
+            commands::note_save,
+            commands::note_list
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");
