@@ -99,7 +99,7 @@ code {
 }
 
 .chrome-left .window-controls {
-  gap: 6px;
+  gap: 7px;
   min-height: 28px;
   padding: 0;
 }
@@ -187,7 +187,7 @@ code {
 .sidebar-head-actions { gap: 2px; }
 
 .window-controls {
-  gap: 7px;
+  gap: 8px;
   min-height: 30px;
   padding: 0 3px;
 }
@@ -196,8 +196,8 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 24px;
+  width: 20px;
+  height: 26px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -205,20 +205,38 @@ code {
 }
 
 .window-button .window-dot {
-  width: 14px;
-  height: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.22);
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 50%;
   opacity: 1;
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.28), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
-  transition: transform 0.12s ease, filter 0.12s ease;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.32), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
 
-.window-button.close .window-dot { background: #ff5f57; border-color: #e0443e; }
-.window-button.minimize .window-dot { background: #febc2e; border-color: #e09f00; }
-.window-button.maximize .window-dot { background: #28c840; border-color: #1da33a; }
+.window-button.close .window-dot {
+  background: #ff5f57;
+  border-color: #e0443e;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.32), 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 0 5px rgba(255, 95, 87, 0.4);
+}
 
-.window-button:hover:not(:disabled) .window-dot { filter: brightness(1.08); transform: scale(1.06); }
+.window-button.minimize .window-dot {
+  background: #febc2e;
+  border-color: #e09f00;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.32), 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 0 5px rgba(254, 188, 46, 0.35);
+}
+
+.window-button.maximize .window-dot {
+  background: #28c840;
+  border-color: #1da33a;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.32), 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 0 5px rgba(40, 200, 64, 0.35);
+}
+
+.window-button:hover:not(:disabled) .window-dot {
+  filter: brightness(1.12);
+  transform: scale(1.06);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.4), 0 0 0 0.5px rgba(0, 0, 0, 0.14), 0 0 8px rgba(255, 255, 255, 0.12);
+}
 .window-button:active:not(:disabled) .window-dot { filter: brightness(0.92); transform: scale(0.96); }
 .window-button:disabled { cursor: not-allowed; opacity: 0.86; }
 
