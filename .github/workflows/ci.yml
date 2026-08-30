@@ -69,28 +69,9 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # 失败时把测试结果摘要写入 step summary（check-runs API 可无鉴权读取，
-      # 本机无 gh/token 拉不了 job 日志——CI 排障用，修复后可撤）
       - name: cargo test
         working-directory: src-tauri
-        shell: bash
-        run: |
-          set -o pipefail
-          if cargo test 2>&1 | tee /tmp/ct.log; then
-            echo "cargo test 全绿"
-          else
-            # ::error:: workflow command 会变成 check-run annotation（无鉴权可读）
-            tail -10 /tmp/ct.log | while IFS= read -r line; do
-              echo "::error::T|${line:0:300}"
-            done
-            {
-              echo "### cargo test 失败详情"
-              echo '```'
-              tail -120 /tmp/ct.log
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
+        run: cargo test
 
       - name: cargo build (CLI ew)
         working-directory: src-tauri

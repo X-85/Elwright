@@ -11,9 +11,9 @@
 //!   `__CHANNEL__:N` 开两个 channel，向各自注入真输出，断言输出到达
 //!   **命令签名里传的** channel——这在 Bug #1 的错误实现下会失败
 //!   （自建 no-op channel 收不到任何东西）。
-//! - 真 PTY 双向链路（macOS/Linux）：开 shell → write echo → 等进程
-//!   退出 → 断言后续 write 报错。输入到达 PTY（echo 被执行、进程按
-//!   指令退出）+ 输出由 pump 线程消费，共同证明接缝双向连通。
+//! - 真 PTY 双向链路（macOS/Linux）：开 shell → 敲写文件命令 → 轮询
+//!   断言文件出现（输入真实到达并被 shell 执行）→ close 后 write 报错。
+//!   进程退出感知不用 write-报错误断言（Linux 内核缓冲下恒 Ok，平台差异）。
 //!
 //! Windows + CI：ConPTY 在无交互服务会话有挂起前科
 //! （bugfix-2026-08-win-ci-pty-hang），真 PTY 用例跳过；协议用例用
@@ -248,11 +248,14 @@ fn write(wv: &Wv, id: u64, data: &str) -> Result<(), String> {
     }
 }
 
-/// 真 PTY：开 shell → 敲一条 echo → exit → 进程退出后 write 报错。
-/// 输入到达 PTY（echo/exit 被执行）证明下行链路；进程退出引发的
-/// 状态变化证明 pump/registry 在真实消费输出。
+/// 真 PTY：开 shell → 敲一条写文件的命令 → 断言文件出现（输入真的到达
+/// PTY 并被 shell 执行）→ close → 断言 write 报错（会话关闭路径）。
+///
+/// 进程退出的感知不用「write 报错」断言：macOS 上 slave 关闭后 master
+/// write 返回 Err，但 Linux 内核会把写入静默缓冲丢弃（write 恒 Ok），
+/// 平台行为不一致；改用文件副作用 + close 释放路径，三平台语义一致。
 #[test]
-fn real_pty_open_write_exit_roundtrip() {
+fn real_pty_write_executes_and_close_releases() {
     // cargo 不认识 `ci` cfg（unexpected_cfgs warning），改用运行时判断；
     // 与 core::terminal ConPTY 测试的跳过条件保持一致。
     if cfg!(windows) && std::env::var_os("CI").is_some() {
@@ -264,25 +267,43 @@ fn real_pty_open_write_exit_roundtrip() {
 
     let id = open_session(&wv, 7);
 
-    let exit_cmd = if cfg!(windows) { "exit\r" } else { "exit\n" };
-    write(&wv, id, "echo ELWRIGHT_PTY_OK\n").expect("写入应成功");
-    write(&wv, id, exit_cmd).expect("写入 exit 应成功");
+    // 写文件的副作用是「输入到达 PTY 且被 shell 执行」的可观测证明，
+    // 且 macOS/Linux/Windows 语义一致（原 write-报错误断言在 Linux 不成立）
+    let proof_dir = std::env::temp_dir().join(format!("elwright-pty-proof-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&proof_dir);
+    std::fs::create_dir_all(&proof_dir).unwrap();
+    let proof = proof_dir.join("pty-proof.txt");
+    let proof_str = proof.to_string_lossy();
+    let cmdline = if cfg!(windows) {
+        format!("Set-Content -Path \"{proof_str}\" -Value ELWRIGHT_PTY_DONE; exit")
+    } else {
+        format!("echo ELWRIGHT_PTY_DONE > '{proof_str}'; exit")
+    };
+    let newline = if cfg!(windows) { "\r" } else { "\n" };
+    write(&wv, id, &format!("{cmdline}{newline}")).expect("写入应成功");
 
-    // 轮询等 PTY 子进程退出、registry 清理会话（exit 后 write 应报错）。
-    // LocalBackend 的 handle 在子进程退出后 write 会失败（broken pipe），
-    // registry 侧 session 仍在 map 里直到 kill——所以这里断言 write 报错。
+    // 轮询等 shell 执行写文件（CI 冷启动 + shell 启动留足时间）
     let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        let broken = write(&wv, id, "x\n").is_err();
-        if broken {
-            break;
-        }
+    while !proof.exists() {
         assert!(
             Instant::now() < deadline,
-            "PTY 子进程退出后 write 应失败（15s 内）"
+            "PTY 命令应在 15s 内执行（未见 {proof_str}）"
         );
         std::thread::sleep(Duration::from_millis(200));
     }
+    assert_eq!(
+        std::fs::read_to_string(&proof).unwrap().trim(),
+        "ELWRIGHT_PTY_DONE"
+    );
+
+    // close 后 write：writer 被 kill 释放，平台一致地报错
+    call_ok(&wv, "terminal_close", json!({ "id": id }));
+    let err = write(&wv, id, "x").expect_err("close 后 write 应报错");
+    assert!(
+        err.contains("不存在") || err.contains("已结束") || err.contains("释放"),
+        "中文错误: {err}"
+    );
+    let _ = std::fs::remove_dir_all(&proof_dir);
 }
 
 /// Bug #1 回归锁（协议层）：channel 参数必须接到 session 的输出泵上。
