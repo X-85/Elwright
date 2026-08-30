@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Elwright",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "identifier": "com.elwright.desktop",
   "build": {
     "beforeDevCommand": "npm --prefix src run dev",
