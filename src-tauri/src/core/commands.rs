@@ -475,7 +475,9 @@ pub fn workspace_delete_folder(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn workspace_create_resource(resource: workspace::Resource) -> Result<workspace::Resource, String> {
+pub fn workspace_create_resource(
+    resource: workspace::Resource,
+) -> Result<workspace::Resource, String> {
     workspace::create_resource(&workspace_root()?, resource)
 }
 
@@ -585,7 +587,11 @@ fn chrono_like_now() -> u128 {
 }
 
 fn offline_report(topic: &workspace::Topic, source: &str) -> String {
-    let resources = if source.is_empty() { "暂无已关联资源。" } else { source };
+    let resources = if source.is_empty() {
+        "暂无已关联资源。"
+    } else {
+        source
+    };
     format!(
         "# {}\n\n## 研究问题\n{}\n\n## 当前资料\n{}\n## 分析框架\n1. 明确核心概念与边界。\n2. 对照资料中的事实、示例和限制。\n3. 将结论拆解为可验证的实践步骤。\n\n## 待补充\n- 为每个关键判断补充原始出处与反例。\n- 用实际案例验证结论，并记录版本与环境。\n\n> 这是离线报告草稿。配置 LLM 后可再次生成完整研究报告。",
         topic.title,
