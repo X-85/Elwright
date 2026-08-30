@@ -6,6 +6,7 @@ import type { Bridge, Capability, InvokeResult, RunResult, ViewResult } from '..
 const props = defineProps<{
   cap: Capability
   bridge: Bridge
+  locked?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -59,6 +60,7 @@ watch(
 )
 
 async function onRun() {
+  if (props.locked) return
   busy.value = true
   try {
     runResult.value = await props.bridge.runScript(
@@ -71,6 +73,7 @@ async function onRun() {
 }
 
 async function onInvoke() {
+  if (props.locked) return
   busy.value = true
   try {
     invokeResult.value = await props.bridge.invokeSkill(props.cap, invokePrompt.value.trim())
@@ -121,16 +124,18 @@ function renderMd(text: string): string {
       </span>
     </header>
 
+    <p v-if="locked" class="degrade-banner">该能力尚未解锁。你可以在“查看全部能力”模式中了解它，达到本地解锁条件后即可使用。</p>
+
     <!-- 脚本型 -->
     <template v-if="cap.type === 'script'">
       <p class="meta">入口：<code>{{ cap.entry ?? '（未配置）' }}</code></p>
       <div class="action-row">
         <input v-model="runArgs" class="search" placeholder="脚本参数（空格分隔）…" />
-        <button class="primary" :disabled="busy" @click="onRun">▶ 运行</button>
+        <button class="primary" :disabled="busy || locked" @click="onRun">▶ 运行</button>
         <button
           v-if="bridge.kind === 'tauri' && cap.entry"
           class="terminal-btn"
-          :disabled="busy"
+          :disabled="busy || locked"
           :title="`在集成终端中执行：${cap.entry}${runArgs.trim() ? ' ' + runArgs.trim() : ''}`"
           @click="onRunInTerminal"
         >⌨ 在终端中运行</button>
@@ -154,7 +159,7 @@ function renderMd(text: string): string {
       </p>
       <div class="action-row">
         <input v-model="invokePrompt" class="search" placeholder="附加输入（可选）…" />
-        <button class="primary" :disabled="busy" @click="onInvoke">⚡ 调用</button>
+        <button class="primary" :disabled="busy || locked" @click="onInvoke">⚡ 调用</button>
       </div>
       <div v-if="invokeResult">
         <p v-if="invokeResult.note" class="degrade-banner">

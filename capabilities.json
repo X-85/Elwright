@@ -17,7 +17,8 @@
       "type": "script",
       "category": "示例",
       "entry": "resources/tools/text-stats/text_stats.py",
-      "offline": true
+      "offline": true,
+      "releaseTier": 1
     },
     {
       "id": "capability-types",
@@ -25,7 +26,8 @@
       "type": "knowledge",
       "category": "示例",
       "doc": "resources/docs/capability-types.md",
-      "offline": true
+      "offline": true,
+      "releaseTier": 1
     },
     {
       "id": "weekly-report",
@@ -34,7 +36,19 @@
       "category": "示例",
       "prompt": "你是周报整理助手。把用户给的本周工作素材（流水账、commit、会议要点等）整理成结构化周报，分四节：本周完成 / 进行中（含卡点与预计时间）/ 下周计划 / 风险与求助。每条一行、动词开头、写结果不写过程；纯过程性事务（无决策产出的会议、例行对齐）不要列入。输出 Markdown。",
       "offline": false,
-      "degradeDoc": "resources/docs/weekly-report-sop.md"
+      "degradeDoc": "resources/docs/weekly-report-sop.md",
+      "releaseTier": 1
+    },
+    {
+      "id": "session-ledger",
+      "name": "会话问题台账",
+      "type": "skill",
+      "category": "工作上下文",
+      "doc": "resources/docs/session-ledger-sop.md",
+      "prompt": "你是会话问题台账助手。Elwright 当前只能向你发送文本，不能让你读取或写入用户工作区；绝不声称已经创建或更新任何文件。根据用户附加输入，输出可直接粘贴给具备工作区读写能力的 Agent 的台账启动或续写指令。协议必须使用 session/index.md、session/events.md、session/decisions.md、session/archive/；每轮只读取索引和当前问题的事件，问题编号使用 Q1、Q2 等，状态只能是待处理、处理中、已解决、阻塞、搁置。明确区分已验证、未验证、失败和推测。首次启用时给出文件模板；续写时给出简短事件记录和索引更新建议；最后附带 [台账更新] 格式。不要编造任何已写入文件或已验证的结果。",
+      "offline": false,
+      "degradeDoc": "resources/docs/session-ledger-sop.md",
+      "releaseTier": 1
     }
   ]
 }

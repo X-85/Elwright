@@ -393,9 +393,9 @@ fn close_then_write_errors() {
     );
 }
 
-/// 非 terminal 命令同协议冒烟：内置注册表恰 3 条、含 text-stats。
+/// 非 terminal 命令同协议冒烟：内置注册表 4 条（3 示例 + session-ledger）、含 text-stats。
 #[test]
-fn list_capabilities_returns_builtin_three() {
+fn list_capabilities_returns_builtin_set() {
     let backend: SharedBackend = Arc::new(RecordBackend {
         inputs: Arc::new(Mutex::new(Vec::new())),
     });
@@ -403,8 +403,9 @@ fn list_capabilities_returns_builtin_three() {
 
     let caps = call_ok(&wv, "list_capabilities", json!({}));
     let arr = caps.as_array().expect("应为数组");
-    assert_eq!(arr.len(), 3, "内置注册表应恰好 3 条: {caps}");
+    assert_eq!(arr.len(), 4, "内置注册表应恰好 4 条: {caps}");
     assert!(arr.iter().any(|c| c["id"] == "text-stats"));
+    assert!(arr.iter().any(|c| c["id"] == "session-ledger"));
 }
 
 fn repo_root() -> PathBuf {

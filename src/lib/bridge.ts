@@ -13,6 +13,10 @@ export interface Capability {
   degradeDoc?: string
   /** builtin = 内置注册表；custom = 用户叠加层（~/.elwright/）导入 */
   origin?: 'builtin' | 'custom'
+  /** 渐进式发布档位，1 为核心能力。 */
+  releaseTier?: number
+  /** 本地使用达到该次数后解锁；未配置表示按档位可见。 */
+  unlockAfterUses?: number
 }
 
 export interface ViewResult {
@@ -89,6 +93,43 @@ export interface TodoItem {
 
 /** 工作工具栏 · 今日记录日期（YYYY-MM-DD）列表 */
 export type NoteDate = string
+export interface WorkspaceFolder {
+  id: string
+  name: string
+  parentId: string | null
+}
+
+export interface WorkspaceResource {
+  id: string
+  title: string
+  kind: 'url' | 'path' | 'capability' | 'note' | 'app' | string
+  value: string
+  folderId: string | null
+  note: string
+  launchArgs: string[]
+  icon: string
+}
+
+export interface WorkspaceTopic {
+  id: string
+  title: string
+  question: string
+  resourceIds: string[]
+  report: string
+  updatedAt: string
+}
+
+export interface WorkspaceData {
+  folders: WorkspaceFolder[]
+  resources: WorkspaceResource[]
+  topics: WorkspaceTopic[]
+}
+
+export interface TopicReportResult {
+  source: 'llm' | 'offline' | string
+  content: string
+  note?: string
+}
 
 /**
  * 前端可见的终端会话抽象。
@@ -157,7 +198,19 @@ export interface Bridge {
   /** 保存某日记录（整文件覆盖）。 */
   noteSave(date: string, content: string): Promise<void>
   /** 已有记录的日期列表（倒序）。 */
-  noteList(): Promise<string[]>
+  noteList(): Promise<string[]>,
+  loadWorkspace(): Promise<WorkspaceData>
+  createWorkspaceFolder(name: string, parentId: string | null): Promise<WorkspaceFolder>
+  deleteWorkspaceFolder(id: string): Promise<void>
+  /** 选择一个本地文件，桌面模式返回绝对路径；浏览器预览返回 null。 */
+  chooseWorkspaceFile(): Promise<string | null>
+  createWorkspaceResource(resource: Omit<WorkspaceResource, 'id'>): Promise<WorkspaceResource>
+  deleteWorkspaceResource(id: string): Promise<void>
+  launchWorkspaceApp(id: string): Promise<string>
+  createWorkspaceTopic(title: string, question: string): Promise<WorkspaceTopic>
+  updateWorkspaceTopic(topic: WorkspaceTopic): Promise<void>
+  deleteWorkspaceTopic(id: string): Promise<void>
+  generateTopicReport(id: string): Promise<TopicReportResult>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -356,6 +409,121 @@ const browserBridge: Bridge = {
 
   async noteList() {
     return [...browserWorkbenchNotes.keys()].sort().reverse()
+  },
+
+  async loadWorkspace() {
+    const raw = localStorage.getItem('elwright-workspace')
+    if (!raw) return { folders: [], resources: [], topics: [] }
+    try {
+      const data = JSON.parse(raw) as WorkspaceData
+      data.folders ??= []
+      data.resources = (data.resources ?? []).map((resource) => ({
+        ...resource,
+        folderId: resource.folderId ?? null,
+        note: resource.note ?? '',
+        launchArgs: resource.launchArgs ?? [],
+        icon: resource.icon ?? '',
+      }))
+      data.topics = (data.topics ?? []).map((topic) => ({
+        ...topic,
+        resourceIds: topic.resourceIds ?? [],
+        report: topic.report ?? '',
+      }))
+      return data
+    } catch {
+      return { folders: [], resources: [], topics: [] }
+    }
+  },
+
+  async createWorkspaceFolder(name, parentId) {
+    const data = await this.loadWorkspace()
+    let depth = 1
+    let parent = parentId
+    while (parent) {
+      const folder = data.folders.find((f) => f.id === parent)
+      if (!folder) throw new Error('父文件夹不存在')
+      depth += 1
+      parent = folder.parentId
+    }
+    if (depth > 3) throw new Error('文件夹最多支持三层嵌套')
+    const folder = { id: `folder-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: name.trim(), parentId }
+    if (!folder.name) throw new Error('文件夹名称不能为空')
+    data.folders.push(folder)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+    return folder
+  },
+
+  async deleteWorkspaceFolder(id) {
+    const data = await this.loadWorkspace()
+    const removed = new Set([id])
+    let changed = true
+    while (changed) {
+      changed = false
+      data.folders.forEach((f) => { if (f.parentId && removed.has(f.parentId) && !removed.has(f.id)) { removed.add(f.id); changed = true } })
+    }
+    data.folders = data.folders.filter((f) => !removed.has(f.id))
+    data.resources.forEach((r) => { if (r.folderId && removed.has(r.folderId)) r.folderId = null })
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async chooseWorkspaceFile() {
+    return null
+  },
+
+  async createWorkspaceResource(resource) {
+    const data = await this.loadWorkspace()
+    if (!resource.title.trim() || !resource.value.trim()) throw new Error('资源标题和内容不能为空')
+    if (resource.folderId && !data.folders.some((f) => f.id === resource.folderId)) throw new Error('目标文件夹不存在')
+    const created = { ...resource, id: `resource-${Date.now()}-${Math.random().toString(16).slice(2)}` }
+    data.resources.push(created)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+    return created
+  },
+
+  async deleteWorkspaceResource(id) {
+    const data = await this.loadWorkspace()
+    data.resources = data.resources.filter((r) => r.id !== id)
+    data.topics.forEach((t) => { t.resourceIds = t.resourceIds.filter((rid) => rid !== id) })
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async launchWorkspaceApp() {
+    throw new Error('【预览模式】浏览器无法启动本机软件，请在桌面应用中打开快捷方式。')
+  },
+
+  async createWorkspaceTopic(title, question) {
+    const data = await this.loadWorkspace()
+    if (!title.trim()) throw new Error('课题名称不能为空')
+    const topic = { id: `topic-${Date.now()}-${Math.random().toString(16).slice(2)}`, title: title.trim(), question: question.trim(), resourceIds: [], report: '', updatedAt: new Date().toISOString() }
+    data.topics.push(topic)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+    return topic
+  },
+
+  async updateWorkspaceTopic(topic) {
+    const data = await this.loadWorkspace()
+    const index = data.topics.findIndex((t) => t.id === topic.id)
+    if (index < 0) throw new Error('课题不存在')
+    data.topics[index] = { ...topic, updatedAt: new Date().toISOString() }
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async deleteWorkspaceTopic(id) {
+    const data = await this.loadWorkspace()
+    data.topics = data.topics.filter((t) => t.id !== id)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async generateTopicReport(id) {
+    const data = await this.loadWorkspace()
+    const topic = data.topics.find((t) => t.id === id)
+    if (!topic) throw new Error('课题不存在')
+    const resources = topic.resourceIds.map((rid) => data.resources.find((r) => r.id === rid)).filter(Boolean) as WorkspaceResource[]
+    const source = resources.map((r) => `### ${r.title} [${r.kind}]\n${r.value}${r.note ? `\n备注：${r.note}` : ''}`).join('\n\n')
+    const content = `# ${topic.title}\n\n## 研究问题\n${topic.question || '（未填写）'}\n\n## 当前资料\n${source || '暂无已关联资源。'}\n\n## 分析框架\n1. 明确核心概念与边界。\n2. 对照资料中的事实、示例和限制。\n3. 将结论拆解为可验证的实践步骤。\n\n## 待补充\n- 为每个关键判断补充原始出处与反例。\n- 用实际案例验证结论，并记录版本与环境。\n\n> 这是预览模式下的离线报告草稿。`
+    topic.report = content
+    await this.updateWorkspaceTopic(topic)
+    return { source: 'offline', content, note: '【预览模式】未接 LLM，已生成离线报告草稿。' }
   },
 
   async openTerminal() {
@@ -579,6 +747,52 @@ const tauriBridge: Bridge = {
 
   async noteList() {
     return tauriInvoke<string[]>('note_list')
+  },
+
+  loadWorkspace() {
+    return tauriInvoke<WorkspaceData>('workspace_load')
+  },
+
+  createWorkspaceFolder(name, parentId) {
+    return tauriInvoke<WorkspaceFolder>('workspace_create_folder', { name, parentId })
+  },
+
+  async deleteWorkspaceFolder(id) {
+    await tauriInvoke<void>('workspace_delete_folder', { id })
+  },
+
+  async chooseWorkspaceFile() {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const path = await open({ title: '选择要收藏的本地文件', multiple: false, directory: false })
+    return typeof path === 'string' ? path : null
+  },
+
+  createWorkspaceResource(resource) {
+    return tauriInvoke<WorkspaceResource>('workspace_create_resource', { resource })
+  },
+
+  async deleteWorkspaceResource(id) {
+    await tauriInvoke<void>('workspace_delete_resource', { id })
+  },
+
+  launchWorkspaceApp(id) {
+    return tauriInvoke<string>('workspace_launch_app', { id })
+  },
+
+  createWorkspaceTopic(title, question) {
+    return tauriInvoke<WorkspaceTopic>('workspace_create_topic', { title, question })
+  },
+
+  async updateWorkspaceTopic(topic) {
+    await tauriInvoke<void>('workspace_update_topic', { topic })
+  },
+
+  async deleteWorkspaceTopic(id) {
+    await tauriInvoke<void>('workspace_delete_topic', { id })
+  },
+
+  generateTopicReport(id) {
+    return tauriInvoke<TopicReportResult>('workspace_generate_report', { id })
   },
 
   async openTerminal(options) {
