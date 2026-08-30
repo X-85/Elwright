@@ -6,8 +6,15 @@
 > **执行进度（2026-08-30）**：已提前对 tier2 状态的 main 完成一轮 rebase（force-with-lease
 > 推送至 `cbe9a75`），全部冲突按本清单解决，五道闸全绿（cargo 42+6 / clippy / fmt /
 > vitest 22 / e2e 8 场景合跑）。适配项：内置注册表 3→4 条（session-ledger）后
-> terminal_ipc 与 app.spec 计数断言同步更新。**剩余**：workbench 合并后再做一轮
-> 小规模 rebase（预期仅 App.vue/main.rs 局部），届时重跑 merge-tree 复核。
+> terminal_ipc 与 app.spec 计数断言同步更新。**剩余**：无。
+>
+> **第二轮 rebase（2026-08-30，workbench 合并后）**：已完成。预演 6 冲突
+> （ROADMAP/commands.rs/mod.rs/main.rs/App.vue/bridge.ts），全部按并集/取优解决——
+> App.vue 以本分支 app-chrome 壳为基底并回工作台侧栏入口；main.rs/mod.rs/commands.rs
+> 为 workbench todo/note 命令与本分支 workspace 命令并集。五道闸全绿
+> （cargo 47+6+4 / clippy / fmt / vitest 26 / e2e 9 场景）。修复了并集脚本对
+> bridge.ts 块尾截断的误拼接（1d20db8）。分支已 force-with-lease 推 origin，
+> 可进入合并流程。
 
 ## 预演冲突文件（6 个）
 
