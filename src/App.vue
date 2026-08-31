@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, nextTick } from 'vue'
+import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import ChatView from './components/ChatView.vue'
@@ -50,6 +50,8 @@ const showSettings = ref(false)
 const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('appearance')
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
 const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code'>('toolbox')
+import { initializePreferences, resolveStartupView, saveLastView, preferences } from './lib/preferences'
+watch(() => preferences.value.startupView, () => {}) // 保持模块热路径引用（初始化在 onMounted）
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
 const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null)
@@ -127,7 +129,13 @@ function openDownload() {
   if (updateUrl.value) bridge.openExternal(updateUrl.value)
 }
 
-onMounted(reload)
+onMounted(() => {
+  initializePreferences()
+  activeView.value = resolveStartupView(preferences.value.startupView)
+  if (preferences.value.autoUpdateCheck) void checkUpdate()
+  reload()
+})
+watch(activeView, (v) => saveLastView(v))
 
 const filtered = computed(() => {
   const kw = search.value.trim().toLowerCase()
