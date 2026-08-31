@@ -339,3 +339,14 @@
 - 本轮方案（ADR 阶段）：决策=引入 `profiles: Map<name, LlmProfile>` + `activeProfile: string`，**与既有 flat 字段共存兼容**——`~/.elwright/config.json` 加两个可选字段，旧配置不动；解析顺序 env > 项目 flat > 步骤 3a activeProfile 命中 → profile / 步骤 3b 否则回退 flat > 注册表默认。范围：profile CRUD + 激活切换 + UI 下拉 + `ew config profile list/use/show/add/remove/rename`；拒绝：完全替换 flat / profile 共享继承 / OS keychain 加密（独立 ADR）。任务目录 `docs/work/active/feature-2026-08-settings-center-model-profiles/{plan,checklist,verification}.md`。
 - 实际结果：已验证——ADR PR #11 合并（65a13cb），CI 7/7 全绿；分支 feat/settings-center-model-profiles-adr 自动删除。
 - 下一步：开实施 PR——core::llm profile 解析 + ConfigLayers::merged step 3 升级 + 5 单测；CLI `ew config profile` 6 子命令；5 IPC（list/get_active/set_active/save/delete）+ main.rs 注册 + mock runtime 5 例；前端 Bridge 5 方法 + LlmSettings.vue 档案下拉/新建 + vitest ≥4；文档回填 + ROADMAP 标记；本地五道闸 + PR + CI 7/7 + 合并 + Q19 实施段收口。
+
+### Q19 | 第2次处理（设置中心 模型档案 实施）
+- 问题或新增信息：按既定 ADR-001 落地实施，遵循"先 ADR 再实施"两阶段协议。
+- 本轮方案：
+  - **后端 core::llm**：新增 `LlmProfile` / `UserConfigFile`（flat + profiles/active_profile 兼容形态）/ 原子写（tmp + rename）；`ConfigLayers::collect` 走 `UserConfigFile::to_flat_config`（active 命中→profile/否则回退 flat）；`is_valid_profile_name` / `normalize_profile_name` / `read_profiles` / `save_profile` / `delete_profile` / `set_active_profile` / `rename_profile` / `list_profiles` / `get_profile` / `active_profile_name`；profile 名 lowercase + 正则校验；5 个新单测。
+  - **CLI bin/ew.rs**：`ConfigAction::Profile { action: ProfileAction }` 6 子命令（list/show/use/add/remove/rename）；key 脱敏；激活项 `*` 标记；非法 name / 不存在 name 走中文错误 + exit 1；CLI 端手工冒烟全绿。
+  - **IPC commands.rs + main.rs**：5 个 IPC（llm_list_profiles / llm_get_active_profile / llm_set_active_profile / llm_save_profile / llm_delete_profile）+ `LlmProfileDto` / `ProfileMetaDto`；main.rs 注册；mock runtime 5 例（list 空 / save 可见 / set+get 同步 / delete 激活清空 / flat-only 兼容）。
+  - **前端**：Bridge 5 方法（types `LlmProfileMeta` / `LlmProfileInput`）+ browser stub 5 中文降级 + tauri invoke 5；`lib/profileName.ts` 提供可单测的 `validateProfileName` + `normalizeProfileName`；`LlmSettings.vue` 顶部档案下拉（★ 标记 + flat 哨兵）+ + 新建档案按钮 + 已配置档案清单（含删除）+ 新建档案小弹窗；style.css 新增 .profile-bar / .profile-list / .add-profile-modal；vitest 4 例。
+  - **文档回填**：settings-center behavior（模型档案章节）/ architecture（配置解析顺序小节 + 架构图扩）/ changelog / README；ROADMAP「设置中心后续阶段」标注完成 + 「未发版」更新 + 「进行中」写 Q19 + 历史时间线。
+- 实际结果：已验证——PR #12 squash 入 main（92597f8），CI 7/7 全绿；分支 feat/settings-center-model-profiles 自动删除；本地五道闸：cargo 97（72 核心 + 5 profile + 3 apply_patch_ipc + 1 code_browser_symbols + 5 llm_profiles_ipc + 6 terminal + 4 workbench + 1 workspace）+ strict clippy -D warnings 0 警告 + fmt 无差异 + vitest 51（含 4 新 profileName 测试）+ build 成功。
+- 下一步：Q19 收口；下一步按既定顺序推进「工程质量第三档（ESLint + coverage 阈值）」，等用户定向（也可以由 Agent 直接接续按 ROADMAP 推荐顺序开工）。
