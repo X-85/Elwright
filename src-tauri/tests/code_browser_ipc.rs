@@ -68,9 +68,13 @@ fn call_ok(wv: &Wv, cmd: &str, body: serde_json::Value) -> serde_json::Value {
 }
 
 fn temp_project() -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
-        "elwright-cb-ipc-{}-{}",
+        "elwright-cb-ipc-{}-{}-{}",
         std::process::id(),
+        seq,
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()

@@ -46,6 +46,8 @@ const configState = ref<'loading' | 'ready' | 'unconfigured' | 'preview'>('loadi
 
 // 停止语义（阶段①）：序号递增，晚到的在途结果丢弃。
 let requestSeq = 0
+// 阶段④：当前在途流式请求 id（取消命令用）
+let activeRequestId = 0
 // 前端会话 id 生成：时间戳+计数器，与后端格式一致
 let idCounter = 0
 
@@ -225,8 +227,61 @@ async function send() {
 async function complete() {
   sending.value = true
   const seq = ++requestSeq
+  const history = historyForRequest()
+  const streaming = props.bridge.kind === 'tauri'
+
+  // 阶段④流式路径：增量渲染（50ms 节流），停止真取消后端读取
+  if (streaming) {
+    const requestId = Date.now() + seq
+    activeRequestId = requestId
+    messages.value.push({ role: 'assistant', content: '' })
+    const idx = messages.value.length - 1
+    let acc = ''
+    let lastRender = 0
+    try {
+      await props.bridge.chatCompletionStream(requestId, history, (e) => {
+        if (seq !== requestSeq) return
+        if (e.type === 'delta' && e.text) {
+          acc += e.text
+          const now = Date.now()
+          if (now - lastRender > 50) {
+            lastRender = now
+            messages.value[idx].content = acc
+          }
+        } else if (e.type === 'cancelled') {
+          messages.value[idx].content = acc ? `${acc}\n\n（已停止）` : '（已停止，未收到内容）'
+        } else if (e.type === 'error') {
+          messages.value[idx] = {
+            role: 'assistant',
+            content: e.message ?? '未知错误',
+            error: true,
+          }
+        }
+      })
+      if (seq !== requestSeq) return
+      const finalMsg = messages.value[idx]
+      if (!finalMsg.error && !finalMsg.content.endsWith('（已停止）')) {
+        finalMsg.content = acc || '（空回复）'
+      }
+      if (!finalMsg.error) await persistCurrent()
+    } catch (e) {
+      if (seq !== requestSeq) return
+      messages.value[idx] = {
+        role: 'assistant',
+        content: e instanceof Error ? e.message : String(e),
+        error: true,
+      }
+    } finally {
+      if (seq === requestSeq) sending.value = false
+      await nextTick()
+      chatScroll.value?.scrollTo({ top: chatScroll.value.scrollHeight })
+    }
+    return
+  }
+
+  // 浏览器预览：旧一次性路径（bridge.chat 抛预览模式错误 → 错误气泡）
   try {
-    const reply = await props.bridge.chat(historyForRequest())
+    const reply = await props.bridge.chat(history)
     if (seq !== requestSeq) return
     messages.value.push({ role: 'assistant', content: reply })
     await persistCurrent()
@@ -247,6 +302,8 @@ async function complete() {
 function stop() {
   requestSeq++
   sending.value = false
+  // 阶段④：真正取消后端读取（浏览器端静默忽略）
+  void props.bridge.chatCancel(activeRequestId).catch(() => {})
 }
 
 // ---- 能力协作（阶段③）----

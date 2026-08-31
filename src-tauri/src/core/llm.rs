@@ -352,6 +352,96 @@ impl LlmClient {
     }
 }
 
+impl LlmClient {
+    /// 流式对话（ADR-003）：blocking Read 逐块读 SSE，经 on_delta 推增量；
+    /// is_cancelled 每块检查一次，命中即中断（drop 连接）并返回 cancelled。
+    /// 解析失败的 data 行跳过（供应商兼容容错）；全程无有效输出且未取消时
+    /// 由调用方回退非流式。
+    pub fn chat_messages_streaming(
+        &self,
+        messages: &[ChatMessage],
+        request_id: u64,
+        is_cancelled: impl Fn(u64) -> bool,
+        mut on_delta: impl FnMut(&str),
+    ) -> Result<ChatStreamOutcome, String> {
+        let url = chat_url(&self.config.base_url);
+        let body = serde_json::json!({
+            "model": self.config.model,
+            "messages": messages,
+            "stream": true,
+        });
+
+        // 流式整体耗时不可预估：不用 60s 总超时，改为 15s 连接 + 600s 兜底
+        let http = reqwest::blocking::Client::builder()
+            .connect_timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(600))
+            .build()
+            .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+        let mut req = http.post(&url).json(&body);
+        if !self.config.api_key.is_empty() {
+            req = req.bearer_auth(&self.config.api_key);
+        }
+
+        let resp = req
+            .send()
+            .map_err(|e| format!("请求 {} 失败: {}", url, e))?;
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().map_err(|e| format!("读取响应失败: {}", e))?;
+            return Err(format!(
+                "LLM 返回 {}: {}",
+                status.as_u16(),
+                truncate(&text, 500)
+            ));
+        }
+
+        let mut full = String::new();
+        let reader = std::io::BufReader::new(resp);
+        use std::io::BufRead;
+        for line in reader.lines() {
+            if is_cancelled(request_id) {
+                return Ok(ChatStreamOutcome {
+                    text: full,
+                    cancelled: true,
+                });
+            }
+            let line = match line {
+                Ok(l) => l,
+                Err(e) => return Err(format!("读取流失败: {}", e)),
+            };
+            if let Some(piece) = parse_sse_delta(&line) {
+                full.push_str(&piece);
+                on_delta(&piece);
+            }
+        }
+        Ok(ChatStreamOutcome {
+            text: full,
+            cancelled: false,
+        })
+    }
+}
+
+/// 流式对话结果：text 为累计全文，cancelled 标记用户取消。
+#[derive(Debug, Clone)]
+pub struct ChatStreamOutcome {
+    pub text: String,
+    pub cancelled: bool,
+}
+
+/// 解析一行 SSE；返回本行携带的增量文本（无则 None）。
+/// 容错：注释行 / 非 data: 行 / 空 data / [DONE] / 非 JSON 一律返回 None。
+fn parse_sse_delta(line: &str) -> Option<String> {
+    let data = line.strip_prefix("data:")?.trim();
+    if data.is_empty() || data == "[DONE]" {
+        return None;
+    }
+    let v: serde_json::Value = serde_json::from_str(data).ok()?;
+    v["choices"][0]["delta"]["content"]
+        .as_str()
+        .map(|s| s.to_string())
+}
+
 fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
@@ -622,5 +712,34 @@ mod tests {
         assert!(request.contains("\"role\":\"user\",\"content\":\"input\""));
         // 无 api_key 时不带 Authorization 头
         assert!(!request.contains("Authorization"));
+    }
+}
+
+#[cfg(test)]
+mod sse_tests {
+    use super::parse_sse_delta;
+
+    #[test]
+    fn parses_data_line_with_content() {
+        let line = r#"data: {"choices":[{"delta":{"content":"你好"}}]}"#;
+        assert_eq!(parse_sse_delta(line).as_deref(), Some("你好"));
+    }
+
+    #[test]
+    fn done_marker_and_empty_return_none() {
+        assert_eq!(parse_sse_delta("data: [DONE]"), None);
+        assert_eq!(parse_sse_delta("data:"), None);
+        assert_eq!(parse_sse_delta(""), None);
+    }
+
+    #[test]
+    fn comments_and_non_json_are_ignored() {
+        assert_eq!(parse_sse_delta(": keep-alive"), None);
+        assert_eq!(parse_sse_delta("data: not-json"), None);
+    }
+
+    #[test]
+    fn non_data_lines_are_ignored() {
+        assert_eq!(parse_sse_delta("event: message"), None);
     }
 }

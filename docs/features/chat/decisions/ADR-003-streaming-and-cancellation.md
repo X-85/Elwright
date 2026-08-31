@@ -2,7 +2,7 @@
 
 ## 状态
 
-已接受（2026-08-31，为 chat 阶段④ 立项的技术路线决策；实现落地后回填验证节）
+已接受（2026-08-31 立项；2026-08-31 随阶段④ 实现落地）
 
 ## 背景
 
@@ -42,6 +42,13 @@
   阶段④要二次动同一片代码，不划算。
 - **引 eventsource-parser 等 SSE 库**：OpenAI SSE 格式固定且简单，自研解析
   足够；引依赖违背零依赖底线。
+
+## 验证
+
+SSE 行解析单测 4/4（data 行 / [DONE] / 注释与非 JSON 容错 / 非 data 行）；
+chat_completion_stream / chat_cancel 全量闸门通过；真机流式体验点验留档
+PENDING-REAL-MACHINE-CHECKLIST。实现中发现并修复：code_browser 测试临时目录
+并行撞名（时钟微秒精度），改原子序数唯一化。
 
 ## 后果
 

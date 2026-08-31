@@ -271,6 +271,14 @@ export interface Bridge {
   codeBrowserRecentLoad(): Promise<CodeBrowserRecent>
   /** 记录一次打开（项目 / 项目+文件），返回更新后的最近列表。 */
   codeBrowserRecentOpen(projectRoot: string, rel: string): Promise<CodeBrowserRecent>
+  /** 流式对话（阶段④，仅桌面）：事件 type = delta | done | error | cancelled。 */
+  chatCompletionStream(
+    requestId: number,
+    messages: ChatMessage[],
+    onEvent: (e: { type: 'delta' | 'done' | 'error' | 'cancelled'; text?: string; message?: string }) => void,
+  ): Promise<void>
+  /** 取消在途流式请求（后端中断读取）。 */
+  chatCancel(requestId: number): Promise<void>
   /** 切换收藏文件，返回更新后的收藏列表。 */
   codeBrowserFavoritesToggle(projectRoot: string, rel: string): Promise<CodeBrowserRecent['favorites']>
   /** 切换代码书签（同路径同行去重），返回更新后的书签列表。 */
@@ -561,6 +569,14 @@ const browserBridge: Bridge = {
   async codeBrowserRecentOpen() {
     // 浏览器端不落盘，返回空记录，不伪造持久化。
     return { projects: [], files: [], favorites: [], bookmarks: [] }
+  },
+
+  async chatCompletionStream() {
+    throw new Error('【预览模式】AI 对话仅在桌面应用可用。')
+  },
+
+  async chatCancel() {
+    // 浏览器无在途桌面请求，静默忽略
   },
 
   async codeBrowserFavoritesToggle() {
@@ -896,6 +912,22 @@ const tauriBridge: Bridge = {
 
   codeBrowserRecentOpen(projectRoot, rel) {
     return tauriInvoke<CodeBrowserRecent>('code_browser_recent_open', { projectRoot, rel })
+  },
+
+  async chatCompletionStream(requestId, messages, onEvent) {
+    const { Channel, invoke } = await import('@tauri-apps/api/core')
+    const channel = new Channel<string>((raw) => {
+      try {
+        onEvent(JSON.parse(typeof raw === 'string' ? raw : String(raw)))
+      } catch {
+        // 非 JSON 事件忽略
+      }
+    })
+    await invoke('chat_completion_stream', { requestId, messages, channel })
+  },
+
+  async chatCancel(requestId) {
+    await tauriInvoke<void>('chat_cancel', { requestId })
   },
 
   codeBrowserFavoritesToggle(projectRoot, rel) {

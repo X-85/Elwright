@@ -740,6 +740,105 @@ fn chat_system_prompt(caps: &[registry::Capability]) -> String {
     sys
 }
 
+// ---- AI 对话阶段④：流式输出与请求级取消（ADR-003）----
+
+fn chat_cancels() -> &'static std::sync::Mutex<std::collections::HashSet<u64>> {
+    static SET: std::sync::OnceLock<std::sync::Mutex<std::collections::HashSet<u64>>> =
+        std::sync::OnceLock::new();
+    SET.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()))
+}
+
+fn is_chat_cancelled(request_id: u64) -> bool {
+    chat_cancels().lock().unwrap().contains(&request_id)
+}
+
+/// 取消一个在途流式请求：流式循环逐块检查取消表，命中即中断读取。
+#[tauri::command]
+pub fn chat_cancel(request_id: u64) -> Result<(), String> {
+    chat_cancels().lock().unwrap().insert(request_id);
+    Ok(())
+}
+
+/// 流式对话：增量经 Channel 推 JSON 事件（delta/done/error/cancelled）。
+/// 消息角色与 chat_completion 同规则校验；系统提示同 chat_system_prompt。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub async fn chat_completion_stream<R: tauri::Runtime>(
+    ctx: tauri::AppHandle<R>,
+    request_id: u64,
+    messages: Vec<ChatMessageArg>,
+    channel: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody>,
+) -> Result<(), String> {
+    if messages.is_empty() {
+        return Err("消息列表为空".to_string());
+    }
+    for m in &messages {
+        if m.role != "user" && m.role != "assistant" {
+            return Err(format!(
+                "不支持的消息角色: {}（仅 user/assistant，system 由应用控制）",
+                m.role
+            ));
+        }
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let send = |event: &str, text: &str| {
+            let payload = format!(
+                "{{\"type\":\"{event}\",\"text\":{}}}",
+                serde_json::to_string(text).unwrap_or_else(|_| "null".into())
+            );
+            let _ = channel.send(tauri::ipc::InvokeResponseBody::Json(payload.to_string()));
+        };
+        let send_error = |message: &str| {
+            let payload = format!(
+                "{{\"type\":\"error\",\"message\":{}}}",
+                serde_json::to_string(message).unwrap_or_else(|_| "null".into())
+            );
+            let _ = channel.send(tauri::ipc::InvokeResponseBody::Json(payload.to_string()));
+        };
+
+        let ctx = ctx.state::<AppCtx>();
+        let registry = load_registry(&ctx)?;
+        let layers = llm::ConfigLayers::collect(&registry.root, registry.llm_default.clone());
+        let (config, _) = layers.merged();
+        if config.base_url.is_empty() {
+            send_error("未配置 LLM：请在「⚙ 模型设置」填写 base_url 后使用 AI 对话");
+            return Ok(());
+        }
+        let client = llm::LlmClient { config };
+        let sys = chat_system_prompt(registry.list());
+        let mut all = vec![llm::ChatMessage::new("system", sys)];
+        all.extend(messages.into_iter().map(|m| llm::ChatMessage {
+            role: m.role,
+            content: m.content,
+        }));
+
+        let outcome =
+            client.chat_messages_streaming(&all, request_id, is_chat_cancelled, |delta| {
+                send("delta", delta);
+            });
+        chat_cancels().lock().unwrap().remove(&request_id);
+
+        match outcome {
+            Ok(o) if o.cancelled => send("cancelled", ""),
+            Ok(o) if o.text.trim().is_empty() => {
+                // 供应商不支持流式 / 格式不兼容：按 ADR-003 回退非流式
+                match client.chat_messages(&all) {
+                    Ok(text) => {
+                        send("delta", &text);
+                        send("done", "");
+                    }
+                    Err(e) => send_error(&e),
+                }
+            }
+            Ok(_) => send("done", ""),
+            Err(e) => send_error(&e),
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("流式任务异常: {}", e))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -710,9 +710,14 @@ mod tests {
     use std::fs;
 
     fn temp_project() -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        // macOS 时钟精度为微秒级：并行测试仅靠纳秒会撞名，叠加进程内原子序数
+        let seq = SEQ.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
-            "elwright-cb-test-{}-{}",
+            "elwright-cb-test-{}-{}-{}",
             std::process::id(),
+            seq,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
