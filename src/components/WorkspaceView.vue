@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Folder, FolderOpen, FolderPlus, Link2, FileText, Wrench, StickyNote, AppWindow, Plus, Trash2, Sparkles } from 'lucide-vue-next'
 import { renderChatMarkdown } from '../lib/safeMarkdown'
-import type { Bridge, Capability, WorkspaceData, WorkspaceFolder, WorkspaceResource, WorkspaceTopic } from '../lib/bridge'
+import type { Bridge, Capability, WorkspaceData, WorkspaceFolder, WorkspaceResource } from '../lib/bridge'
 
 const props = defineProps<{ bridge: Bridge; capabilities: Capability[] }>()
 const emit = defineEmits<{ notify: [message: string, ok: boolean] }>()

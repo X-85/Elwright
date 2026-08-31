@@ -15,7 +15,7 @@ vi.stubGlobal('matchMedia', (_query: string) => ({
   removeEventListener: () => {},
 }))
 
-const { applyTheme, initializeTheme, resolvedThemeRef, setThemePreference, themePreference } =
+const { initializeTheme, resolvedThemeRef, setThemePreference, themePreference } =
   await import('../theme')
 
 describe('theme · 三态偏好', () => {

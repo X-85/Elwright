@@ -35,12 +35,6 @@ const KEYWORDS: Record<string, string[]> = {
 }
 
 /** 行注释前缀（按语言）；块注释仅 java/java 系做跨行简化处理。 */
-const LINE_COMMENTS: Record<string, string[]> = {
-  java: ['//'], kotlin: ['//'], javascript: ['//'], typescript: ['//'],
-  shell: ['#'], python: ['#'], yaml: ['#'], properties: ['#', '!'], toml: ['#'],
-  gradle: ['//'], sql: ['--'], text: [],
-  json: [], markdown: [], xml: [], html: [], css: [], binary: [],
-}
 
 /**
  * 高亮一段已知的纯文本代码，返回可直接用于 v-html 的 HTML。

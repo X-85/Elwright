@@ -10,7 +10,6 @@
  */
 import { computed, ref, watch } from 'vue'
 import type { Bridge } from '../lib/bridge'
-import { renderDiffLines } from '../lib/patch'
 
 const props = defineProps<{
   bridge: Bridge
@@ -110,13 +109,6 @@ const newLines = computed(() => {
   return preview.value.files.map((f) => ({
     file: f.file,
     lines: f.newContent.split('\n'),
-  }))
-})
-const diffLines = computed(() => {
-  if (!preview.value) return [] as { file: string; lines: ReturnType<typeof renderDiffLines> }[]
-  return preview.value.files.map((f) => ({
-    file: f.file,
-    lines: renderDiffLines(f.hunks.length ? 'placeholder' : ''), // 真实 diff 在后端 newContent；这里仅保留扩展位
   }))
 })
 </script>

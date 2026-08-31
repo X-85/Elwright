@@ -147,10 +147,20 @@ jobs:
         working-directory: src
         run: npm ci
 
+      # 工程质量第三档（2026-08-31，ADR-002）：未使用 import/变量必须 fail 级
+      - name: eslint
+        working-directory: src
+        run: npm run lint
+
       # 纯逻辑模块单测（safeMarkdown 安全底线 / theme 三态 / 版本比较）
       - name: npm test
         working-directory: src
         run: npm test
+
+      # 工程质量第三档（ADR-002）：coverage 阈值 70/70/70/60，lib/**/*.ts
+      - name: npm run test:coverage
+        working-directory: src
+        run: npm run test:coverage
 
       # 浏览器级 e2e（chromium）：browserBridge ↔ dev 插件接缝 + 预览模式降级守卫。
       # 桌面壳 IPC 层由 rust matrix job 的 tests/terminal_ipc.rs 覆盖。

@@ -195,7 +195,6 @@ async function doJump() {
 }
 
 const isFavorite = (rel: string) => favorites.value.some((f) => f.path === rel && f.projectRoot === projectRoot.value)
-const favoriteOf = (rel: string) => favorites.value.find((f) => f.path === rel && f.projectRoot === projectRoot.value)
 const projectBookmarks = computed(() => bookmarks.value.filter((b) => b.projectRoot === projectRoot.value))
 const bookmarkLines = computed(() => new Set(projectBookmarks.value.filter((b) => b.path === activePath.value).map((b) => b.line)))
 
