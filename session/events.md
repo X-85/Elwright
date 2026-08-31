@@ -317,3 +317,9 @@
 - 本轮方案（实现）：①llm.rs chat_messages_streaming——blocking Read 逐块读 SSE，手写 data: 行解析（parse_sse_delta，注释/非 JSON/[DONE] 容错），逐块检查取消表；②chat_completion_stream（Channel 推 delta/done/error/cancelled JSON 事件）+ chat_cancel（Mutex 取消表）；全程无有效输出且未取消时回退非流式；③bridge 双适配（桌面 Channel / 浏览器抛预览错误）；④ChatView 桌面流式增量渲染（50ms 节流）、停止真取消并保留已收文本标注（已停止）、浏览器维持旧路径。
 - 实际结果：已验证——SSE 解析单测 4/4；cargo 62+1+6+4+1 / 严格 clippy / fmt / vitest 43 / e2e 10 / build 全绿。另修复 code_browser 测试临时目录并行撞名（macOS 时钟微秒精度，纳秒改原子序数，六连跑零失败）——此前的偶发失败全部是这个原因。
 - 下一步：真机点验（流式首字延迟/停止立即生效）留档；v0.1.10 发版时机待用户（main 上已攒代码浏览器③第二批 + 设置中心后续 + AI 对话③④）。
+
+### Q17 | 第1次处理（发版 v0.1.10）
+- 问题或新增信息：用户指令"进行发版 v0.1.10"——main 攒 4 个功能（设置中心后续 / 代码浏览器③第二批 / AI 对话阶段③④）待发。
+- 本轮方案（发版）：①版本号四件套同步：src-tauri/Cargo.toml、src-tauri/tauri.conf.json、src/package.json → 0.1.10，Cargo.lock 自动联动；②install.ps1 ProductCode 同步为新生成 GUID（219CB3F6-F3AA-4E23-9634-2346D926593C，避免与 v0.1.9 撞码导致同机重复装）；③本地五道闸：cargo test 62+1+6+4+1 全过、strict clippy 0 警告、fmt 无差异、vitest 43 全过、build 成功；④commit chore(release) + 打 tag v0.1.10 + push；⑤盯 release.yml 一次全绿（macOS dmg 2m18s + Windows msi 3m24s + Publish 11s），产物 Elwright_0.1.10_aarch64.dmg + Elwright_0.1.10_x64_en-US.msi 上 GitHub Release，自动生成 5 个 PR 的完整 changelog。
+- 实际结果：已验证——Release 页面 [v0.1.10](https://github.com/X-85/Elwright/releases/tag/v0.1.10) 公开可见，两个安装包资产就绪，变更日志覆盖 PR #4 #5 #6 #7 #8。
+- 下一步：ROADMAP 同步（当前版本、里程碑、进行中三处）；真机点验清单延续挂起（v0.1.10 新增项：流式首字延迟、停止按钮立即生效、能力协作全链路确认面板）；下一阶段待用户定向。

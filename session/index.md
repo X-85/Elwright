@@ -15,4 +15,5 @@
 | Q13 | 流程失误：绕过 PR 直推 main | 已解决 | wt-main 分支未切回导致直推；内容完整 CI 全绿，未重写历史 | 教训：提交前查分支；反引号信息用安全方式传入（Q14 一度重犯，已当场纠正） |
 | Q15 | 路线图未做功能盘点 | 已解决 | 主干未完成 8 项 + 后置 2 项已列明；ROADMAP 漂移已同步（PR #5，370bb7b） | 按盘点结果排期 |
 | Q16 | AI 对话阶段③④（能力协作 + 流式/取消） | 已完成 | 阶段③ PR #6 合并（4b70c27）；阶段④ 按 ADR-003 落地，PR #8 合并（84e9667，CI 全绿）；顺手修 code_browser 测试并行撞名 flake | 真机点验（流式体验/能力协作全链路）待用户；v0.1.10 待发（攒 4 个功能） |
+| Q17 | 发版 v0.1.10 | 已解决 | 按用户指令发版，本地五道闸全绿（cargo 62+1+6+4+1、strict clippy 0 警告、fmt、vitest 43、build），release.yml 一次全绿（dmg 2m18s + msi 3m24s + Publish 11s），tag v0.1.10 + 完整 changelog 上 GitHub Release。ROADMAP 当前版本/里程碑/进行中三处同步更新；台账 Q16 收口 | 真机点验项延续挂起（流式/能力协作全链路 + 历史清单）；下一阶段待用户定向 |
 | Q10 | CI 教训沉淀 | 已解决 | Windows IPC origin 需 cfg 区分；本地 clippy 须带 -D warnings（新 IPC 测试/命令参数两处踩坑） | 后续新增 IPC 测试照抄 terminal_ipc.rs 的 origin 处理 |
