@@ -42,6 +42,116 @@ fn read_config_file(path: &Path) -> Option<LlmConfig> {
         .ok()
 }
 
+/// 单个命名模型档案（多套 LLM 配置切换用）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LlmProfile {
+    pub name: String,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub model: String,
+}
+
+/// 用户级配置文件的扩展形态：flat 字段 + profiles/activeProfile 兼容共存。
+/// 旧文件只有 flat 字段也能解析（profiles/active 默认为空）。
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct UserConfigFile {
+    #[serde(default)]
+    base_url: String,
+    #[serde(default)]
+    api_key: String,
+    #[serde(default)]
+    model: String,
+    #[serde(default)]
+    profiles: std::collections::BTreeMap<String, LlmProfile>,
+    #[serde(default)]
+    active_profile: Option<String>,
+}
+
+impl UserConfigFile {
+    fn to_flat_config(&self) -> LlmConfig {
+        // 优先级：activeProfile 命中 → 用 profile；否则回退 flat
+        let active = self
+            .active_profile
+            .as_ref()
+            .and_then(|n| self.profiles.get(n));
+        match active {
+            Some(p) => LlmConfig {
+                base_url: if p.base_url.is_empty() {
+                    self.base_url.clone()
+                } else {
+                    p.base_url.clone()
+                },
+                api_key: if p.api_key.is_empty() {
+                    self.api_key.clone()
+                } else {
+                    p.api_key.clone()
+                },
+                model: if p.model.is_empty() {
+                    self.model.clone()
+                } else {
+                    p.model.clone()
+                },
+            },
+            None => LlmConfig {
+                base_url: self.base_url.clone(),
+                api_key: self.api_key.clone(),
+                model: self.model.clone(),
+            },
+        }
+    }
+}
+
+/// 解析用户配置文件（含 profiles / activeProfile）；旧 flat 字段继续兼容。
+fn read_user_config_file(path: &Path) -> Option<UserConfigFile> {
+    let text = std::fs::read_to_string(path).ok()?;
+    match serde_json::from_str(&text) {
+        Ok(cfg) => Some(cfg),
+        Err(e) => {
+            eprintln!(
+                "警告: 用户配置 {} 解析失败: {}（已忽略）",
+                path.display(),
+                e
+            );
+            None
+        }
+    }
+}
+
+/// 校验 profile 名：仅小写字母/数字/-/_，长度 1..=32。
+pub fn is_valid_profile_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 32
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+}
+
+/// 校验 + 归一化为小写；非法名返回 Err。
+pub fn normalize_profile_name(name: &str) -> Result<String, String> {
+    let lower = name.to_ascii_lowercase();
+    if is_valid_profile_name(&lower) {
+        Ok(lower)
+    } else {
+        Err(format!(
+            "档案名 '{}' 非法：仅允许小写字母/数字/-/_，长度 1-32",
+            name
+        ))
+    }
+}
+
+/// 从指定路径读取 profiles（按 name 排序）；包含 active_profile（若已设置）。
+pub fn read_profiles(user_root: &Path) -> (Vec<LlmProfile>, Option<String>) {
+    let path = user_root.join("config.json");
+    let Some(cfg) = read_user_config_file(&path) else {
+        return (Vec::new(), None);
+    };
+    let profiles: Vec<LlmProfile> = cfg.profiles.into_values().collect();
+    (profiles, cfg.active_profile)
+}
+
 /// 字段级合并的配置来源（高 → 低）。
 pub struct ConfigLayers {
     pub env: LlmConfig,
@@ -59,7 +169,9 @@ impl ConfigLayers {
         };
         let project_path = root.join("config.local.json");
         let project = read_config_file(&project_path).map(|c| (project_path, c));
-        let user = user_config_path().and_then(|p| read_config_file(&p).map(|c| (p, c)));
+        // 用户层：走 UserConfigFile（兼容 flat + profiles/activeProfile）
+        let user = user_config_path()
+            .and_then(|p| read_user_config_file(&p).map(|uc| (p, uc.to_flat_config())));
         Self {
             env,
             project,
@@ -209,6 +321,131 @@ pub fn set_user_config(base_url: &str, api_key: &str, model: &str) -> Result<(),
     std::fs::write(&path, text + "\n")
         .map_err(|e| format!("写入 {} 失败: {}", path.display(), e))?;
     Ok(())
+}
+
+/// 原子写入用户配置文件（写 .tmp 再 rename），避免崩溃中间态。
+fn write_user_config_file(path: &Path, value: &UserConfigFile) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建目录 {} 失败: {}", parent.display(), e))?;
+    }
+    let text = serde_json::to_string_pretty(value).map_err(|e| format!("序列化配置失败: {}", e))?;
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, text + "\n").map_err(|e| format!("写入 {} 失败: {}", tmp.display(), e))?;
+    std::fs::rename(&tmp, path).map_err(|e| {
+        format!(
+            "原子改名 {} → {} 失败: {}",
+            tmp.display(),
+            path.display(),
+            e
+        )
+    })?;
+    Ok(())
+}
+
+fn load_user_config_file_for_write() -> Result<(PathBuf, UserConfigFile), String> {
+    let path = user_config_path().ok_or("无法定位用户主目录")?;
+    let cfg = read_user_config_file(&path).unwrap_or_default();
+    Ok((path, cfg))
+}
+
+/// 保存（或覆盖）指定 name 的 profile，校验 name 合法。
+pub fn save_profile(profile: LlmProfile) -> Result<(), String> {
+    let name = normalize_profile_name(&profile.name)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    let mut p = profile;
+    p.name = name.clone();
+    cfg.profiles.insert(name, p);
+    write_user_config_file(&path, &cfg)
+}
+
+/// 删除指定 name 的 profile；若该 name 当前激活，清空 active_profile 并回退 flat。
+pub fn delete_profile(name: &str) -> Result<(), String> {
+    let name = normalize_profile_name(name)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    if cfg.profiles.remove(&name).is_none() {
+        return Err(format!("档案 '{}' 不存在", name));
+    }
+    if cfg.active_profile.as_deref() == Some(name.as_str()) {
+        cfg.active_profile = None;
+    }
+    write_user_config_file(&path, &cfg)
+}
+
+/// 设置激活 profile；name 必须存在。返回 Ok(())。
+pub fn set_active_profile(name: &str) -> Result<(), String> {
+    let name = normalize_profile_name(name)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    if !cfg.profiles.contains_key(&name) {
+        return Err(format!("档案 '{}' 不存在，请先 `save` 或 `add`", name));
+    }
+    cfg.active_profile = Some(name);
+    write_user_config_file(&path, &cfg)
+}
+
+/// 重命名 profile（仅修改 profiles map 的 key，不改 active_profile 语义）。
+pub fn rename_profile(old: &str, new: &str) -> Result<(), String> {
+    let old = normalize_profile_name(old)?;
+    let new = normalize_profile_name(new)?;
+    if old == new {
+        return Ok(());
+    }
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    let mut entry = cfg
+        .profiles
+        .remove(&old)
+        .ok_or_else(|| format!("档案 '{}' 不存在", old))?;
+    if cfg.profiles.contains_key(&new) {
+        return Err(format!("档案 '{}' 已存在", new));
+    }
+    entry.name = new.clone();
+    cfg.profiles.insert(new.clone(), entry);
+    if cfg.active_profile.as_deref() == Some(old.as_str()) {
+        cfg.active_profile = Some(new);
+    }
+    write_user_config_file(&path, &cfg)
+}
+
+/// 列出全部 profile 元信息（name + 是否当前激活 + 来源标签）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProfileMeta {
+    pub name: String,
+    pub active: bool,
+    /// "user"（来自用户文件）或 "flat"（当前由 flat 字段生效，无 active_profile）。
+    pub source: &'static str,
+}
+
+pub fn list_profiles() -> Vec<ProfileMeta> {
+    let (profiles, active) = match user_config_path() {
+        Some(p) => read_profiles(p.parent().unwrap_or(&p)),
+        None => (Vec::new(), None),
+    };
+    profiles
+        .into_iter()
+        .map(|p| {
+            let active = active.as_deref() == Some(p.name.as_str());
+            ProfileMeta {
+                name: p.name,
+                active,
+                source: "user",
+            }
+        })
+        .collect()
+}
+
+/// 当前激活的 profile 名；None 表示走 flat 字段。
+pub fn active_profile_name() -> Option<String> {
+    user_config_path().and_then(|p| read_profiles(p.parent().unwrap_or(&p)).1)
+}
+
+/// 获取指定 name 的 profile；不存在返回 None。
+pub fn get_profile(name: &str) -> Option<LlmProfile> {
+    let Ok(name) = normalize_profile_name(name) else {
+        return None;
+    };
+    let path = user_config_path()?;
+    let cfg = read_user_config_file(&path)?;
+    cfg.profiles.get(&name).cloned()
 }
 
 /// 连接测试：向 base_url 发一条 1 token 上限的最小请求。
@@ -741,5 +978,166 @@ mod sse_tests {
     #[test]
     fn non_data_lines_are_ignored() {
         assert_eq!(parse_sse_delta("event: message"), None);
+    }
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::{is_valid_profile_name, normalize_profile_name, LlmProfile, UserConfigFile};
+    use crate::core::llm::ConfigLayers;
+    use crate::core::llm::{
+        active_profile_name, delete_profile, get_profile, list_profiles, rename_profile,
+        save_profile, set_active_profile,
+    };
+    use crate::core::test_env::env_serialization_guard;
+    use std::fs;
+
+    #[test]
+    fn profile_name_normalization_rules() {
+        assert!(is_valid_profile_name("default"));
+        assert!(is_valid_profile_name("local-ollama"));
+        assert!(is_valid_profile_name("work_2"));
+        assert!(!is_valid_profile_name(""));
+        assert!(!is_valid_profile_name("Default")); // 大写非法
+        assert!(!is_valid_profile_name("has space"));
+        assert!(!is_valid_profile_name(&"a".repeat(33)));
+        assert_eq!(normalize_profile_name("Work").unwrap(), "work");
+        assert!(normalize_profile_name("BAD!").is_err());
+    }
+
+    #[test]
+    fn user_config_file_back_compat_with_flat_only() {
+        // 旧 flat 文件（无 profiles 字段）仍能解析 → to_flat_config 等价于旧 LlmConfig
+        let json = r#"{"base_url":"http://u/v1","api_key":"k","model":"m"}"#;
+        let cfg: UserConfigFile = serde_json::from_str(json).unwrap();
+        let flat = cfg.to_flat_config();
+        assert_eq!(flat.base_url, "http://u/v1");
+        assert_eq!(flat.api_key, "k");
+        assert_eq!(flat.model, "m");
+    }
+
+    #[test]
+    fn profile_active_overrides_flat_when_set() {
+        // activeProfile 命中 → 用 profile 字段；未命中 → 回退 flat
+        let json = r#"{
+            "base_url": "http://flat/v1",
+            "api_key": "flat-k",
+            "model": "flat-m",
+            "profiles": {
+                "work": {"name":"work","base_url":"http://w/v1","api_key":"w-k","model":"w-m"}
+            },
+            "active_profile": "work"
+        }"#;
+        let cfg: UserConfigFile = serde_json::from_str(json).unwrap();
+        let flat = cfg.to_flat_config();
+        assert_eq!(flat.base_url, "http://w/v1");
+        assert_eq!(flat.api_key, "w-k");
+        assert_eq!(flat.model, "w-m");
+
+        // active_profile 不存在 → 回退 flat
+        let json2 = r#"{
+            "base_url": "http://flat/v1",
+            "api_key": "flat-k",
+            "model": "flat-m",
+            "profiles": {"work":{"name":"work","base_url":"http://w/v1","api_key":"w-k","model":"w-m"}},
+            "active_profile": "nonexistent"
+        }"#;
+        let cfg2: UserConfigFile = serde_json::from_str(json2).unwrap();
+        let flat2 = cfg2.to_flat_config();
+        assert_eq!(flat2.base_url, "http://flat/v1");
+        assert_eq!(flat2.api_key, "flat-k");
+
+        // 无 active_profile → 回退 flat
+        let json3 = r#"{
+            "base_url": "http://flat/v1",
+            "profiles": {"work":{"name":"work","base_url":"http://w/v1","api_key":"w-k","model":"w-m"}}
+        }"#;
+        let cfg3: UserConfigFile = serde_json::from_str(json3).unwrap();
+        let flat3 = cfg3.to_flat_config();
+        assert_eq!(flat3.base_url, "http://flat/v1");
+    }
+
+    #[test]
+    fn profile_save_delete_set_active_roundtrip() {
+        let _guard = env_serialization_guard();
+        // 用 ELWRIGHT_USER_ROOT 隔离
+        let dir = std::env::temp_dir().join(format!("elwright-profile-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        // save profile
+        let p = LlmProfile {
+            name: "work".into(),
+            base_url: "http://w/v1".into(),
+            api_key: "w-k".into(),
+            model: "w-m".into(),
+        };
+        save_profile(p).unwrap();
+        assert_eq!(list_profiles().len(), 1);
+        assert!(active_profile_name().is_none());
+
+        // set active
+        set_active_profile("work").unwrap();
+        assert_eq!(active_profile_name().as_deref(), Some("work"));
+        let metas = list_profiles();
+        assert_eq!(metas[0].name, "work");
+        assert!(metas[0].active);
+
+        // 通过 ConfigLayers::collect 走生效配置
+        let layers = ConfigLayers::collect(&dir, None);
+        let (cfg, _) = layers.merged();
+        assert_eq!(cfg.base_url, "http://w/v1");
+        assert_eq!(cfg.api_key, "w-k");
+        assert_eq!(cfg.model, "w-m");
+
+        // set active 不存在的 name → Err
+        assert!(set_active_profile("ghost").is_err());
+
+        // delete active → 自动清空 active_profile 并回退 flat
+        delete_profile("work").unwrap();
+        assert!(active_profile_name().is_none());
+        assert_eq!(list_profiles().len(), 0);
+
+        // delete 不存在 → Err
+        assert!(delete_profile("ghost").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn profile_rename_preserves_active() {
+        let _guard = env_serialization_guard();
+        let dir = std::env::temp_dir().join(format!("elwright-rename-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        save_profile(LlmProfile {
+            name: "old".into(),
+            base_url: "http://o/v1".into(),
+            api_key: "k".into(),
+            model: "m".into(),
+        })
+        .unwrap();
+        set_active_profile("old").unwrap();
+        rename_profile("old", "new").unwrap();
+        assert_eq!(active_profile_name().as_deref(), Some("new"));
+        assert!(get_profile("old").is_none());
+        assert_eq!(get_profile("new").unwrap().name, "new");
+
+        // rename 已存在目标 → Err
+        save_profile(LlmProfile {
+            name: "third".into(),
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        })
+        .unwrap();
+        assert!(rename_profile("new", "third").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
     }
 }

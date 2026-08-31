@@ -90,6 +90,11 @@ fn main() {
             commands::apply_patch_apply,
             commands::apply_patch_revert,
             commands::apply_patch_snapshots,
+            commands::llm_list_profiles,
+            commands::llm_get_active_profile,
+            commands::llm_set_active_profile,
+            commands::llm_save_profile,
+            commands::llm_delete_profile,
             commands::chat_completion_stream,
             commands::chat_cancel
         ])

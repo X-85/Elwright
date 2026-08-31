@@ -934,6 +934,156 @@ code {
   cursor: default;
 }
 
+/* Q19 模型档案 */
+.profile-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.profile-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.profile-select-wrap > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.profile-select-wrap select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.profile-add-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.profile-add-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.profile-list {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.profile-list summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.profile-list ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.profile-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+}
+
+.profile-list li:last-child {
+  border-bottom: none;
+}
+
+.profile-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.profile-del-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.profile-del-btn:hover:not(:disabled) {
+  border-color: #d33;
+  color: #d33;
+}
+
+.add-profile-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.add-profile-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  min-width: 320px;
+  max-width: 420px;
+}
+
+.add-profile-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.add-profile-card .hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.add-profile-card input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.add-profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.add-profile-actions button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 4px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.add-profile-actions button.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .op-ok-inline {
   font-size: 12px;
   color: var(--green);
