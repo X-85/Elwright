@@ -42,11 +42,12 @@ onMounted(async () => {
 /** 默认标签序号：终端 1、终端 2…（双击标签可重命名） */
 let tabSeq = 0
 
-async function openTab(label?: string) {
+async function openTab(label?: string, cwd?: string) {
   if (props.bridge.kind !== 'tauri') return
   try {
-    // 默认落在主目录（顶栏按钮/＋ 新建的语义）；「在终端中运行」显式传 props.cwd
-    const session = await props.bridge.openTerminal({ cwd: homeCwd.value })
+    // 默认落在主目录（顶栏按钮/＋ 新建的语义）；「在终端中运行」显式传 props.cwd，
+    // 「终端定位」（代码浏览器）显式传目标目录
+    const session = await props.bridge.openTerminal({ cwd: cwd ?? homeCwd.value })
     const tab: Tab = {
       id: session.id,
       label: label ?? `终端 ${++tabSeq}`,
@@ -140,7 +141,13 @@ async function runCommand(command: string) {
   }, 150)
 }
 
-defineExpose({ openTab, runCommand, toggleExpand, toggleFromToolbar })
+/** 终端定位（代码浏览器阶段③）：在指定目录开一个新 tab。 */
+async function openAtDir(dir: string) {
+  const name = dir.split(/[\\/]/).filter(Boolean).pop() ?? dir
+  await openTab(`终端: ${name}`, dir)
+}
+
+defineExpose({ openTab, runCommand, toggleExpand, toggleFromToolbar, openAtDir })
 
 // 把面板的 runCommand 暴露给外部组件（CapabilityDetail 联动）。
 // 通过 window 全局，避免 prop drilling；HMR 重载时 onBeforeUnmount 清理旧引用。

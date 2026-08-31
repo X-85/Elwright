@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { renderChatMarkdown } from '../lib/safeMarkdown'
 import type { Bridge, TodoItem } from '../lib/bridge'
 
+import { parseCodeLinks } from '../lib/codeLinks'
+const emit = defineEmits<{ (e: 'open-code', absPath: string, line: number): void }>()
 const props = defineProps<{ bridge: Bridge }>()
 
 // ---- Todo ----
@@ -161,7 +163,17 @@ onMounted(() => {
         <li v-for="item in todos" :key="item.id" :class="['todo-item', { done: item.done }]">
           <label class="todo-main">
             <input type="checkbox" :checked="item.done" @change="toggleTodo(item)" />
-            <span class="todo-text">{{ item.text }}</span>
+            <span class="todo-text">
+              <template v-for="(part, pi) in parseCodeLinks(item.text)" :key="pi">
+                <button
+                  v-if="part.kind === 'code' && part.path"
+                  class="todo-code-link"
+                  :title="'在代码浏览器中打开 ' + part.path"
+                  @click="emit('open-code', part.path, part.line ?? 0)"
+                >{{ part.path }}:{{ part.line }}</button>
+                <template v-else>{{ part.text }}</template>
+              </template>
+            </span>
           </label>
           <button class="todo-del" title="删除" aria-label="删除" @click="removeTodo(item)">×</button>
         </li>

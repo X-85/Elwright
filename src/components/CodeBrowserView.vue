@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { Bookmark, ChevronDown, ChevronRight, Code2, Copy, FileText, Folder, FolderOpen, RefreshCw, Search, Star, X } from 'lucide-vue-next'
+import { Bookmark, ChevronDown, ChevronRight, Code2, Copy, FileText, Folder, FolderOpen, ListTodo, RefreshCw, Search, SquareTerminal, Star, X } from 'lucide-vue-next'
 import type { Bridge, CodeBrowserRecent, CodeDocument, CodeSearchHit, CodeSymbolHit, CodeTreeEntry } from '../lib/bridge'
 import { highlightCode } from '../lib/codeHighlight'
+import { codeLinkMarker } from '../lib/codeLinks'
 
 const props = defineProps<{ bridge: Bridge }>()
 const emit = defineEmits<{
   (e: 'notify', msg: string, ok: boolean): void
   (e: 'send-to-ai', payload: { title: string; text: string }): void
+  (e: 'open-in-terminal', dir: string): void
 }>()
 
 const projectRoot = ref('')
@@ -217,6 +219,32 @@ async function toggleBookmark(line: number) {
   }
 }
 
+const absPath = (rel: string) => projectRoot.value.replace(/[\\/]+$/, '') + '/' + rel
+
+async function createTodoFromLine() {
+  const doc = activeTab.value?.doc
+  if (!doc) return
+  const sel = selectedCodeText.value
+  const lineText = sel && sel.trim()
+    ? sel.trim().split('\n')[0]
+    : (doc.content.split('\n')[0] ?? '')
+  const marker = codeLinkMarker(absPath(doc.path), 1)
+  const text = `代码 ${marker} ${lineText.slice(0, 60)}`.trim()
+  try {
+    await props.bridge.todoAdd(text)
+    notify('已创建 Todo（含代码位置，可在工作台点击跳回）', true)
+  } catch (e) {
+    notify(String(e), false)
+  }
+}
+
+function openInTerminal() {
+  const doc = activeTab.value?.doc
+  if (!doc) return
+  const dir = absPath(doc.path).split(/[\\/]/).slice(0, -1).join('/')
+  emit('open-in-terminal', dir)
+}
+
 // ---- 发送到 AI：先确认（路径/范围/摘要），再交给 App 切到对话页预填 ----
 const aiConfirm = ref<{ title: string; path: string; range: string; text: string } | null>(null)
 
@@ -273,7 +301,18 @@ function closeTab(path: string) {
   }
 }
 
-defineExpose({ openProject })
+/** Todo 联动跳回：按绝对路径打开文件（可带行号定位）。 */
+async function openAbsolute(absPath: string, line = 0) {
+  const norm = absPath.replace(/[\\/]+$/, '')
+  const idx = Math.max(norm.lastIndexOf('/'), norm.lastIndexOf('\\'))
+  if (idx === -1) return
+  const dir = norm.slice(0, idx)
+  const file = norm.slice(idx + 1)
+  await openProject(dir, file)
+  await openRel(file, line)
+}
+
+defineExpose({ openProject, openAbsolute })
 </script>
 
 <template>
@@ -405,6 +444,8 @@ defineExpose({ openProject })
             <span class="cb-muted">{{ activeTab.doc.language }} · {{ activeTab.doc.size }} B</span>
             <button class="cb-icon-btn" :title="isFavorite(activeTab.doc.path) ? '取消收藏' : '收藏文件'" :class="{ 'cb-fav-on': isFavorite(activeTab.doc.path) }" @click="toggleFavorite(activeTab.doc.path)"><Star :size="13" /></button>
             <button class="cb-icon-btn" title="复制文件路径" @click="copyText(projectRoot + '/' + activeTab.doc.path)"><Copy :size="13" /></button>
+            <button class="cb-send-ai" title="把当前文件创建为 Todo（含代码位置，可在工作台跳回）" @click="createTodoFromLine"><ListTodo :size="13" /> 转为 Todo</button>
+            <button class="cb-send-ai" title="在终端中打开文件所在目录" @click="openInTerminal"><SquareTerminal :size="13" /> 终端定位</button>
             <button class="cb-send-ai" @click="requestSendToAi">发送到 AI</button>
           </div>
           <p v-if="activeTab.doc.notice" class="cb-notice">{{ activeTab.doc.notice }}</p>

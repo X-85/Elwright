@@ -53,6 +53,7 @@ const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace'
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
 const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null)
+const codeBrowserRef = ref<InstanceType<typeof CodeBrowserView> | null>(null)
 const terminalRef = ref<InstanceType<typeof import('./components/TerminalPanel.vue').default> | null>(null)
 const appWindow = bridge.kind === 'tauri' ? getCurrentWindow() : null
 const windowLayoutMenuOpen = ref(false)
@@ -185,6 +186,21 @@ async function sendCodeToAi(payload: { title: string; text: string }) {
   await nextTick()
   chatViewRef.value?.insertContext(payload.title, payload.text)
   notify('代码上下文已填入对话输入框，发送前可编辑', true)
+}
+
+async function openCodeInTerminal(dir: string) {
+  if (bridge.kind !== 'tauri') {
+    notify('【预览模式】终端仅桌面模式可用', false)
+    return
+  }
+  await terminalRef.value?.openAtDir(dir)
+  notify('已在终端中打开目录', true)
+}
+
+async function openCodeAt(absPath: string, line: number) {
+  activeView.value = 'code'
+  await nextTick()
+  await codeBrowserRef.value?.openAbsolute(absPath, line)
 }
 
 function toggleTerminal() {
@@ -374,10 +390,10 @@ async function startWindowDrag(event: MouseEvent) {
       </aside>
 
       <main class="content">
-        <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" />
+        <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" @open-code="openCodeAt" />
         <PeopleChatView v-else-if="activeView === 'people'" />
         <WorkspaceView v-else-if="activeView === 'workspace'" :bridge="bridge" :capabilities="capabilities" @notify="notify" />
-        <CodeBrowserView v-else-if="activeView === 'code'" :bridge="bridge" @notify="notify" @send-to-ai="sendCodeToAi" />
+        <CodeBrowserView v-else-if="activeView === 'code'" ref="codeBrowserRef" :bridge="bridge" @notify="notify" @send-to-ai="sendCodeToAi" @open-in-terminal="openCodeInTerminal" />
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
