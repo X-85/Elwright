@@ -18,13 +18,9 @@ const props = defineProps<{
   cwd?: string
 }>()
 
-const emit = defineEmits<{
-  /** 「在终端中运行」请求（来自 CapabilityDetail） */
-  (e: 'run-in-terminal', command: string): void
-}>()
-
 // 抽屉状态：收起时完全隐藏，但保留 DOM 以维持 xterm 会话。
 const expanded = ref(false)
+
 const heightPct = ref(40) // 20-85，百分比视口高
 const tabs = ref<Tab[]>([])
 const activeId = ref<number | null>(null)

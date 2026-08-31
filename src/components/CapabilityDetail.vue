@@ -48,7 +48,7 @@ async function onDelete() {
 // 知识型选中即加载文档；其余类型在操作后展示结果
 watch(
   () => props.cap.id,
-  async (id) => {
+  async (_id) => {
     runResult.value = null
     invokeResult.value = null
     view.value = null
