@@ -64,7 +64,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-看 `docs/ROADMAP.md`（活文档，唯一排期视图）。一句话现状：v0.1.7 已发；代码浏览器阶段①已合并 main 并随 v0.1.8 发版；真机点验按用户指示跳过留档（PENDING-REAL-MACHINE-CHECKLIST.md）；进行中暂空。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
+看 `docs/ROADMAP.md`（活文档，唯一排期视图，本节只留指针不记细节）。一句话现状：v0.1.10 已发；main 在 v0.1.10 之后攒有代码浏览器阶段④/模型档案/工程质量第三档 + 真机点验修复批次（Q22-Q24），均未发版；真机点验遗留项见 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
 
 ## 前端约定（src/）
 

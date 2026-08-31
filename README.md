@@ -82,7 +82,7 @@ $env:ELWRIGHT_VERSION='v0.1.3'; irm .../install.ps1 | iex
 
 ## 当前状态
 
-✅ **v0.1.5 已发布**：v0.1.2 集成桌面壳内的集成终端（PTY）；v0.1.3 hotfix 修了「检查更新」按钮永远显示「已是最新版本」的 IPC 序列化 bug（详见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`）；v0.1.4 新增 **AI 对话 阶段①（独立对话页 + 多轮消息 + 安全 Markdown 渲染 ADR-002）**与**阶段②（会话侧栏 + `~/.elwright/chats/` 持久化 + 重命名保护）**；v0.1.5 终端两 bugfix（无回显/第二 tab 不能输入）+ 终端八项交互优化（ZCode 风格）+ 设置中心第一阶段（三态主题）+ AI 会话图标化 + 工程质量治理第一档（CI clippy+fmt + 前端 vitest）。阶段 1–5 已完成：Rust 核心 + CLI、LLM 客户端与离线降级、Tauri 桌面壳、macOS dmg 与 Windows msi、能力导入/导出/删除、模型设置、集成终端、检查更新、AI 对话、GitHub Release 流程。当前正在完善用户能力层与更多可复用能力；内置注册表暂保留 3 个真实示例（文本统计、能力类型说明、周报生成），个人能力通过导入加入 `~/.elwright/`。
+✅ **v0.1.10 已发布**（进度详情看 [docs/ROADMAP.md](docs/ROADMAP.md)，此处只留概览）：桌面壳已带能力工具箱、AI 对话（多轮/会话/能力协作/流式与取消）、代码浏览器（只读浏览/符号跳转/收藏书签/受控补丁编辑）、工作台（Todo/今日记录）、资源与课题工作区、人与人消息会话一期、设置中心（常规/外观/终端/模型档案）、集成终端、CLI `ew`。主干红线与下一步排期以 ROADMAP 为准；内置注册表保留 3 个真实示例（文本统计、能力类型说明、周报生成），个人能力通过导入加入 `~/.elwright/`。
 
 ## 快速开始（开发者）
 
@@ -95,12 +95,32 @@ cd src-tauri && cargo build --bin ew
 
 # 运行内置文本统计示例
 ./target/debug/ew run text-stats README.md
-
-# 桌面界面：浏览器预览（或 ../src/node_modules/.bin/tauri build --debug 构建桌面 app）
-cd ../src && npm install && npm run dev
 ```
 
-想导入自己的能力，可以在桌面端使用“导入能力”，或执行 `ew import <文件>`；想让「技能型」能力接入大模型，再看 **[LLM 配置指引](docs/release/llm-setup-guide.md)**。
+桌面端有两种开发方式，按需要的能力选：
+
+```bash
+# ① 真机运行（推荐）：需要本机有桌面应用构建工具链。
+#   macOS：装 Xcode Command Line Tools（`xcode-select --install`）
+#   Windows：装 Visual Studio Build Tools（C++ 工作负载 + Windows SDK）
+#   Linux：参考 https://tauri.app/start/prerequisites/
+cd src-tauri
+npm --prefix ../src install          # 第一次需要：装前端依赖
+../src/node_modules/.bin/tauri dev   # 启动 Tauri 桌面 app，前端热更新，自动连本地 ew 核心
+```
+
+```bash
+# ② 浏览器预览（仅「查看类」功能可用：listCapabilities / viewDoc / exportCapability / checkUpdate）。
+#   终端、AI 对话、能力增删、模型配置、技能调用等核心功能在浏览器里会降级或不可用——
+#   想验这些必须走上面的真机 tauri dev。
+cd src
+npm install
+npm run dev                          # http://localhost:5173
+```
+
+要打桌面端安装包（dmg / msi）：在 `src-tauri/` 下跑 `../src/node_modules/.bin/tauri build`（mac 产物在 `src-tauri/target/release/bundle/macos/`，Windows 在 `bundle/msi/`）。未签名——首次打开按 dmg / SmartScreen 的「仍要运行」流程过一次即可。想把真机构建交给 CI：直接 `git tag v0.1.x && git push origin v0.1.x`，`.github/workflows/release.yml` 会自动出 dmg + msi 上 GitHub Release。
+
+想导入自己的能力，可以在桌面端使用「导入能力」，或执行 `ew import <文件>`；想让「技能型」能力接入大模型，再看 **[LLM 配置指引](docs/release/llm-setup-guide.md)**。
 
 ## License
 

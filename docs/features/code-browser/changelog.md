@@ -1,5 +1,34 @@
 # 变更日志（Changelog）
 
+## 2026-08-31 · 最近项目支持删除（Q24）
+
+- 最近项目列表每行新增 × 删除按钮：core `remove_recent_project`（连同项目名下
+  最近文件清除；收藏/书签保留）+ IPC `code_browser_recent_remove_project`
+  + Bridge 三端方法 + 前端删除行与成功提示。
+- 配套测试修复：IPC 测试新增互斥锁（两用例并行读写真实用户层会竞态丢更新）、
+  收藏/书签断言改增量式（不再假设用户层为空）。
+- 真机验证：删除行消失 + 持久化 + 项目名下最近文件同清；系统目录选择器
+  → 打开项目全链路首次真机验证通过。
+- 任务目录：`docs/work/active/enhancement-2026-08-code-browser-recent-remove/`。
+
+## 2026-08-31 · bugfix：展开目录后子级出现两次（Q23）
+
+- 外层 `v-for treeCache` 会把每个已缓存层级再当顶级列表渲染一遍（与模板手工嵌套
+  重复），展开 src 后 main/test 出现两份。改为 `visibleRows` computed 扁平化渲染
+  （按 expanded 递归，任意深度，缩进 paddingLeft）；删除写死三层的嵌套模板；
+  ★ 收藏按钮统一到所有层级文件行。任务目录
+  `docs/work/active/bugfix-2026-08-code-browser-tree-duplicate/`。
+
+## 2026-08-31 · bugfix：树不可见 + 预览栏压窄（Q22）
+
+- 树永不渲染：`treeCache` 用 Map 存储导致模板 `v-for` 遍历拿到 `[key, value]`
+  对儿 + 数字下标，`v-show` 恒 false——改为普通对象（Record）修复。
+  该缺陷因阶段①真机点验跳过 + e2e 浏览器桥选不了目录而漏网。
+- 预览栏被压进 300–380px 窄列：`.code-browser` 补 `grid-column: 1 / -1`
+  （对齐 chat-view 等全宽视图惯例）。
+- 配套：App.vue 报错 toast 移出 toolbox-only 模板，代码浏览器 IPC 失败不再静默。
+- 任务目录：`docs/work/active/bugfix-2026-08-code-browser-tree-invisible/`。
+
 ## 2026-08-23 · Feature 立项
 
 - 将代码浏览器纳入 V2 主干优先路线。

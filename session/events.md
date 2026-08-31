@@ -371,3 +371,66 @@
   - **文档回填**：engineering-quality README 表格第三档「按需」→「已完成 2026-08-31 ADR-002 PR #14」+ ADR-002 链接 + 第二条 decisions；changelog.md 新建（2026-08-31 条目）；ROADMAP「未发版」补 Q20 + 第三档条目「按需」→「已完成 ADR-002 PR #13+14」+ 「进行中」清理 + 历史时间线 Q20 段。
 - 实际结果：已验证——PR #14 squash 入 main（21cfbc1），CI 7/7 全绿；分支 feat/engineering-tier3-eslint-coverage-impl 自动删除。本地六道闸：eslint exit 0 + vitest 60/60 + coverage 95/76/100/95（过阈值）+ vite build ok + cargo fmt exit 0 + cargo clippy --all-targets -D warnings exit 0 + cargo test exit 0。
 - 下一步：Q20 收口——`session/index.md` 加 Q20 行 + `session/events.md` 写 Q20 第1/第2次处理（本条）；commit + push 至 main。下一阶段待用户定向（v0.1.11 发版？继续 V1 余下工作？）。
+
+### Q21 | 第1次处理（README「快速开始」补真机启动桌面端的命令）
+- 问题或新增信息：用户上一轮问「下一步做什么」后我给出 v0.1.11 发版推荐；用户没接推荐，反问「README.md 快速开发中，怎么没有启动代码的命令，就是可以直接看桌面端的」——指出 README「快速开始」一节只有 `npm run dev`（vite 浏览器预览），新人装好代码后找不到桌面 app 入口。
+- 本轮方案：
+  - 确认事实：读 `src-tauri/tauri.conf.json` 第 7–10 行——已有 `beforeDevCommand: "npm --prefix src run dev"` / `devUrl: "http://localhost:5173"` / `frontendDist: "../src/dist"`，Tauri 命令链是通的，只是 README 没写。AGENTS.md 也写了「`npm run dev` 只覆盖查看类功能；终端、AI 对话、能力增删、模型配置、技能调用等核心功能必须进真机运行时」——这层风险 README 必须告诉新人。
+  - 改 `README.md`「快速开始（开发者）」：保留原 CLI 三行；拆出桌面端 ①真机 + ②浏览器预览两段，命令按仓库现状——真机走 `cd src-tauri && npm --prefix ../src install && ../src/node_modules/.bin/tauri dev`（不在 src/ 直接 npx，避免 AGENTS.md 提到的「`npx tauri` 在 src/ 下找不到配置」坑），浏览器预览走 `cd src && npm install && npm run dev`；写明 macOS 需 Xcode CLT、 Windows 需 VS Build Tools、Linux 见 tauri 官方 prerequisites，浏览器预览只覆盖查看类、核心功能必须真机 tauri dev。
+  - 附 `tauri build` 出 dmg/msi + 未签名首次打开的右键/SmartScreen 流程 + `git tag v0.1.x && git push origin v0.1.x` 走 CI release.yml 的提示——把 AGENTS.md 已有的「正式打包」段落浓缩到新人最可能在 README 看到的位置。
+  - 不动 `src-tauri/tauri.conf.json`（Tauri 配置本就是对的）、不动 `package.json`（scripts 已含 dev/build/test：lint/coverage/preview/test：e2e/lint：fix，不需要新增 desktop 专用脚本）、不动 AGENTS.md（已正确，本任务属于「README 文档同步」而非「AGENTS 协议变更」）。
+  - 台账：纯文档改动，未建 `docs/work/active/` 任务目录（AGENTS.md 工作协议里 bugfix/enhancement 类才要求任务目录，文档同步属于轻量维护）。
+- 实际结果：已验证——`README.md` 改完；`session/index.md` 加 Q21 行；`session/events.md` 本条。变更未 commit（等用户复核 README 排版与措辞再决定是否 commit + push + 是否提 PR）。
+- 下一步：等用户复核 README 排版与措辞；如同意则 commit + push（直接落 main 或 PR 由用户定）；同步回头看 v0.1.11 发版决策（仍挂在「下一阶段待用户定向」状态，Q21 不阻塞）。
+
+### Q22 | 第1次处理（代码浏览器「选项目后看不到文件 + 预览栏比较小」）
+- 问题或新增信息：按用户上一轮确认——1. 跑的是 `tauri dev` 桌面模式；2. 选完项目「没有子目录」（=根目录整个空白，不只是懒加载没展开）；3. 预览栏「整个面板被外层挤窄」（c 类）。本轮先用低风险 CSS 改 c 类，再跟用户对齐 a/b 真正根因。
+- 本轮方案（诊断）：
+  - **core 层**：手写 Rust smoke 跑 `fs::read_dir("/Users/bruce/code/Elwright/Elwright")` 实测返回 18 条（`.git/.github/.gitignore/.zcode/AGENTS.md/Elwright架构方案.md/LICENSE/README.md/assets/capabilities.json/docs/install.ps1/install.sh/resources/session/session-ledger-prompt.md/src/src-tauri`），`code_browser::tree(root, "")` 一定按目录在前排序返回这 18 条 TreeEntry；`SKIP_DIRS` 不命中任何一条。`commands::code_browser_tree` 签名 OK（`#[allow(non_snake_case)]` 配 camelCase JSON），macOS dev 二进制无 entitlements（Tauri 2 dev 默认不走 sandbox）—— `plugin-dialog` 的 `open({ directory: true })` 不被系统挡住。
+  - **bridge 层**：`src/lib/bridge.ts:992` tauri 端 `chooseProjectDirectory` 用 `@tauri-apps/plugin-dialog` 的 `open`，`open()` 返回 string|null；browser stub `:604` 直接返回 null；`codeBrowserTree` 转发 IPC `code_browser_tree`（参数 `projectRoot, rel`）。逻辑链无破绽。
+  - **前端渲染**：`CodeBrowserView.vue:368-411` 用 `<template v-for="(entries, rel) in treeCache">` + `<ul v-show="rel === '' || expanded.has(rel)">`，根目录条目按 `rel === ''` 渲染；Vue 3 reactive Map 在 v-for 里 key/值遍历无问题（手测过）。
+  - **结论**：「看不到文件」**不是 core / bridge / 渲染逻辑的 bug**——是「目录选择对话框到底弹没弹」的接缝问题，需要用户确认。
+- 本轮方案（动手）：
+  - **低风险 CSS 修复**（Q22-c）：`src/style.css:2244-2257` `.cb-workspace` 加 `height: 100%` + `align-self: stretch`，让 grid 撑满 `.code-browser` 容器，绕开外层主区高度被挤压的问题。原 `grid-template-columns: minmax(240px, 320px) minmax(0, 1fr)` 保持不变（左侧 240-320 / 右侧 1fr 的比例合理）。
+  - **未动 Q22-a/b**：等用户回答「系统对话框有没有弹出来」再决定走「前端渲染兜底」还是「dialog plugin 注册/capability 修复」。
+- 实际结果：已验证——CSS 改完；Rust smoke 返回 18 条与项目目录现状一致；`session/index.md` 加 Q22 行；`session/events.md` 本条。变更未 commit（等用户真机复测 CSS 效果 + 回 g/h/i 再决定后续）。
+- 下一步：用户真机复测代码浏览器看「预览栏」是否已经撑高；同时回 1 问——「选择文件夹」对话框有没有弹出来（g/h/i）；根据回答决定下一刀动哪里；CSS 改完一并 commit。
+
+### Q22 | 第2次处理（GUI 实测定案 + 三处修复 + 真机验证通过）
+- 问题或新增信息：用户重复原问题（信号=别再问了，直接修）。改变策略：不再等用户回 g/h/i，直接用 ZCode 桌面控制在用户运行中的 `tauri dev` 实例（pid 23019）上实测。
+- 本轮方案（实测诊断）：
+  - a11y 观察用户窗口：projectName=springbootDemo1 已设、刷新按钮在位（= IPC 校验调用成功、projectRoot 已赋值），但 [跳转输入框, 右侧提示] 之间**零树行**；点「刷新当前目录树」后依然零行（持久性，非偶发）。
+  - 判定实验（node + 项目自带 vue + jsdom，`/tmp/vue_map_vfor_test.cjs`）：`ref(new Map())` + `v-for="(entries, rel) in treeCache"`，`.set('', [3条])` 渲染 `(root):2`、`.set('src', [1条])` 渲染 `1:2` —— **Vue 3 v-for 遍历 Map 得到 `[key, value]` 对儿 + 数字下标**，rel 恒为数字 → `v-show="rel === ''"` 恒 false → 整棵树 display:none。改普通对象后同样模板正确渲染。主根因定案。
+  - 为什么一直没暴露：阶段①真机点验按用户指示跳过留档（PENDING 清单）；Playwright e2e 走 browserBridge 的 `chooseProjectDirectory` 恒 null，根本到不了这行模板；vitest 只测纯逻辑不挂组件。三道保障在这条路径上全是盲区。
+  - 第二根因（CSS）：`.content` 是为工具箱设计的两列网格 `minmax(300px,380px) 1fr`，`.code-browser` 是唯一漏写 `grid-column: 1 / -1` 的全宽视图（chat-view/workspace-view/people-chat-view 都有）→ 整个代码浏览器被压进第一列 300-380px。
+  - 第三根因（静默）：App.vue 报错 toast 只渲染在 `v-if="activeView === 'toolbox'"` 模板内，代码浏览器里 `notify()` 的任何错误用户不可见，放大主根因的「无声无息」。
+- 本轮方案（修复，纯前端三文件，Rust/IPC/bridge 零改动）：
+  - `CodeBrowserView.vue`：`treeCache` Map → `Record<string, CodeTreeEntry[]>`（has/set/delete/get → 下标判断 `!== undefined` / `[]=` / `delete` / `[] ?? []`），源头加注释说明 v-for-over-Map 的坑。
+  - `style.css`：`.code-browser` 补 `grid-column: 1 / -1`（对齐全宽视图惯例）；保留 Q22 第1轮的 `.cb-workspace` height/align-self 兜底。
+  - `App.vue`：toast 移出 toolbox-only 模板，全视图可见。
+- 实际结果：已验证——本地闸门 lint exit 0 + vitest 60/60 + vite build 成功；经 vite HMR 热更到用户运行中的 tauri dev（无重启），桌面控制实测：重开 springbootDemo1 → 根层树行出现（src/.DS_Store/.gitignore/.iml）→ 点 src 二级懒加载展开（Main.java/package-info.java）→ 文件预览行号+内容+操作按钮全在位；用户本人随后自行开 3 个 tab 并移动窗口（=真机可用确认）。文档：`docs/work/active/bugfix-2026-08-code-browser-tree-invisible/{change-note,verification}.md` + code-browser/changelog.md Q22 条目 + 本台账。
+- 下一步：变更未 commit（含 Q21 的 README 改动），等用户复核后一并提交；视觉截图通道受限（窗口曾部分在屏外 + 权限），布局宽度修复以 CSS 逻辑 + a11y 结构证据为准；v0.1.11 发版决策继续等用户定向。
+
+### Q23 | 第1次处理（树子级重复 ×2 + 最大化按钮对齐 mac 原生）
+- 问题或新增信息：用户真机反馈两件事：1) springbootDemoV1 展开 src 后 main / test 目录出现 2 次；2) 最大化按钮希望参考 mac 常见软件（移动与调整大小）。
+- 本轮方案：
+  - **Q23-1 根因**：Q22 修好可见性后暴露的模板结构缺陷——外层 `<template v-for="(entries, rel) in treeCache">` 遍历全部已缓存层级，每个展开过的目录都会被外层再渲染成一份顶级列表（与模板内手工嵌套重复）；旧模板写死三层（cb-sub/cb-sub2）。修复：新增 `visibleRows` computed 按 expanded 递归下钻 treeCache 生成 `{entry, depth}[]` 扁平列表，模板只渲染它（缩进 paddingLeft depth×14px），删三层嵌套；★收藏按钮统一到所有层级文件行；顺带解除「最多两层」旧限制（core 本就支持 8 层深度）。源码加注释防回退。
+  - **Q23-2**：绿点补回点击全屏切换（`toggleFullscreen`，isFullscreen 切换；发现现状 @click 无处理函数——app-shell changelog 早期「真正的全屏切换」记载与代码不符，应为悬停面板改造时回归丢失）；`applyWindowLayout` 加 quarter-tl/tr/bl/br 四角四分位（取代 four-grid=左上角单一入口），半屏文案对齐原生（移到屏幕左侧/右侧/上半部/下半部）；四角用文字按钮（Grid2X2 图标随四格排列移除）；`.window-layout-quarter` 11px。拒绝/后置：双击标题栏缩放、Option+zoom（与填充屏幕语义重复）记 plan.md。
+- 实际结果：已验证——用户中途关掉旧 tauri dev 又重启（新 pid 24401，直接带全部修改）。闸门 lint exit 0 + vitest 60/60 + build 成功；真机桌面控制实测：springbootDemoV1 根层 8 条正常 → 展开 src **main/test 各一次** → 展开 main 深度 3（java/resources）无重复；绿点点击进全屏（0,34,1710,1073）再点退出精确恢复 71,77,1200,780。文档：两个任务目录（bugfix-2026-08-code-browser-tree-duplicate：change-note+verification；enhancement-2026-08-window-layout-native：plan+verification）+ code-browser 与 app-shell changelog 各一条 + 本台账。
+- 下一步：变更未 commit（Q21 README + Q22 + Q23 攒了一批），等用户复核后一并提交；四角/三列逐项点验、全屏态菜单收敛挂 PENDING 真机清单；v0.1.11 发版继续等用户定向。
+
+### Q24 | 第1次处理（最近项目支持删除）
+- 问题或新增信息：用户提出「最近项目要支持删除」。全栈小功能：core + IPC + bridge + 前端。
+- 本轮方案：语义决策——删除最近项目连同其名下最近文件（同一"足迹"数据），收藏/书签保留（显式沉淀数据），不弹确认框（可再生数据，轻交互），不动磁盘文件。实现：core `remove_recent_project` + 单测；IPC `code_browser_recent_remove_project` + main.rs 注册 + mock runtime 自清理用例（open 临时项目→remove→幂等再删）；bridge.ts 接口/stub/invoke 三端；CodeBrowserView 最近行拆「打开 + × 删除」+ 成功 toast；style.css `.cb-recent-open/.cb-recent-remove`。
+- 意外发现与修复（测试基建）：
+  1. 新增第二个 IPC 用例后撞出竞态——同二进制两用例并行执行，都对真实用户层 `~/.elwright/code-browser.json` load→改→save，交错即丢更新（老用例书签断言先误报"二次切换未移除"又误报 len 3）。修：`USER_STORE_LOCK` 互斥锁串行化。
+  2. 老用例收藏/书签断言是绝对长度（假设用户层为空）——CI 全新 HOME 从未暴露，开发机必误报。修：改增量断言（before+N）。
+  3. 清理失败运行在用户层留下的测试垃圾：3 书签 + 6 收藏（全部指向已删除的 elwright-cb-* 临时目录；真实项目数据未动）。
+- 实际结果：已验证——闸门全绿：cargo 78 核心（含新单测）+ 各集成测试（含新 IPC 用例）、clippy -D warnings 0 警告、fmt、eslint、vitest 60/60、build。真机：tauri dev 自动重编 Rust 重启后，× 按钮出现；点删 springbootDemo1 → 行消失 + toast 在代码视图显示（顺带回归 Q22 toast 修复）+ store 持久化确认（项目与其最近文件同清）；系统目录选择器 → 打开项目全链路首次真机验证通过（面板弹出→选择→树渲染；键盘 Cmd+Shift+G 在本机 CU 环境被拒，app 无 bundle_id，精确跳转未走通，不影响真实用户）。被删的 springbootDemo1 最近记录已直接恢复到用户层。
+- 下一步：变更未 commit（Q21 README + Q22/Q23/Q24 四批攒着），等用户复核后一并提交；v0.1.11 发版继续等用户定向。
+
+### Q25 | 第1次处理（Q21-Q24 批次提交 + 进度文档同步）
+- 问题或新增信息：用户指示「看路线图，我们要做的事情，是不是可以提交代码了」。
+- 本轮方案：先核对状态（main 分支、全部闸门此前已绿、package-lock.json 仅有本机 npm 的 dev→devOptional 元数据噪音——还原不入库）；同步三处过期进度文档（README 当前状态 v0.1.5→v0.1.10 概览、AGENTS 当前进度 v0.1.7→指针化一句话、ROADMAP 未发版清单/进行中说明/里程碑补 Q21-Q24 批次）；分两批提交：①代码（src 4 文件 + src-tauri 4 文件）②文档与台账（README/AGENTS/ROADMAP + changelog×2 + architecture + 任务目录×4 + session），`.zcode/` 明确不入库；推送 main 后盯 CI。
+- 实际结果：两批提交落 main 并推送；CI 结果推送后确认。
+- 下一步：CI 如绿则等待用户决策 v0.1.11 发版（tag 后 release.yml 自动出 dmg/msi，需同步 install.ps1 ProductCode）；真机点验 PENDING 清单延续；V2 主干下一阶段（AI 对话长上下文/跨平台完善、人与消息会话②③、设置中心 i18n 基建、工作台后续）待用户定向。
