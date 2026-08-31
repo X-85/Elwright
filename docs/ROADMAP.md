@@ -19,13 +19,13 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 ## 当前版本
 
-v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
+v0.1.11（2026-08-31，tag `v0.1.11`，GitHub Release 附 dmg + msi）。
 
 - v0.1.7：修复资源收藏 IPC 恒失败（Resource.id 缺 serde(default)）+ 真协议回归。
 - v0.1.8：代码浏览器阶段①②（只读查看 + 轻量符号跳转，PR #2）。
 - v0.1.9：代码浏览器阶段③第一批（收藏/书签/发送到 AI，PR #3）。
 - v0.1.10：设置中心后续（常规/外观/终端本地偏好，PR #4）+ 代码浏览器阶段③第二批（转为 Todo + 终端定位）+ AI 对话阶段③用户确认式能力协作（PR #6）+ AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。
-- **未发版**（进 main 待下次发版）：代码浏览器阶段④ 受控补丁编辑（PR #10）+ 设置中心 模型档案（PR #11 ADR + PR #12 实施）+ 工程质量第三档 ESLint + coverage（PR #13 ADR + PR #14 实施）+ 真机点验修复批次（Q21 README 开发者入口 / Q22 树不可见 + 预览栏压窄 + 错误 toast 静默 / Q23 树重复渲染 + 绿点原生全屏与四角分屏 / Q24 最近项目支持删除）。
+- v0.1.11：代码浏览器阶段④ 受控补丁编辑（PR #10）+ 设置中心 模型档案（PR #11 ADR + PR #12 实施）+ 工程质量第三档 ESLint + coverage（PR #13 ADR + PR #14 实施）+ 真机点验修复批次（Q21 README 开发者入口 / Q22 树不可见 + 预览栏压窄 + 错误 toast 静默 / Q23 树重复渲染 + 绿点原生全屏与四角分屏 / Q24 最近项目支持删除）。
 
 ## 开发预览环境约束（本机 Windows / GNU-only）
 
@@ -40,7 +40,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 
 ## 进行中
 
-（无进行中——v0.1.10 已发版，main 攒下 Q18-Q20 与真机点验修复批次 Q21-Q24 均已并入；下一阶段待用户定向。归档说明：各任务目录随合并归档；真机点验项统一留档 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`，阶段①对话框链路已于 2026-08-31 真机补验通过。）
+（一项：**AI 对话阶段④余项「长上下文」**——`docs/work/active/feature-2026-08-chat-long-context/`，ADR-004 已定案「core 侧字符预算滑动窗口」，实施待开工；V2 剩余主干自本项起按本文件顺序推进。跨平台完善不单独立项，逐项走 PENDING 清单 + bugfix 目录。归档说明：各任务目录随合并归档；真机点验项统一留档 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`，阶段①对话框链路已于 2026-08-31 真机补验通过。）
 
 ## V1（短期，做完即发版）
 
@@ -99,6 +99,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 
 ## 已完成里程碑
 
+- 2026-08-31 v0.1.11 发版：携带代码浏览器阶段④（PR #10）+ 设置中心 模型档案（PR #11/12）+ 工程质量第三档（PR #13/14）+ 真机点验修复批次 Q21-Q24（README 开发者入口；代码浏览器树不可见/预览栏压窄/toast 静默三根因修复；树重复渲染扁平化任意深度；绿点点击全屏 + 四角四分位对齐 macOS 原生；最近项目逐条删除 + IPC 测试竞态锁与增量断言修复）。本地闸门全绿，ci.yml 7/7，release.yml 全绿出 dmg + msi，install.ps1 ProductCode 从 CI msi 制品提取同步（{7638490A-6BF2-4B6C-978A-9F67D7C1320A}）。同日 V2 主干重启立项：AI 对话阶段④余项长上下文（ADR-004 core 侧字符预算滑动窗口，待实施）。
 - 2026-08-31 真机点验修复批次（Q21-Q24，桌面 GUI 实测驱动）：Q21 README「快速开始」补真机启动桌面端命令（`tauri dev` 全链路）+ 当前状态/AGENTS 指针同步；Q22 代码浏览器三根因——treeCache 用 Map 致 v-for 遍历拿 `[key,value]` 对儿使 v-show 恒 false 整树不可见（改 Record）、`.code-browser` 漏 `grid-column: 1/-1` 被压进 300-380px 窄列、报错 toast 仅工具箱视图渲染致 IPC 失败全静默；Q23 Q22 修复后暴露的树重复渲染（外层 v-for 缓存 + 手工嵌套双份，改 visibleRows 扁平化任意深度）+ 绿点补回点击全屏切换 + 悬停菜单四角四分位对齐原生；Q24 最近项目支持逐条删除（core/IPC/bridge/前端全栈，收藏书签保留）+ 附带修 IPC 测试竞态锁与增量断言两个测试基建问题。系统目录选择器→打开项目全链路首次真机验证通过。本地闸门全绿（cargo 78+2、clippy 0 警告、fmt、eslint、vitest 60、build）。任务目录 ×4 在 docs/work/active/。
 - 2026-08-31 v0.1.10 发版：携带 4 个未发版功能——设置中心后续（PR #4）、代码浏览器阶段③第二批（续 PR #3）、AI 对话阶段③用户确认式能力协作（PR #6）、AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。本地五道闸全绿（cargo 62+1+6+4+1 + strict clippy 0 警告 + fmt + vitest 43 + build），CI release.yml 一次全绿（macOS dmg 2m18s + Windows msi 3m24s + Publish 11s）。
 - 2026-08-31 代码浏览器阶段③两批（PR #3 + 续）：第一批收藏文件/代码书签/发送到 AI（确认面板 + 对话预填）；第二批转为 Todo（位置标记跳回工作台）+ 终端定位（终端新 tab 打开文件目录）。期间 CI 揪出 save_recent 全新环境目录缺失问题。已随 v0.1.9 / v0.1.10 全部发版。

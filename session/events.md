@@ -434,3 +434,19 @@
 - 本轮方案：先核对状态（main 分支、全部闸门此前已绿、package-lock.json 仅有本机 npm 的 dev→devOptional 元数据噪音——还原不入库）；同步三处过期进度文档（README 当前状态 v0.1.5→v0.1.10 概览、AGENTS 当前进度 v0.1.7→指针化一句话、ROADMAP 未发版清单/进行中说明/里程碑补 Q21-Q24 批次）；分两批提交：①代码（src 4 文件 + src-tauri 4 文件）②文档与台账（README/AGENTS/ROADMAP + changelog×2 + architecture + 任务目录×4 + session），`.zcode/` 明确不入库；推送 main 后盯 CI。
 - 实际结果：两批提交落 main 并推送；CI 结果推送后确认。
 - 下一步：CI 如绿则等待用户决策 v0.1.11 发版（tag 后 release.yml 自动出 dmg/msi，需同步 install.ps1 ProductCode）；真机点验 PENDING 清单延续；V2 主干下一阶段（AI 对话长上下文/跨平台完善、人与消息会话②③、设置中心 i18n 基建、工作台后续）待用户定向。
+
+### Q26 | 第1次处理（发版 v0.1.11）
+- 问题或新增信息：用户指示「先发版，然后直接执行 V2 剩余主干」。
+- 本轮方案：按 v0.1.10 既有流程——①版本号四处同步（Cargo.toml / tauri.conf.json / package.json / package-lock.json，Cargo.lock 随 cargo build 更新）+ 本地闸门（cargo 78 + vite build）→ commit 6a22153 推 main；②等 ci.yml 7/7 全绿后下载 windows msi 制品，`file` 提取 Revision Number = {7638490A-6BF2-4B6C-978A-9F67D7C1320A}（AGENTS.md 记载的提取法），同步 install.ps1；③tag v0.1.11 打在含 ProductCode 的 commit 6583057 上，推 tag 触发 release.yml。
+- 实际结果：已验证——ci.yml 33414800623 7 job 全绿；release.yml 33415734722 全绿；`gh release view v0.1.11` 双资产在位（Elwright_0.1.11_aarch64.dmg + Elwright_0.1.11_x64_en-US.msi）。
+- 下一步：公司机真机装 msi 验证一键脚本幂等升级；ROADMAP/AGENTS/README 进度同步随 Q27 收口提交。
+
+### Q27 | 第1次处理（V2 剩余主干启动：AI 对话阶段④余项「长上下文」）
+- 问题或新增信息：按用户「直接执行 V2 剩余主干」+ ROADMAP 顺序（AI 对话排最前），余项为「长上下文」与「跨平台完善」。
+- 本轮方案：
+  - 摸清链路：`chat_completion`（commands.rs:240）与 `chat_completion_stream`（:887）均为 `system + 全量 history` 原样转发，无任何长度管理——本地会话永久保存（阶段②）后长会话必然超模型上下文或成本线性膨胀。
+  - **ADR-004 定案：core 侧字符预算滑动窗口**——新模块 `core::chat_context::fit_messages` 收口两命令；始终保留 system + 最新一条 user；其余从新到旧整条保留、放不下整条丢弃（不切半条）；最新 user 超预算时截中段留头尾并标注；默认 24000 字符，配置链新增可选 flat 字段 `contextBudgetChars`（serde default），profile 覆盖后置；静默裁剪。拒绝：LLM 摘要（离线红线/慢/贵）、本地 tokenizer（引依赖）、前端截断（破坏 core 收口）、UI 每轮提示。跨平台完善不进本 ADR，逐项走 PENDING 清单 + bugfix 目录。
+  - 立项：`docs/work/active/feature-2026-08-chat-long-context/plan.md`（含实施 checklist：core::chat_context + 单测≥5 / 两命令接入 / `ew config` 可见 / IPC mock 用例 / 文档回填 / 闸门）。
+  - ROADMAP「进行中」登记本项；ADR 内容在 Agent 最终回复中供用户低成本否决（沿用两阶段协议，但 ADR 不单独开 PR，随收口提交入库）。
+- 实际结果：ADR-004 与任务目录已入库（6583057）；ROADMAP「当前版本 v0.1.11 / 未发版清空 / 里程碑补发版条目 / 进行中登记」+ AGENTS 一句话现状 + README 当前状态同步完成（本提交）。
+- 下一步：用户对 ADR-004 无异议即开工实施（core::chat_context 模块 + 单测 → 两命令接入 → IPC 用例 → `ew config` 展示预算 → 文档回填 → 闸门全绿）；完成后按 ROADMAP 顺序继续「人与人消息会话②（轻量身份/邀请与一对一传输）」立项。
