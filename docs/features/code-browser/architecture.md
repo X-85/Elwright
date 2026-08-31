@@ -34,3 +34,25 @@ App.vue
 - `SymbolLocation`: 符号名称、种类、相对路径、行号和关系类型。
 
 项目和最近文件元数据写入用户配置层；代码内容只在当前页面状态中保留，除非用户显式保存工作记录。
+
+## 阶段④补丁链路（受控写入）
+
+```text
+ChatView.vue (助手消息内识别 ```diff 围栏)
+  └─ PatchPreviewDialog.vue (三栏预览 + 勾选拒绝 + 确认)
+       └─ Bridge.applyPatchPreview / applyPatchApply / applyPatchRevert / listPatchSnapshots
+            └─ Tauri IPC → core::patch
+                 ├─ parse_unified_diff: 多文件 + 多 hunk 解析，识别 --- / +++ / @@ 头
+                 ├─ apply_hunks_to_content: 按 hunk header(oldStart, oldCount) 切片，
+                 │    比对上下文行，错位/上下文不匹配返回 Err，调用方把它降到 warnings 并跳过
+                 ├─ is_sensitive_path: 黑名单 .env / .pem / .key / .ssh / .aws /
+                 │    node_modules / target / .git 任一命中直接拒绝
+                 ├─ sha256_hex: 用 sha2 计算当前内容指纹，存进 snapshot 便于回滚核对
+                 └─ snapshot_path: ~/.elwright/code-browser/applied-patches.json
+```
+
+- 前端 `src/lib/patch.ts` 的 `extractFirstDiff` 只负责识别 `\`\`\`diff` 围栏（粗筛，无路径校验 / 上下文校验），权威校验在后端 `core::patch`。
+- 预览阶段不写盘，`applyPatchApply` 才会触发写入；写入前把每个文件的原内容 + SHA-256 入快照。
+- 快照文件用 atomic write（写 tmp 再 rename），避免崩溃中间态。
+- 回滚按快照 id 找到 `preImages`，逐文件覆盖写回并核对 SHA-256。
+- 解析与上下文比对都在后端，前端只负责「勾选拒绝 / 三栏渲染」。

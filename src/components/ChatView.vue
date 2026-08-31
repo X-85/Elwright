@@ -4,6 +4,8 @@ import { MessageSquarePlus, Zap } from 'lucide-vue-next'
 import { renderChatMarkdown } from '../lib/safeMarkdown'
 import type { Bridge, Capability, ChatMessage, ChatSessionSummary, LlmConfigInfo } from '../lib/bridge'
 import { isCapabilityResult, parseProposalId, resultFeedbackMessage, splitCapabilityResult } from '../lib/chatProposal'
+import { extractFirstDiff } from '../lib/patch'
+import PatchPreviewDialog from './PatchPreviewDialog.vue'
 
 interface UiMessage {
   role: 'user' | 'assistant'
@@ -50,6 +52,29 @@ let requestSeq = 0
 let activeRequestId = 0
 // 前端会话 id 生成：时间戳+计数器，与后端格式一致
 let idCounter = 0
+
+// 代码浏览器阶段④：最近项目根 + 补丁对话框
+const recentProject = ref<string | null>(null)
+const patchDialog = ref<{ patchText: string } | null>(null)
+
+async function refreshRecentProject() {
+  try {
+    const r = await props.bridge.codeBrowserRecentLoad()
+    recentProject.value = r.projects?.[0]?.rootPath ?? null
+  } catch {
+    recentProject.value = null
+  }
+}
+
+onMounted(() => {
+  refreshRecentProject()
+})
+
+function openPatchDialog(content: string) {
+  const diff = extractFirstDiff(content)
+  if (!diff) return
+  patchDialog.value = { patchText: diff }
+}
 
 const LONG_INPUT_HINT = 20000
 
@@ -520,7 +545,16 @@ const render = renderChatMarkdown
               <p class="error">{{ m.content }}</p>
               <button class="retry-btn" :disabled="sending" @click="retry">↻ 重试</button>
             </div>
-            <div v-else class="markdown chat-md" v-html="render(m.content)"></div>
+            <div v-else>
+              <div class="markdown chat-md" v-html="render(m.content)"></div>
+              <button
+                v-if="recentProject && extractFirstDiff(m.content)"
+                class="patch-apply-btn"
+                @click="openPatchDialog(m.content)"
+              >
+                预览并应用到代码
+              </button>
+            </div>
           </template>
           <p v-else class="chat-user-text">{{ m.content }}</p>
         </div>
@@ -529,6 +563,14 @@ const render = renderChatMarkdown
           <button class="stop-btn" @click="stop">■ 停止</button>
         </div>
       </div>
+
+      <PatchPreviewDialog
+        v-if="patchDialog && recentProject"
+        :bridge="props.bridge"
+        :project-root="recentProject"
+        :patch-text="patchDialog.patchText"
+        @closed="patchDialog = null; refreshRecentProject()"
+      />
 
       <div class="chat-input-row">
         <textarea

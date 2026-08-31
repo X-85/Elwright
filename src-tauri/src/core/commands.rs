@@ -21,7 +21,7 @@ use tauri::{Manager, State};
 use super::chat_store;
 use super::code_browser;
 use super::workbench;
-use super::{executor, export, invoke, llm, registry, terminal, version, workspace};
+use super::{executor, export, invoke, llm, patch, registry, terminal, version, workspace};
 
 /// 桌面壳全局状态：setup 期填充，经 `.manage()` 注入，命令层只读。
 pub struct AppCtx {
@@ -723,6 +723,54 @@ pub fn code_browser_bookmarks_toggle(
     code_browser::toggle_bookmark(&mut store, &projectRoot, &rel, line, &label)?;
     code_browser::save_recent(&user, &store)?;
     Ok(store.bookmarks)
+}
+
+// ---- 代码浏览器阶段④：受控补丁编辑（ADR-001）----
+
+/// 解析 unified diff 文本并预览（不写文件）。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub fn apply_patch_preview(
+    projectRoot: String,
+    patchText: String,
+) -> Result<patch::PatchPreview, String> {
+    let root = project_root(&projectRoot)?;
+    let parsed = patch::parse_unified_diff(&patchText)?;
+    patch::build_preview(&root, &parsed)
+}
+
+/// 应用预览（写入文件 + 落快照）。`previews` 由前端三栏对话框逐 hunk 选择后回传。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub fn apply_patch_apply(
+    projectRoot: String,
+    previews: Vec<patch::PatchFilePreview>,
+) -> Result<patch::ApplyResult, String> {
+    let root = project_root(&projectRoot)?;
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    patch::apply_preview(&root, &previews, &user, &projectRoot)
+}
+
+/// 撤销一次已应用的补丁：按快照 ID 把原始内容写回。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub fn apply_patch_revert(
+    projectRoot: String,
+    snapshotId: String,
+) -> Result<patch::RevertResult, String> {
+    let root = project_root(&projectRoot)?;
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    patch::revert_snapshot_in(&root, &user, &snapshotId)
+}
+
+/// 加载当前项目的所有未撤销快照（UI 撤销列表用）。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub fn apply_patch_snapshots(projectRoot: String) -> Result<Vec<patch::PatchSnapshot>, String> {
+    let _ = project_root(&projectRoot)?;
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let path = patch::snapshot_path(&user)?;
+    Ok(patch::load_snapshots(&path).unwrap_or_default())
 }
 
 /// AI 对话系统提示：基础提示 + 能力清单（阶段③能力协作）。

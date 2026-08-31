@@ -43,3 +43,16 @@ core::llm（多轮 OpenAI-compatible 请求）
   （delta/done/error/cancelled）；`chat_cancel` 写取消表。
 - 全程无有效输出且未取消时回退非流式一次性返回（供应商兼容容错）。
 - ChatView 桌面走流式增量渲染（50ms 节流）；浏览器预览维持旧降级路径。
+
+## 阶段④补丁联动（与代码浏览器阶段④同源）
+
+- `src/lib/patch.ts::extractFirstDiff` 在助手消息里识别 `\`\`\`diff` 围栏，仅作粗筛。
+- `ChatView.vue` 在识别到合法 diff 且最近打开过项目时露出「预览并应用到代码」按钮；
+  点击打开 `PatchPreviewDialog`（三栏预览 + 逐文件拒绝 + 确认写入）。
+- 调用链路：`Bridge.applyPatchPreview` → IPC `apply_patch_preview` →
+  `core::patch::build_preview`（仅解析，不写盘）；
+  用户确认后 `Bridge.applyPatchApply` → `apply_patch_apply` →
+  `core::patch::apply_preview`（路径黑名单 + 上下文校验 + 写文件 + 入快照）；
+  回滚走 `apply_patch_revert` + `core::patch::revert_snapshot_in`。
+- 快照存 `~/.elwright/code-browser/applied-patches.json`（按 code-browser 阶段④决策归属代码浏览器）；UI 暴露快照 id 用于一键回滚。
+- 边界：聊天页本身不持有任何补丁状态，只把识别结果交给 PatchPreviewDialog；不在 ChatView 直接落盘。

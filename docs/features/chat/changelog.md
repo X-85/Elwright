@@ -7,6 +7,12 @@
 - 前端：`ChatView.vue` 改两栏布局——左侧会话侧栏（新建「＋」/切换/重命名 ✎ 或双击/删除 × 带 confirm），主区为原对话区；自动保存（用户发出与回复成功后），错误占位不入文件；标题默认取第一条用户消息（≤24 字符）；空会话不落盘。
 - `Bridge` 新增会话四方法（snake_case↔camelCase 映射）；浏览器预览 list→空、save/delete 静默忽略，不模拟持久化。
 
+## 2026-08-31（阶段③ 能力协作 + 阶段④ 流式/取消）
+
+- 阶段③ 能力协作（v0.1.10 PR #6）：`chat_propose_capability` IPC + `Bridge.chatProposeCapability`；`CapabilityProposal` / `CapabilityProposalResult` JSON；ChatView 收到 `\`\`\`json-proposal` 围栏后渲染「能力提议/调用确认卡片」，含运行参数输入、确认运行、错误回灌；执行链路复用 `core::invoke::invoke_capability`，未配置 LLM 也走离线 SOP。
+- 阶段④ 流式与请求级取消（v0.1.10 PR #8）：`chat_stream_start` / `chat_stream_event` / `chat_stream_cancel` 三个 IPC，事件通过 Tauri channel 流式推送 `chunk` / `done` / `error`；请求 id 由后端生成、取消按 id 命中；`core::llm` 暴露 `chat_messages_stream`，复用同一配置链与 system 提示词；前端 `ChatView.vue` 改为 SSE-style 增量渲染、停止按钮发送取消、错误/重试沿用阶段① 行为；Bridge 新增四方法（preview 模式抛明确降级）。
+- 阶段④ 补丁入口（v0.1.10 后随代码浏览器阶段④一同落地，PR 待开）：助手消息内识别 `\`\`\`diff` 围栏后露出「预览并应用到代码」按钮，调用 PatchPreviewDialog 三栏渲染；详见 `docs/features/code-browser/changelog.md` 阶段④条目。
+
 ## 2026-08-22（阶段① 对话基础实现）
 
 - core `llm.rs`：新增 `ChatMessage` 与 `LlmClient::chat_messages`（多轮）；原 `chat(system, user)` 改为其封装，invoke 路径行为不变。新增 `CHAT_SYSTEM_PROMPT` 常量。
