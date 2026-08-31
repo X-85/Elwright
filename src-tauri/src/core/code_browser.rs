@@ -642,8 +642,9 @@ pub fn load_recent(root: &Path) -> RecentStore {
         .unwrap_or_default()
 }
 
-/// 写用户配置层。
+/// 写用户配置层；目录不存在时自建（新机器首次使用也直接可用）。
 pub fn save_recent(root: &Path, store: &RecentStore) -> Result<(), String> {
+    fs::create_dir_all(root).map_err(|e| format!("创建用户配置目录失败: {e}"))?;
     let json = serde_json::to_string_pretty(store).map_err(|e| format!("序列化失败: {e}"))?;
     fs::write(root.join("code-browser.json"), json).map_err(|e| format!("写入失败: {e}"))
 }
@@ -848,16 +849,30 @@ mod tests {
     }
 
     #[test]
+    fn save_recent_creates_missing_dir() {
+        let root = temp_project().join("not-exist/nested");
+        assert!(!root.exists());
+        save_recent(&root, &RecentStore::default()).unwrap();
+        assert!(root.join("code-browser.json").is_file());
+        fs::remove_dir_all(root.ancestors().nth(2).unwrap()).ok();
+    }
+
+    #[test]
     fn favorite_and_bookmark_toggle_roundtrip() {
         let root = temp_project();
         let mut store = RecentStore::default();
         assert!(toggle_favorite(&mut store, "/proj", "src/A.java").unwrap());
-        assert!(!toggle_favorite(&mut store, "/proj", "src/A.java").unwrap(), "二次切换应移除");
+        assert!(
+            !toggle_favorite(&mut store, "/proj", "src/A.java").unwrap(),
+            "二次切换应移除"
+        );
         assert!(toggle_favorite(&mut store, "/proj", "src/A.java").unwrap());
 
         assert!(toggle_bookmark(&mut store, "/proj", "src/A.java", 10, "核心逻辑").unwrap());
         assert!(toggle_bookmark(&mut store, "/proj", "src/A.java", 20, "").unwrap());
-        assert!(!toggle_bookmark(&mut store, "/proj", "src/A.java", 10, "备注不同也按行去重").unwrap());
+        assert!(
+            !toggle_bookmark(&mut store, "/proj", "src/A.java", 10, "备注不同也按行去重").unwrap()
+        );
         assert_eq!(store.bookmarks.len(), 1);
         assert_eq!(store.bookmarks[0].line, 20);
 
