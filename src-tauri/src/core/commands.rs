@@ -614,6 +614,7 @@ fn project_root(root: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 pub fn code_browser_tree(
     projectRoot: String,
     rel: String,
@@ -622,6 +623,7 @@ pub fn code_browser_tree(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 pub fn code_browser_read(
     projectRoot: String,
     rel: String,
@@ -630,6 +632,7 @@ pub fn code_browser_read(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 pub fn code_browser_search(
     projectRoot: String,
     query: String,
@@ -639,6 +642,7 @@ pub fn code_browser_search(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 pub fn code_browser_scan_symbols(
     projectRoot: String,
 ) -> Result<Vec<code_browser::SymbolHit>, String> {
@@ -654,6 +658,7 @@ pub fn code_browser_recent_load() -> Result<code_browser::RecentStore, String> {
 
 /// 记录一次「打开项目 / 打开文件」，返回更新后的最近列表。
 #[tauri::command]
+#[allow(non_snake_case)]
 pub fn code_browser_recent_open(
     projectRoot: String,
     rel: String,
