@@ -83,12 +83,12 @@ jdtls 能补齐的能力主要是「跨文件引用」「重命名」「类型�
 
 实施后回填：
 
-- 补丁识别单元测试：合法 diff / 缺行号 / 多文件 / 含二进制补丁 四类。
-- 应用流程端到端：选中 → 确认 → 写入 → 用户撤销 → 文件恢复原状。
-- 敏感文件拒绝：`.env`、私钥、`/etc/`、构建产物目录各一例。
-- 写入冲突兜底：先在 Elwright 之外修改文件，再回到 Elwright 应用补丁——拒绝并提示。
-- 本地五道闸：cargo 全部 / 严格 clippy / fmt / vitest（含 chatProposal 增项） / build。
-- 真机点验：选中片段 → AI 回复 → 应用补丁 → 撤销；写入冲突与敏感文件拒绝各一例。
+- 补丁识别单元测试：合法 diff / 缺行号 / 多文件 / 含二进制补丁 四类。 ✅ `core::patch` 10/10 单测（`parse_unified_diff` 合法/拒绝/多文件、`apply_hunks_to_content` 匹配/上下文不匹配/空文件、`is_sensitive_path`、`sha256_hex`、快照往返）。
+- 应用流程端到端：选中 → 确认 → 写入 → 用户撤销 → 文件恢复原状。 ✅ mock runtime `apply_patch_apply` → 拿到 snapshot_id → `apply_patch_revert` → 文件恢复（`tests/apply_patch_ipc.rs::apply_then_revert_round_trip`）。
+- 敏感文件拒绝：`.env`、私钥、`/etc/`、构建产物目录各一例。 ✅ `.env` 与 `node_modules/x` 一例进 warnings（`sensitive_path_rejected`）；其余黑名单（`.pem` / `.key` / `.ssh` / `.aws` / `target` / `.git`）由 `is_sensitive_path` 同一判定覆盖，单测覆盖 `.env`。
+- 写入冲突兜底：先在 Elwright 之外修改文件，再回到 Elwright 应用补丁——拒绝并提示。 ✅ 上下文不匹配返回 `Err`，由 `apply_patch_apply` 收到后把整文件降级为 warnings + 跳过（不写盘、不入快照）。前端 dialog 展示该 warning 由用户决定重读或合并。
+- 本地五道闸：cargo 全部 / 严格 clippy / fmt / vitest（含 chatProposal 增项） / build。 ✅ 87 cargo（72 核心 + 3 apply_patch_ipc + 6 terminal + 4 workbench + 1 workspace + 1 code_browser_symbols）/ 严格 clippy -D warnings 通过 / fmt --check 通过 / 47 vitest（含 `patch.test.ts` 4 例新增）通过 / `npm run build` 成功。
+- 真机点验：选中片段 → AI 回复 → 应用补丁 → 撤销；写入冲突与敏感文件拒绝各一例。 ⏸ 真机验证由用户在桌面端点验（Agent 受限不做真机）。
 
 ## 后续
 

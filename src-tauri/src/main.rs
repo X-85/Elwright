@@ -86,6 +86,10 @@ fn main() {
             commands::code_browser_recent_open,
             commands::code_browser_favorites_toggle,
             commands::code_browser_bookmarks_toggle,
+            commands::apply_patch_preview,
+            commands::apply_patch_apply,
+            commands::apply_patch_revert,
+            commands::apply_patch_snapshots,
             commands::chat_completion_stream,
             commands::chat_cancel
         ])

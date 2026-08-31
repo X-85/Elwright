@@ -1567,7 +1567,8 @@ button.primary:disabled {
 }
 
 .stop-btn,
-.retry-btn {
+.retry-btn,
+.patch-apply-btn {
   border: 1px solid var(--border);
   background: var(--panel);
   border-radius: 6px;
@@ -1577,9 +1578,15 @@ button.primary:disabled {
 }
 
 .stop-btn:hover:not(:disabled),
-.retry-btn:hover:not(:disabled) {
+.retry-btn:hover:not(:disabled),
+.patch-apply-btn:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.patch-apply-btn {
+  margin-top: 8px;
+  display: inline-block;
 }
 
 .chat-error-box {

@@ -6,6 +6,7 @@ pub mod executor;
 pub mod export;
 pub mod invoke;
 pub mod llm;
+pub mod patch;
 pub mod registry;
 pub mod terminal;
 

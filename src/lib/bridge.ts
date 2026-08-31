@@ -284,6 +284,23 @@ export interface Bridge {
   /** 切换代码书签（同路径同行去重），返回更新后的书签列表。 */
   codeBrowserBookmarksToggle(projectRoot: string, rel: string, line: number, label: string): Promise<CodeBrowserRecent['bookmarks']>
   /**
+   * 解析 unified diff 并预览（不写文件）。warnings 含敏感路径拒收等提示。
+   */
+  applyPatchPreview(projectRoot: string, patchText: string): Promise<unknown>
+  /**
+   * 应用预览到项目内文件。previews 由前端三栏对话框逐 hunk 选择后回传。
+   * 返回 { applied, skipped, snapshot_id }。
+   */
+  applyPatchApply(projectRoot: string, previews: unknown[]): Promise<unknown>
+  /**
+   * 撤销一次已应用补丁：按快照 ID 写回原内容。
+   */
+  applyPatchRevert(projectRoot: string, snapshotId: string): Promise<unknown>
+  /**
+   * 列出当前项目所有未撤销快照（UI 撤销列表用）。
+   */
+  applyPatchSnapshots(projectRoot: string): Promise<unknown[]>
+  /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
    * - `write` 写入按键/命令
@@ -585,6 +602,22 @@ const browserBridge: Bridge = {
 
   async codeBrowserBookmarksToggle() {
     throw new Error('【预览模式】书签需桌面端持久化，请在桌面应用中使用。')
+  },
+
+  async applyPatchPreview() {
+    throw new Error('【预览模式】补丁预览需桌面端，请在桌面应用中使用。')
+  },
+
+  async applyPatchApply() {
+    throw new Error('【预览模式】补丁应用需桌面端，请在桌面应用中使用。')
+  },
+
+  async applyPatchRevert() {
+    throw new Error('【预览模式】补丁撤销需桌面端，请在桌面应用中使用。')
+  },
+
+  async applyPatchSnapshots() {
+    return []
   },
 
   async createWorkspaceResource(resource) {
@@ -936,6 +969,22 @@ const tauriBridge: Bridge = {
 
   codeBrowserBookmarksToggle(projectRoot, rel, line, label) {
     return tauriInvoke<CodeBrowserRecent['bookmarks']>('code_browser_bookmarks_toggle', { projectRoot, rel, line, label })
+  },
+
+  applyPatchPreview(projectRoot, patchText) {
+    return tauriInvoke<unknown>('apply_patch_preview', { projectRoot, patchText })
+  },
+
+  applyPatchApply(projectRoot, previews) {
+    return tauriInvoke<unknown>('apply_patch_apply', { projectRoot, previews })
+  },
+
+  applyPatchRevert(projectRoot, snapshotId) {
+    return tauriInvoke<unknown>('apply_patch_revert', { projectRoot, snapshotId })
+  },
+
+  applyPatchSnapshots(projectRoot) {
+    return tauriInvoke<unknown[]>('apply_patch_snapshots', { projectRoot })
   },
 
   createWorkspaceResource(resource) {
