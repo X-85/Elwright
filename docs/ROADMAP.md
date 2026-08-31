@@ -34,7 +34,8 @@ v0.1.7（2026-08-30，tag `v0.1.7`，GitHub Release 附 dmg + msi。v0.1.6 发�
 
 ## 进行中
 
-（暂无——工作台第一阶段与 PR #1 批次均已合并 main，见已完成里程碑；`docs/work/active/` 各任务目录归档待用户确认后执行。代码浏览器阶段①已立项分支 `codex/feature-2026-08-code-browser`，尚未开始编码。）
+- **代码浏览器阶段①**（`feature-2026-08-code-browser-phase1`）：本地项目只读查看——项目选择、目录树、代码查看、文件名/内容搜索、轻量符号跳转（接口→实现、JavaBean→类定义）、最近项目/文件持久化；只读 + 路径边界，不启动常驻语言服务。
+（归档说明：工作台第一阶段与 PR #1 批次均已合并 main，`docs/work/archive/` 已归 22 个目录；bugfix-2026-08-workspace-create-resource 待真机复验后归档。）
 
 ## V1（短期，做完即发版）
 

@@ -2010,3 +2010,278 @@ button.primary:disabled {
   .people-conversations { flex-basis: 190px; }
   .people-message { max-width: 88%; }
 }
+
+/* ---- 代码浏览器（feature-2026-08-code-browser-phase1）---- */
+
+.code-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.cb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cb-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cb-project {
+  font-weight: 700;
+}
+
+.cb-hint,
+.cb-muted {
+  color: var(--muted, var(--text));
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.cb-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cb-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.cb-recent-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cb-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.cb-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+}
+
+.cb-empty {
+  opacity: 0.65;
+}
+
+.cb-workspace {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.cb-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cb-search,
+.cb-jump {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cb-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cb-search-mode {
+  padding: 4px;
+}
+
+.cb-hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.cb-hit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  padding: 3px 4px;
+}
+
+.cb-snippet {
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cb-tree-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 120px;
+}
+
+.cb-dir {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cb-sub { padding-left: 14px; }
+.cb-sub2 { padding-left: 28px; }
+
+.cb-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  padding: 3px 4px;
+}
+
+.cb-row.cb-locked { opacity: 0.5; cursor: not-allowed; }
+
+.cb-indent { width: 13px; }
+
+.cb-tag {
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: auto;
+}
+
+.cb-recent-files {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+}
+
+.cb-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.cb-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cb-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+.cb-tab.active { background: var(--border); }
+
+.cb-tab-name {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.cb-tab-close {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 1px;
+}
+
+.cb-viewer-hint { font-size: 12px; }
+
+.cb-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  flex: 1;
+}
+
+.cb-doc-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.cb-notice {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.cb-code {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.cb-line {
+  display: flex;
+  gap: 10px;
+  white-space: pre;
+}
+
+.cb-lno {
+  width: 44px;
+  text-align: right;
+  opacity: 0.45;
+  user-select: none;
+  flex: none;
+}
+
+.cb-code-text { white-space: pre; }
+
+.tok-kw { color: #c678dd; }
+.tok-str { color: #98c379; }
+.tok-comment { color: #7f848e; font-style: italic; }

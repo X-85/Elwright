@@ -55,3 +55,10 @@ test('设置按钮可打开并关闭设置中心', async ({ page }) => {
   await settings.getByRole('button', { name: '关闭设置' }).click()
   await expect(settings).toBeHidden()
 })
+
+test('代码浏览器：浏览器预览拒绝访问本机目录（只读降级守卫）', async ({ page }) => {
+  await page.getByRole('button', { name: '代码浏览器' }).click()
+  await expect(page.getByRole('button', { name: '选择项目目录' })).toBeVisible()
+  await page.getByRole('button', { name: '选择项目目录' }).click()
+  await expect(page.getByText('【预览模式】浏览器无法访问本机目录', { exact: false })).toBeVisible()
+})

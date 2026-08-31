@@ -77,7 +77,13 @@ fn main() {
             commands::workspace_create_topic,
             commands::workspace_update_topic,
             commands::workspace_delete_topic,
-            commands::workspace_generate_report
+            commands::workspace_generate_report,
+            commands::code_browser_tree,
+            commands::code_browser_read,
+            commands::code_browser_search,
+            commands::code_browser_scan_symbols,
+            commands::code_browser_recent_load,
+            commands::code_browser_recent_open
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");

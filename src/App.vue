@@ -8,11 +8,13 @@ import SettingsCenter from './components/SettingsCenter.vue'
 import WorkbenchView from './components/WorkbenchView.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import WorkspaceView from './components/WorkspaceView.vue'
+import CodeBrowserView from './components/CodeBrowserView.vue'
 import { createBridge, type Bridge, type Capability } from './lib/bridge'
 import {
   Blocks,
   BookOpen,
   Columns3,
+  Code2,
   Grid2X2,
   ListTodo,
   Maximize2,
@@ -47,7 +49,7 @@ const capabilityUses = ref<Record<string, number>>(loadCapabilityUses())
 const showSettings = ref(false)
 const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('appearance')
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
-const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace'>('toolbox')
+const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code'>('toolbox')
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
 const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null)
@@ -334,6 +336,7 @@ async function startWindowDrag(event: MouseEvent) {
           <button :class="{ active: activeView === 'workbench' }" title="工作台" aria-label="工作台" @click="activeView = 'workbench'"><ListTodo :size="16" :stroke-width="1.8" /><span>工作台</span></button>
           <button :class="{ active: activeView === 'people' }" title="消息会话" aria-label="消息会话" @click="activeView = 'people'"><MessageCircle :size="16" :stroke-width="1.8" /><span>消息</span></button>
           <button :class="{ active: activeView === 'workspace' }" title="资源与课题" aria-label="资源与课题" @click="activeView = 'workspace'"><BookOpen :size="16" :stroke-width="1.8" /><span>课题</span></button>
+          <button :class="{ active: activeView === 'code' }" title="代码浏览器" aria-label="代码浏览器" @click="activeView = 'code'"><Code2 :size="16" :stroke-width="1.8" /><span>代码</span></button>
         </nav>
 
         <template v-if="activeView === 'toolbox'">
@@ -367,6 +370,7 @@ async function startWindowDrag(event: MouseEvent) {
         <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" />
         <PeopleChatView v-else-if="activeView === 'people'" />
         <WorkspaceView v-else-if="activeView === 'workspace'" :bridge="bridge" :capabilities="capabilities" @notify="notify" />
+        <CodeBrowserView v-else-if="activeView === 'code'" :bridge="bridge" @notify="notify" />
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>

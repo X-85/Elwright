@@ -30,7 +30,14 @@ fn request(cmd: &str, body: serde_json::Value) -> InvokeRequest {
         cmd: cmd.into(),
         callback: tauri::ipc::CallbackFn(0),
         error: tauri::ipc::CallbackFn(1),
-        url: "tauri://localhost".parse().unwrap(),
+        // Windows 下 Tauri IPC origin 是 http://tauri.localhost（与 terminal_ipc.rs 同源处理）
+        url: if cfg!(any(windows, target_os = "android")) {
+            "http://tauri.localhost"
+        } else {
+            "tauri://localhost"
+        }
+        .parse()
+        .unwrap(),
         body: body.into(),
         headers: Default::default(),
         invoke_key: INVOKE_KEY.to_string(),
