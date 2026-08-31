@@ -85,7 +85,9 @@ fn main() {
             commands::code_browser_recent_load,
             commands::code_browser_recent_open,
             commands::code_browser_favorites_toggle,
-            commands::code_browser_bookmarks_toggle
+            commands::code_browser_bookmarks_toggle,
+            commands::chat_completion_stream,
+            commands::chat_cancel
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");

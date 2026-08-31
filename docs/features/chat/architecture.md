@@ -35,3 +35,11 @@ core::llm（多轮 OpenAI-compatible 请求）
 - 标记协议在 `lib/chatProposal.ts`（提议/调用解析、结果识别、回灌截断），
   ChatView 据此把对应消息渲染为确认卡片 / 结果块。
 - 执行复用 `run_script` / `view_doc` / `invoke_skill` 既有 IPC；无新增命令。
+
+## 阶段④：流式输出与请求级取消（2026-08-31，ADR-003）
+
+- `LlmClient::chat_messages_streaming`：blocking Read 逐块读 SSE（手写 data: 行解析），
+  每块检查取消表；`chat_completion_stream` 经 Tauri Channel 推 JSON 事件
+  （delta/done/error/cancelled）；`chat_cancel` 写取消表。
+- 全程无有效输出且未取消时回退非流式一次性返回（供应商兼容容错）。
+- ChatView 桌面走流式增量渲染（50ms 节流）；浏览器预览维持旧降级路径。
