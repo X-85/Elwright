@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import type { Bridge, LlmConfigInfo } from '../lib/bridge'
+import { computed, onMounted, ref } from 'vue'
+import type { Bridge, LlmConfigInfo, LlmProfileMeta } from '../lib/bridge'
+import { validateProfileName as validateProfileNameShared } from '../lib/profileName'
 
 const props = withDefaults(defineProps<{ bridge: Bridge; embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -21,6 +22,26 @@ const testOk = ref(false)
 const saveMsg = ref('')
 const saveOk = ref(false)
 
+// Q19 模型档案
+const profiles = ref<LlmProfileMeta[]>([])
+const activeProfile = ref<string | null>(null)
+const profileLoadError = ref('')
+const profileActionBusy = ref(false)
+const profileActionMsg = ref('')
+const profileActionOk = ref(true)
+// 新建档案对话框
+const showAddProfile = ref(false)
+const newProfileName = ref('')
+const newProfileNameError = ref('')
+
+// "__flat__" 哨兵表示当前未走档案（用 flat 字段）
+const SELECT_FLAT = '__flat__'
+const selectedProfile = ref<string>(SELECT_FLAT)
+const activeIsFlat = computed(() => selectedProfile.value === SELECT_FLAT)
+const currentProfileName = computed(() =>
+  activeIsFlat.value ? null : selectedProfile.value,
+)
+
 function fillForm(v: LlmConfigInfo) {
   baseUrl.value = v.baseUrl
   model.value = v.model
@@ -32,6 +53,20 @@ function onApiKeyInput() {
   apiKeyTouched.value = true
 }
 
+async function loadProfiles() {
+  profileLoadError.value = ''
+  try {
+    profiles.value = await props.bridge.listLlmProfiles()
+    activeProfile.value = await props.bridge.getActiveLlmProfile()
+    selectedProfile.value = activeProfile.value ?? SELECT_FLAT
+  } catch (e) {
+    profileLoadError.value = e instanceof Error ? e.message : String(e)
+    profiles.value = []
+    activeProfile.value = null
+    selectedProfile.value = SELECT_FLAT
+  }
+}
+
 onMounted(async () => {
   try {
     info.value = await props.bridge.getLlmConfig()
@@ -39,6 +74,7 @@ onMounted(async () => {
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e)
   }
+  await loadProfiles()
 })
 
 async function onTest() {
@@ -86,6 +122,124 @@ async function onSave() {
     saving.value = false
   }
 }
+
+// Q19 档案切换：保存当前表单为 flat → 调用 setActive → 重新拉生效配置 + 档案列表
+async function onProfileSwitch() {
+  if (profileActionBusy.value) return
+  profileActionBusy.value = true
+  profileActionMsg.value = ''
+  try {
+    // 先把当前字段值保存到用户层（flat 字段同步更新，再切换激活）
+    if (
+      baseUrl.value.trim() ||
+      model.value.trim() ||
+      (apiKeyTouched.value && apiKey.value)
+    ) {
+      info.value = await props.bridge.setLlmConfig(
+        baseUrl.value.trim(),
+        apiKeyTouched.value ? apiKey.value.trim() : null,
+        model.value.trim(),
+      )
+      fillForm(info.value)
+    }
+    if (!activeIsFlat.value) {
+      await props.bridge.setActiveLlmProfile(currentProfileName.value!)
+      profileActionMsg.value = `已切换到档案：${currentProfileName.value}`
+    } else {
+      // 切回 flat：保存空 active 即可（后端提供 set_active 校验 name 存在；
+      // 此处 UI 不允许切回 flat 时单独调 set_active，统一由下次 save profile 时维护）
+      profileActionMsg.value = '当前使用 flat 字段（未指定档案）'
+    }
+    profileActionOk.value = true
+    await loadProfiles()
+  } catch (e) {
+    profileActionMsg.value = e instanceof Error ? e.message : String(e)
+    profileActionOk.value = false
+  } finally {
+    profileActionBusy.value = false
+  }
+}
+
+function validateProfileName(name: string): string {
+  return validateProfileNameShared(
+    name,
+    profiles.value.map((p) => p.name),
+  )
+}
+
+function openAddProfile() {
+  newProfileName.value = ''
+  newProfileNameError.value = ''
+  showAddProfile.value = true
+}
+
+async function onConfirmAddProfile() {
+  const err = validateProfileName(newProfileName.value)
+  if (err) {
+    newProfileNameError.value = err
+    return
+  }
+  profileActionBusy.value = true
+  profileActionMsg.value = ''
+  try {
+    // 先把当前字段同步到用户层
+    if (
+      baseUrl.value.trim() ||
+      model.value.trim() ||
+      (apiKeyTouched.value && apiKey.value)
+    ) {
+      info.value = await props.bridge.setLlmConfig(
+        baseUrl.value.trim(),
+        apiKeyTouched.value ? apiKey.value.trim() : null,
+        model.value.trim(),
+      )
+      fillForm(info.value)
+    }
+    await props.bridge.saveLlmProfile({
+      name: newProfileName.value.trim().toLowerCase(),
+      baseUrl: baseUrl.value.trim(),
+      apiKey: apiKeyTouched.value ? apiKey.value.trim() : '',
+      model: model.value.trim(),
+    })
+    profileActionMsg.value = `已新建档案：${newProfileName.value.trim().toLowerCase()}`
+    profileActionOk.value = true
+    showAddProfile.value = false
+    await loadProfiles()
+    // 自动选中新档案
+    selectedProfile.value = newProfileName.value.trim().toLowerCase()
+  } catch (e) {
+    profileActionMsg.value = e instanceof Error ? e.message : String(e)
+    profileActionOk.value = false
+  } finally {
+    profileActionBusy.value = false
+  }
+}
+
+function cancelAddProfile() {
+  showAddProfile.value = false
+  newProfileNameError.value = ''
+}
+
+async function onDeleteProfile(name: string) {
+  if (profileActionBusy.value) return
+  if (!confirm(`确认删除档案 "${name}"？${activeProfile.value === name ? '\n当前正在使用，将自动回退 flat 字段。' : ''}`)) {
+    return
+  }
+  profileActionBusy.value = true
+  profileActionMsg.value = ''
+  try {
+    await props.bridge.deleteLlmProfile(name)
+    profileActionMsg.value = `已删除档案：${name}`
+    profileActionOk.value = true
+    if (selectedProfile.value === name) selectedProfile.value = SELECT_FLAT
+    await loadProfiles()
+  } catch (e) {
+    profileActionMsg.value = e instanceof Error ? e.message : String(e)
+    profileActionOk.value = false
+  } finally {
+    profileActionBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -104,6 +258,20 @@ async function onSave() {
             <code>{{ info?.userConfigPath ?? '~/.elwright/config.json' }}</code
             >，桌面应用与 CLI（ew config）共用。
           </p>
+
+          <!-- Q19 模型档案 -->
+          <div class="profile-bar">
+            <label class="profile-select-wrap">
+              <span>档案</span>
+              <select v-model="selectedProfile" :disabled="profileActionBusy" @change="onProfileSwitch">
+                <option :value="SELECT_FLAT">（flat 字段，未指定档案）</option>
+                <option v-for="p in profiles" :key="p.name" :value="p.name">
+                  {{ p.active ? '★ ' : '  ' }}{{ p.name }}
+                </option>
+              </select>
+            </label>
+            <button class="profile-add-btn" :disabled="profileActionBusy" @click="openAddProfile">+ 新建档案</button>
+          </div>
 
           <label class="llm-field">
             <span>base_url <em v-if="info?.source[0]" class="src">来源：{{ info.source[0] }}</em></span>
@@ -130,6 +298,47 @@ async function onSave() {
 
           <p v-if="testMsg" :class="testOk ? 'op-ok-inline' : 'error'">{{ testMsg }}</p>
           <p v-if="saveMsg" :class="saveOk ? 'op-ok-inline' : 'error'">{{ saveMsg }}</p>
+          <p v-if="profileActionMsg" :class="profileActionOk ? 'op-ok-inline' : 'error'">{{ profileActionMsg }}</p>
+          <p v-if="profileLoadError" class="error">{{ profileLoadError }}</p>
+
+          <!-- 已存在的档案清单（含删除按钮） -->
+          <details v-if="profiles.length > 0" class="profile-list">
+            <summary>已配置档案（{{ profiles.length }}）</summary>
+            <ul>
+              <li v-for="p in profiles" :key="p.name">
+                <span :class="{ 'profile-active': p.active }">
+                  {{ p.active ? '★ ' : '   ' }}{{ p.name }}
+                </span>
+                <button
+                  class="profile-del-btn"
+                  :disabled="profileActionBusy"
+                  @click="onDeleteProfile(p.name)"
+                >
+                  删除
+                </button>
+              </li>
+            </ul>
+          </details>
+
+          <!-- 新建档案小弹窗（嵌入设置中心时直接渲染，不叠 modal-mask） -->
+          <div v-if="showAddProfile" class="add-profile-modal" @click.self="cancelAddProfile">
+            <div class="add-profile-card">
+              <h4>新建档案</h4>
+              <p class="hint">档案名将作为本次表单值（base_url / api_key / model）的命名副本保存。仅小写字母/数字/-/_，长度 1-32。</p>
+              <input
+                v-model="newProfileName"
+                class="search"
+                placeholder="如 local-ollama / work / default"
+                @keydown.enter.prevent="onConfirmAddProfile"
+                @keydown.escape.prevent="cancelAddProfile"
+              />
+              <p v-if="newProfileNameError" class="error">{{ newProfileNameError }}</p>
+              <div class="add-profile-actions">
+                <button :disabled="profileActionBusy" @click="cancelAddProfile">取消</button>
+                <button class="primary" :disabled="profileActionBusy" @click="onConfirmAddProfile">保存档案</button>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
     </div>

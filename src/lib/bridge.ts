@@ -60,6 +60,21 @@ export interface LlmConfigInfo {
   userConfigPath?: string
 }
 
+/** 命名模型档案元信息（设置中心 模型设置下拉用） */
+export interface LlmProfileMeta {
+  name: string
+  active: boolean
+  source: 'user' | string
+}
+
+/** 前端写入/编辑档案用的完整结构（不含 active 状态） */
+export interface LlmProfileInput {
+  name: string
+  baseUrl: string
+  apiKey: string
+  model: string
+}
+
 /** 多轮对话消息（前端只传 user/assistant；system 由 Rust 侧固定前置） */
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -221,6 +236,16 @@ export interface Bridge {
   setLlmConfig(baseUrl: string, apiKey: string | null, model: string): Promise<LlmConfigInfo>
   /** 用表单当前值测试连接（未保存也可测）。 */
   testLlmConnection(baseUrl: string, apiKey: string, model: string): Promise<string>
+  /** 列出全部命名档案（Q19 模型设置下拉用）。 */
+  listLlmProfiles(): Promise<LlmProfileMeta[]>
+  /** 当前激活的档案名；null = 走 flat 字段。 */
+  getActiveLlmProfile(): Promise<string | null>
+  /** 切换激活档案（不存在时拒绝）。 */
+  setActiveLlmProfile(name: string): Promise<void>
+  /** 新建/覆盖档案（name 校验由后端负责）。 */
+  saveLlmProfile(profile: LlmProfileInput): Promise<void>
+  /** 删除档案（若当前激活则自动回退 flat）。 */
+  deleteLlmProfile(name: string): Promise<void>
   /**
    * 多轮 AI 对话（非流式）：发送 user/assistant 历史，返回 assistant 回复。
    * system 提示词由后端固定前置；未配置/请求失败抛中文错误（对话无降级 SOP）。
@@ -415,6 +440,23 @@ const browserBridge: Bridge = {
 
   async setLlmConfig() {
     throw new Error('【预览模式】浏览器无法写入用户配置。\n真实配置请用桌面应用的「模型设置」或 CLI：ew config set')
+  },
+
+  // Q19 模型档案（预览模式全部抛明确降级）
+  async listLlmProfiles() {
+    throw new Error('【预览模式】浏览器无法读取模型档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile list')
+  },
+  async getActiveLlmProfile() {
+    throw new Error('【预览模式】浏览器无法读取激活档案。\n真实操作请用桌面应用的「模型设置」')
+  },
+  async setActiveLlmProfile() {
+    throw new Error('【预览模式】浏览器无法切换档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile use <name>')
+  },
+  async saveLlmProfile() {
+    throw new Error('【预览模式】浏览器无法保存档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile add')
+  },
+  async deleteLlmProfile() {
+    throw new Error('【预览模式】浏览器无法删除档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile remove')
   },  async testLlmConnection(_baseUrl: string, _apiKey: string, _model: string) {
     // 连接测试本质是普通 HTTP POST，浏览器可直接发（CORS 由端点决定）
     const res = await fetch(`${_baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -829,6 +871,36 @@ const tauriBridge: Bridge = {
 
   async testLlmConnection(baseUrl, apiKey, model) {
     return tauriInvoke<string>('test_llm_connection', { baseUrl, apiKey, model })
+  },
+
+  // Q19 模型档案
+  async listLlmProfiles() {
+    const raw = await tauriInvoke<Array<Record<string, unknown>>>('llm_list_profiles')
+    return raw.map((r) => ({
+      name: String(r.name ?? ''),
+      active: Boolean(r.active),
+      source: String(r.source ?? 'user'),
+    }))
+  },
+  async getActiveLlmProfile() {
+    const raw = await tauriInvoke<string | null>('llm_get_active_profile')
+    return raw ?? null
+  },
+  async setActiveLlmProfile(name) {
+    await tauriInvoke<void>('llm_set_active_profile', { name })
+  },
+  async saveLlmProfile(profile) {
+    await tauriInvoke<void>('llm_save_profile', {
+      profile: {
+        name: profile.name,
+        base_url: profile.baseUrl,
+        api_key: profile.apiKey,
+        model: profile.model,
+      },
+    })
+  },
+  async deleteLlmProfile(name) {
+    await tauriInvoke<void>('llm_delete_profile', { name })
   },
 
   async chat(messages) {

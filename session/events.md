@@ -333,3 +333,9 @@
   - **文档回填**：code-browser behavior/architecture/changelog + ADR-001 verification；chat README/behavior/architecture/changelog 阶段③④ + 补丁入口补齐（v0.1.10 时漏的同步）。
 - 实际结果：已验证——PR #10 squash 入 main，main HEAD 90bc346；分支 feat/code-browser-phase4-patches 自动删除。
 - 下一步：真机点验待用户（选中 → AI 回复 → 应用补丁 → 撤销 + 敏感路径拒绝 + 写入冲突兜底）；Q18 收口。下一步推荐按既定顺序推进"设置中心模型档案 → 工程质量第三档"，等用户定向。
+
+### Q19 | 第1次处理（设置中心 模型档案 ADR）
+- 问题或新增信息：按用户"按顺序执行"=先设置中心模型档案，再工程质量第三档；本轮先 ADR-001「评估决策」再实施（沿用 Q18 的"先 ADR 再实施"协议）。
+- 本轮方案（ADR 阶段）：决策=引入 `profiles: Map<name, LlmProfile>` + `activeProfile: string`，**与既有 flat 字段共存兼容**——`~/.elwright/config.json` 加两个可选字段，旧配置不动；解析顺序 env > 项目 flat > 步骤 3a activeProfile 命中 → profile / 步骤 3b 否则回退 flat > 注册表默认。范围：profile CRUD + 激活切换 + UI 下拉 + `ew config profile list/use/show/add/remove/rename`；拒绝：完全替换 flat / profile 共享继承 / OS keychain 加密（独立 ADR）。任务目录 `docs/work/active/feature-2026-08-settings-center-model-profiles/{plan,checklist,verification}.md`。
+- 实际结果：已验证——ADR PR #11 合并（65a13cb），CI 7/7 全绿；分支 feat/settings-center-model-profiles-adr 自动删除。
+- 下一步：开实施 PR——core::llm profile 解析 + ConfigLayers::merged step 3 升级 + 5 单测；CLI `ew config profile` 6 子命令；5 IPC（list/get_active/set_active/save/delete）+ main.rs 注册 + mock runtime 5 例；前端 Bridge 5 方法 + LlmSettings.vue 档案下拉/新建 + vitest ≥4；文档回填 + ROADMAP 标记；本地五道闸 + PR + CI 7/7 + 合并 + Q19 实施段收口。

@@ -25,7 +25,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 - v0.1.8：代码浏览器阶段①②（只读查看 + 轻量符号跳转，PR #2）。
 - v0.1.9：代码浏览器阶段③第一批（收藏/书签/发送到 AI，PR #3）。
 - v0.1.10：设置中心后续（常规/外观/终端本地偏好，PR #4）+ 代码浏览器阶段③第二批（转为 Todo + 终端定位）+ AI 对话阶段③用户确认式能力协作（PR #6）+ AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。
-- **未发版**（进 main 待下次发版）：无。
+- **未发版**（进 main 待下次发版）：代码浏览器阶段④ 受控补丁编辑（ADR-001，PR #10）+ 设置中心 模型档案（ADR-001-model-profiles，PR #11+实施 PR 待开）。
 
 ## 开发预览环境约束（本机 Windows / GNU-only）
 
@@ -40,7 +40,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 
 ## 进行中
 
-（无进行中——v0.1.10 已发版，main 攒下四个功能均已进包；下一阶段待用户定向。归档说明：各任务目录随合并归档；真机点验项统一留档 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`，按用户指示挂起。）
+- **Q19 设置中心：模型档案 实施**（`docs/work/active/feature-2026-08-settings-center-model-profiles/`）：ADR 已合（PR #11），实施进行中——core::llm profile CRUD + activeProfile + flat 兼容 + 5 单测、CLI `ew config profile` 6 子命令、5 IPC + main.rs 注册 + mock runtime 5 例、前端 Bridge 5 方法 + LlmSettings.vue 档案下拉/新建/清单删除 + vitest 4 例。下一步等 PR 开 + CI 7/7 + 合并 + 台账收口。
 
 ## V1（短期，做完即发版）
 
@@ -67,7 +67,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 - **AI 对话**：分四阶段实现——①多轮对话页面与基础状态；②本地会话管理；③用户确认式能力协作；④流式输出、取消、长上下文和跨平台完善。模型不配置或不可达时保持明确降级提示，能力执行继续复用现有 core。
 - **代码浏览器**：作为研发代码上下文入口，排在 AI 对话阶段③之后；分阶段交付：①本地项目只读查看与轻量符号跳转（接口→实现、JavaBean 类型→类定义）；②项目关系索引与 Todo/书签/流程图联动；③再评估 Java Language Server 和受控补丁编辑。默认不启动高内存后台索引服务。
 - **人与人消息会话**：分三阶段实现——~~①客户端本地消息会话~~（**已完成，2026-08-30 随 PR #1 进 main**）；②轻量身份/邀请与一对一消息传输；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
-- **设置中心后续阶段**：~~第一阶段（常规/外观/模型分组 + 三态主题）~~、~~常规启动视图/更新策略、外观密度/缩放、终端字体/字号/滚动历史~~（2026-08-31 已交付进 main）；余下模型档案（多套 LLM 配置切换）与界面语言（待 i18n 基建），均以本地优先、少而明确为准入标准。
+- **设置中心后续阶段**：~~第一阶段（常规/外观/模型分组 + 三态主题）~~、~~常规启动视图/更新策略、外观密度/缩放、终端字体/字号/滚动历史~~（2026-08-31 已交付进 main）、~~模型档案（多套 LLM 配置切换）~~（**Q19 已交付**：profiles + activeProfile 与 flat 字段共存兼容；CLI `ew config profile` 子命令；5 IPC；前端 LlmSettings.vue 档案下拉 + 新建）；余下界面语言（待 i18n 基建），均以本地优先、少而明确为准入标准。
 - **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；~~今日记录~~（2026-08-25 调整：与 Todo 一并提前进第一阶段）、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。第一阶段（Todo + 今日记录，`feature-2026-08-workbench-phase1`）已并入 main（2026-08-30）。
 - **能力渐进式发布**：~~MVP（成熟度档位、默认核心视图、全部能力开关、本地使用计数）~~已随 PR #1 进 main；后续增加透明的解锁规则、成长提示；社区提案/审核/签名能力包另行排期。
 - ~~**会话问题台账基准技能**~~ **已完成（2026-08-30 随 PR #1 进 main）**：内置 `session-ledger` 能力 + 离线 SOP；Codex Skill 负责可写工作区的自动维护。
@@ -102,6 +102,8 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 - 2026-08-31 v0.1.10 发版：携带 4 个未发版功能——设置中心后续（PR #4）、代码浏览器阶段③第二批（续 PR #3）、AI 对话阶段③用户确认式能力协作（PR #6）、AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。本地五道闸全绿（cargo 62+1+6+4+1 + strict clippy 0 警告 + fmt + vitest 43 + build），CI release.yml 一次全绿（macOS dmg 2m18s + Windows msi 3m24s + Publish 11s）。
 - 2026-08-31 代码浏览器阶段③两批（PR #3 + 续）：第一批收藏文件/代码书签/发送到 AI（确认面板 + 对话预填）；第二批转为 Todo（位置标记跳回工作台）+ 终端定位（终端新 tab 打开文件目录）。期间 CI 揪出 save_recent 全新环境目录缺失问题。已随 v0.1.9 / v0.1.10 全部发版。
 - 2026-08-31 设置中心后续（PR #4）：常规（启动视图/自动检查更新；语言置灰待 i18n）、外观（密度/缩放）、终端（字体/字号/滚动历史，主题保持联动）；lib/preferences.ts 逐字段校验。模型档案留后续批次。
+- 2026-08-31 代码浏览器阶段④（PR #10，ADR-001 落地）：受控补丁编辑——core::patch（parse/apply/sensitive/sha256/preview/apply/revert + 快照持久化，10 单测）、IPC 4 + mock runtime 3 例（env_lock 串行化）、前端 lib/patch.ts + PatchPreviewDialog 三栏 + ChatView diff 围栏识别入口 + Bridge 4 方法 + patch.test.ts 4 例；路径黑名单（.env/.pem/.key/.ssh/.aws/node_modules/target/.git）；上下文不匹配 → 整文件 warnings 跳过不写盘不入快照。本地五道闸全绿（cargo 87 + strict clippy + fmt + vitest 47 + build），CI 7/7 一次过。
+- 2026-08-31 设置中心 模型档案（PR #11 ADR + 实施 PR 进行中）：profiles + activeProfile 与既有 flat 字段共存兼容；core::llm 5 单测 + CLI `ew config profile list|use|show|add|remove|rename` 6 子命令 + 5 IPC + main.rs 注册 + mock runtime 5 例 + Bridge 5 方法 + LlmSettings.vue 档案下拉/新建/清单删除 + vitest 4 例。本地五道闸全绿（cargo 97 + strict clippy + fmt + vitest 51 + build）。
 - 2026-08-31 v0.1.8 发版：携带代码浏览器阶段①②。
 
 - 2026-08-31 代码浏览器阶段①（含轻量符号跳转，PR #2）：本地项目只读查看——项目选择、懒加载目录树、escape-first 轻量高亮、文件名/内容搜索、接口→实现与 JavaBean→类定义多候选跳转、最近项目/文件持久化；敏感文件拒读与路径边界在 core 收口。测试：core 8 + IPC 1 + vitest 5 + e2e 1，全量闸门全绿。真机点验按用户指示跳过留档。任务目录已归档。

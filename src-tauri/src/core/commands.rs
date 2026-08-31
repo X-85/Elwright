@@ -773,6 +773,66 @@ pub fn apply_patch_snapshots(projectRoot: String) -> Result<Vec<patch::PatchSnap
     Ok(patch::load_snapshots(&path).unwrap_or_default())
 }
 
+// ----- Q19 设置中心：模型档案（多套 LLM 配置切换） -----
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProfileMetaDto {
+    pub name: String,
+    pub active: bool,
+    pub source: &'static str,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct LlmProfileDto {
+    pub name: String,
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+impl From<LlmProfileDto> for llm::LlmProfile {
+    fn from(v: LlmProfileDto) -> Self {
+        Self {
+            name: v.name,
+            base_url: v.base_url,
+            api_key: v.api_key,
+            model: v.model,
+        }
+    }
+}
+
+#[tauri::command]
+pub fn llm_list_profiles() -> Vec<ProfileMetaDto> {
+    llm::list_profiles()
+        .into_iter()
+        .map(|m| ProfileMetaDto {
+            name: m.name,
+            active: m.active,
+            source: m.source,
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub fn llm_get_active_profile() -> Option<String> {
+    llm::active_profile_name()
+}
+
+#[tauri::command]
+pub fn llm_set_active_profile(name: String) -> Result<(), String> {
+    llm::set_active_profile(&name)
+}
+
+#[tauri::command]
+pub fn llm_save_profile(profile: LlmProfileDto) -> Result<(), String> {
+    llm::save_profile(profile.into())
+}
+
+#[tauri::command]
+pub fn llm_delete_profile(name: String) -> Result<(), String> {
+    llm::delete_profile(&name)
+}
+
 /// AI 对话系统提示：基础提示 + 能力清单（阶段③能力协作）。
 /// 模型只能提议（固定格式），执行永远在用户确认后由前端走既有 run/view/invoke 路径。
 fn chat_system_prompt(caps: &[registry::Capability]) -> String {
