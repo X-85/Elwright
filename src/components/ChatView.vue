@@ -193,7 +193,13 @@ onMounted(async () => {
     newSession()
   }
 })
-defineExpose({ refreshConfig })
+function insertContext(title: string, text: string) {
+  input.value = input.value ? input.value + '\n\n' : ''
+  input.value += `【代码上下文】${title}\n\`\`\`\n${text}\n\`\`\`
+`
+}
+
+defineExpose({ refreshConfig, insertContext })
 
 function historyForRequest(): ChatMessage[] {
   return messages.value.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.content }))

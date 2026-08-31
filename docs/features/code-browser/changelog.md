@@ -11,3 +11,9 @@
 - 将接口到实现类、JavaBean 类型到类定义纳入近期阶段。
 - 采用按需扫描的轻量符号索引，避免第一阶段引入常驻高内存 Java Language Server。
 - Java Language Server 和完整语义导航后置评估。
+
+## 2026-08-31 · 阶段③第一批（研发上下文联动）
+
+- 收藏文件、代码书签（行级，面板跳回）、发送到 AI（确认面板 + 对话预填）。
+- 存储：code-browser.json 扩 favorites / bookmarks；新增两条切换 IPC。
+- Todo 联动、终端定位、流程图关联留第二批（流程图依赖工程图 MVP）。

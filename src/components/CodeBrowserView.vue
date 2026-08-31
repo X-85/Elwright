@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { ChevronDown, ChevronRight, Code2, Copy, FileText, Folder, FolderOpen, RefreshCw, Search, X } from 'lucide-vue-next'
+import { Bookmark, ChevronDown, ChevronRight, Code2, Copy, FileText, Folder, FolderOpen, RefreshCw, Search, Star, X } from 'lucide-vue-next'
 import type { Bridge, CodeBrowserRecent, CodeDocument, CodeSearchHit, CodeSymbolHit, CodeTreeEntry } from '../lib/bridge'
 import { highlightCode } from '../lib/codeHighlight'
 
 const props = defineProps<{ bridge: Bridge }>()
-const emit = defineEmits<{ (e: 'notify', msg: string, ok: boolean): void }>()
+const emit = defineEmits<{
+  (e: 'notify', msg: string, ok: boolean): void
+  (e: 'send-to-ai', payload: { title: string; text: string }): void
+}>()
 
 const projectRoot = ref('')
 const projectName = ref('')
 const treeCache = ref(new Map<string, CodeTreeEntry[]>())
 const expanded = ref(new Set<string>())
 const recentProjects = ref<CodeBrowserRecent['projects']>([])
+const favorites = ref<CodeBrowserRecent['favorites']>([])
+const bookmarks = ref<CodeBrowserRecent['bookmarks']>([])
 const recentFiles = ref<CodeBrowserRecent['files']>([])
 
 const previewNotice = ref('')
@@ -46,6 +51,8 @@ async function refreshRecent() {
     const r = await props.bridge.codeBrowserRecentLoad()
     recentProjects.value = r.projects
     recentFiles.value = r.files
+    favorites.value = r.favorites
+    bookmarks.value = r.bookmarks
   } catch { /* 最近列表读取失败不阻塞主流程 */ }
 }
 refreshRecent()
@@ -79,6 +86,8 @@ async function openProject(root: string, rel = '') {
     const r = await props.bridge.codeBrowserRecentOpen(root, rel)
     recentProjects.value = r.projects
     recentFiles.value = r.files
+    favorites.value = r.favorites
+    bookmarks.value = r.bookmarks
   } catch (e) {
     notify(String(e), false)
   }
@@ -183,6 +192,69 @@ async function doJump() {
   await ensureSymbols()
 }
 
+const isFavorite = (rel: string) => favorites.value.some((f) => f.path === rel && f.projectRoot === projectRoot.value)
+const favoriteOf = (rel: string) => favorites.value.find((f) => f.path === rel && f.projectRoot === projectRoot.value)
+const projectBookmarks = computed(() => bookmarks.value.filter((b) => b.projectRoot === projectRoot.value))
+const bookmarkLines = computed(() => new Set(projectBookmarks.value.filter((b) => b.path === activePath.value).map((b) => b.line)))
+
+async function toggleFavorite(rel: string) {
+  try {
+    favorites.value = await props.bridge.codeBrowserFavoritesToggle(projectRoot.value, rel)
+    notify(isFavorite(rel) ? '已收藏' : '已取消收藏', true)
+  } catch (e) {
+    notify(String(e), false)
+  }
+}
+
+async function toggleBookmark(line: number) {
+  const doc = activeTab.value?.doc
+  if (!doc) return
+  const label = (doc.content.split('\n')[line - 1] ?? '').trim().slice(0, 40)
+  try {
+    bookmarks.value = await props.bridge.codeBrowserBookmarksToggle(projectRoot.value, doc.path, line, label)
+  } catch (e) {
+    notify(String(e), false)
+  }
+}
+
+// ---- 发送到 AI：先确认（路径/范围/摘要），再交给 App 切到对话页预填 ----
+const aiConfirm = ref<{ title: string; path: string; range: string; text: string } | null>(null)
+
+const selectedCodeText = computed(() => {
+  const sel = window.getSelection()
+  if (!sel || sel.isCollapsed) return ''
+  const text = sel.toString()
+  // 只接受代码区内的选区
+  const anchor = sel.anchorNode
+  if (!anchor || !(anchor instanceof Element) ) {
+    const parent = anchor?.parentElement
+    return parent?.closest('.cb-code') ? text : ''
+  }
+  return (anchor as Element).closest('.cb-code') ? text : ''
+})
+
+function requestSendToAi() {
+  const doc = activeTab.value?.doc
+  if (!doc) return
+  if (doc.sensitive) {
+    notify('敏感文件不发送给 AI。', false)
+    return
+  }
+  const selected = selectedCodeText.value
+  const text = selected && selected.trim() ? selected : doc.content
+  const capped = text.length > 8000 ? text.slice(0, 8000) + '\n…（超长截断）' : text
+  const range = selected && selected.trim()
+    ? `选中片段（${selected.split('\n').length} 行）`
+    : `整个文件（${doc.content.split('\n').length} 行）`
+  aiConfirm.value = { title: doc.path, path: doc.path, range, text: capped }
+}
+
+function confirmSendToAi() {
+  if (!aiConfirm.value) return
+  emit('send-to-ai', { title: aiConfirm.value.path, text: aiConfirm.value.text })
+  aiConfirm.value = null
+}
+
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -266,6 +338,7 @@ defineExpose({ openProject })
                 <button v-else class="cb-row" :class="{ 'cb-locked': !e.readable }" @click="onTreeFileClick(e)">
                   <span class="cb-indent"></span><FileText :size="14" /> {{ e.name }}
                   <span v-if="e.sensitive" class="cb-tag">敏感</span>
+                  <span class="cb-fav" :class="{ on: isFavorite(e.path) }" role="button" :aria-label="(isFavorite(e.path) ? '取消收藏 ' : '收藏 ') + e.name" @click.stop="toggleFavorite(e.path)">★</span>
                 </button>
                 <template v-if="e.kind === 'dir' && expanded.has(e.path)">
                   <ul class="cb-dir cb-sub">
@@ -299,6 +372,16 @@ defineExpose({ openProject })
           </template>
         </div>
 
+        <div v-if="favorites.length || projectBookmarks.length" class="cb-marks">
+          <div class="cb-panel-title">收藏与书签（当前项目）</div>
+          <button v-for="f in favorites.filter((x) => x.projectRoot === projectRoot)" :key="'f-' + f.path" class="cb-hit" @click="openRel(f.path)">
+            <Star :size="13" /> {{ f.path }}
+          </button>
+          <button v-for="b in projectBookmarks" :key="'b-' + b.path + b.line" class="cb-hit" :title="b.label" @click="openRel(b.path, b.line)">
+            <Bookmark :size="13" /> {{ b.path }}:{{ b.line }} <span class="cb-muted">{{ b.label }}</span>
+          </button>
+        </div>
+
         <div v-if="recentFiles.length" class="cb-recent-files">
           <div class="cb-panel-title">最近文件</div>
           <button v-for="f in recentFiles.slice(0, 8)" :key="f.projectRoot + f.path" class="cb-hit" :title="f.projectRoot" @click="openProject(f.projectRoot, f.path).then(() => openRel(f.path))">
@@ -320,12 +403,22 @@ defineExpose({ openProject })
           <div class="cb-doc-bar">
             <code>{{ activeTab.doc.path }}</code>
             <span class="cb-muted">{{ activeTab.doc.language }} · {{ activeTab.doc.size }} B</span>
+            <button class="cb-icon-btn" :title="isFavorite(activeTab.doc.path) ? '取消收藏' : '收藏文件'" :class="{ 'cb-fav-on': isFavorite(activeTab.doc.path) }" @click="toggleFavorite(activeTab.doc.path)"><Star :size="13" /></button>
             <button class="cb-icon-btn" title="复制文件路径" @click="copyText(projectRoot + '/' + activeTab.doc.path)"><Copy :size="13" /></button>
+            <button class="cb-send-ai" @click="requestSendToAi">发送到 AI</button>
           </div>
           <p v-if="activeTab.doc.notice" class="cb-notice">{{ activeTab.doc.notice }}</p>
+          <div v-if="aiConfirm" class="cb-ai-confirm" role="dialog" aria-label="确认发送到 AI">
+            <div>将发送到 AI 对话：<code>{{ aiConfirm.path }}</code></div>
+            <div class="cb-muted">范围：{{ aiConfirm.range }} · {{ aiConfirm.text.length }} 字符。内容只会进入对话输入框，发送前可再编辑。</div>
+            <div class="cb-ai-actions">
+              <button class="cb-send-ai" @click="confirmSendToAi">确认并切换到对话</button>
+              <button class="cb-icon-btn" @click="aiConfirm = null">取消</button>
+            </div>
+          </div>
           <div v-if="!activeTab.doc.sensitive && !activeTab.doc.truncated" class="cb-code">
-            <div v-for="l in activeLines" :id="'ln-' + l.no" :key="l.no" class="cb-line">
-              <span class="cb-lno">{{ l.no }}</span>
+            <div v-for="l in activeLines" :id="'ln-' + l.no" :key="l.no" :class="['cb-line', { 'cb-marked': bookmarkLines.has(l.no) }]">
+              <span class="cb-lno" :title="bookmarkLines.has(l.no) ? '点击移除书签' : '点击添加书签'" @click="toggleBookmark(l.no)">{{ l.no }}</span>
               <!-- 内容已先整体 HTML 转义再着色（lib/codeHighlight），与 ADR-002 同源思路 -->
               <span class="cb-code-text" v-html="l.html"></span>
             </div>

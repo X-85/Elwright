@@ -173,10 +173,12 @@ export interface CodeSymbolHit {
   declaration: string
 }
 
-/** 最近项目 / 最近文件持久化结构。 */
+/** 最近项目 / 最近文件 / 收藏 / 书签持久化结构。 */
 export interface CodeBrowserRecent {
   projects: { name: string; rootPath: string; lastOpenedAt: number }[]
   files: { projectRoot: string; path: string; lastOpenedAt: number }[]
+  favorites: { projectRoot: string; path: string }[]
+  bookmarks: { projectRoot: string; path: string; line: number; label: string }[]
 }
 
 /**
@@ -269,6 +271,10 @@ export interface Bridge {
   codeBrowserRecentLoad(): Promise<CodeBrowserRecent>
   /** 记录一次打开（项目 / 项目+文件），返回更新后的最近列表。 */
   codeBrowserRecentOpen(projectRoot: string, rel: string): Promise<CodeBrowserRecent>
+  /** 切换收藏文件，返回更新后的收藏列表。 */
+  codeBrowserFavoritesToggle(projectRoot: string, rel: string): Promise<CodeBrowserRecent['favorites']>
+  /** 切换代码书签（同路径同行去重），返回更新后的书签列表。 */
+  codeBrowserBookmarksToggle(projectRoot: string, rel: string, line: number, label: string): Promise<CodeBrowserRecent['bookmarks']>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -554,7 +560,15 @@ const browserBridge: Bridge = {
 
   async codeBrowserRecentOpen() {
     // 浏览器端不落盘，返回空记录，不伪造持久化。
-    return { projects: [], files: [] }
+    return { projects: [], files: [], favorites: [], bookmarks: [] }
+  },
+
+  async codeBrowserFavoritesToggle() {
+    throw new Error('【预览模式】收藏需桌面端持久化，请在桌面应用中使用。')
+  },
+
+  async codeBrowserBookmarksToggle() {
+    throw new Error('【预览模式】书签需桌面端持久化，请在桌面应用中使用。')
   },
 
   async createWorkspaceResource(resource) {
@@ -882,6 +896,14 @@ const tauriBridge: Bridge = {
 
   codeBrowserRecentOpen(projectRoot, rel) {
     return tauriInvoke<CodeBrowserRecent>('code_browser_recent_open', { projectRoot, rel })
+  },
+
+  codeBrowserFavoritesToggle(projectRoot, rel) {
+    return tauriInvoke<CodeBrowserRecent['favorites']>('code_browser_favorites_toggle', { projectRoot, rel })
+  },
+
+  codeBrowserBookmarksToggle(projectRoot, rel, line, label) {
+    return tauriInvoke<CodeBrowserRecent['bookmarks']>('code_browser_bookmarks_toggle', { projectRoot, rel, line, label })
   },
 
   createWorkspaceResource(resource) {

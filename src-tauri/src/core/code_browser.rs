@@ -567,6 +567,34 @@ pub struct RecentStore {
     pub projects: Vec<RecentProject>,
     #[serde(default, rename = "files")]
     pub files: Vec<RecentFile>,
+    /// 收藏文件（阶段③）：按项目根记录。
+    #[serde(default, rename = "favorites")]
+    pub favorites: Vec<Favorite>,
+    /// 代码书签（阶段③）：项目根 + 相对路径 + 行号。
+    #[serde(default, rename = "bookmarks")]
+    pub bookmarks: Vec<Bookmark>,
+}
+
+pub const MAX_FAVORITES: usize = 100;
+pub const MAX_BOOKMARKS: usize = 200;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Favorite {
+    #[serde(rename = "projectRoot")]
+    pub project_root: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Bookmark {
+    #[serde(rename = "projectRoot")]
+    pub project_root: String,
+    pub path: String,
+    /// 1 起行号。
+    pub line: u32,
+    /// 可选备注（如书签名）。
+    #[serde(default)]
+    pub label: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -618,6 +646,59 @@ pub fn load_recent(root: &Path) -> RecentStore {
 pub fn save_recent(root: &Path, store: &RecentStore) -> Result<(), String> {
     let json = serde_json::to_string_pretty(store).map_err(|e| format!("序列化失败: {e}"))?;
     fs::write(root.join("code-browser.json"), json).map_err(|e| format!("写入失败: {e}"))
+}
+
+/// 切换收藏：存在则移除（返回 false），不存在则追加（返回 true）。
+/// 同一文件全项目共享一条收藏记录；上限 MAX_FAVORITES。
+pub fn toggle_favorite(
+    store: &mut RecentStore,
+    project_root: &str,
+    path: &str,
+) -> Result<bool, String> {
+    if let Some(pos) = store
+        .favorites
+        .iter()
+        .position(|f| f.project_root == project_root && f.path == path)
+    {
+        store.favorites.remove(pos);
+        return Ok(false);
+    }
+    if store.favorites.len() >= MAX_FAVORITES {
+        return Err(format!("收藏数已达上限 {}", MAX_FAVORITES));
+    }
+    store.favorites.push(Favorite {
+        project_root: project_root.into(),
+        path: path.into(),
+    });
+    Ok(true)
+}
+
+/// 切换书签：同项目同路径同行存在则移除（返回 false），否则追加（返回 true）。
+pub fn toggle_bookmark(
+    store: &mut RecentStore,
+    project_root: &str,
+    path: &str,
+    line: u32,
+    label: &str,
+) -> Result<bool, String> {
+    if let Some(pos) = store
+        .bookmarks
+        .iter()
+        .position(|b| b.project_root == project_root && b.path == path && b.line == line)
+    {
+        store.bookmarks.remove(pos);
+        return Ok(false);
+    }
+    if store.bookmarks.len() >= MAX_BOOKMARKS {
+        return Err(format!("书签数已达上限 {}", MAX_BOOKMARKS));
+    }
+    store.bookmarks.push(Bookmark {
+        project_root: project_root.into(),
+        path: path.into(),
+        line,
+        label: label.into(),
+    });
+    Ok(true)
 }
 
 // ---- 单元测试 ----
@@ -763,6 +844,27 @@ mod tests {
             "方法调用不应算声明: {methods:?}"
         );
         assert!(!methods.contains(&"while"), "{methods:?}");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn favorite_and_bookmark_toggle_roundtrip() {
+        let root = temp_project();
+        let mut store = RecentStore::default();
+        assert!(toggle_favorite(&mut store, "/proj", "src/A.java").unwrap());
+        assert!(!toggle_favorite(&mut store, "/proj", "src/A.java").unwrap(), "二次切换应移除");
+        assert!(toggle_favorite(&mut store, "/proj", "src/A.java").unwrap());
+
+        assert!(toggle_bookmark(&mut store, "/proj", "src/A.java", 10, "核心逻辑").unwrap());
+        assert!(toggle_bookmark(&mut store, "/proj", "src/A.java", 20, "").unwrap());
+        assert!(!toggle_bookmark(&mut store, "/proj", "src/A.java", 10, "备注不同也按行去重").unwrap());
+        assert_eq!(store.bookmarks.len(), 1);
+        assert_eq!(store.bookmarks[0].line, 20);
+
+        save_recent(&root, &store).unwrap();
+        let loaded = load_recent(&root);
+        assert_eq!(loaded.favorites.len(), 1);
+        assert_eq!(loaded.bookmarks[0].label, "");
         fs::remove_dir_all(&root).ok();
     }
 
