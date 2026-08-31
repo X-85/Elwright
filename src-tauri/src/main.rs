@@ -84,6 +84,7 @@ fn main() {
             commands::code_browser_scan_symbols,
             commands::code_browser_recent_load,
             commands::code_browser_recent_open,
+            commands::code_browser_recent_remove_project,
             commands::code_browser_favorites_toggle,
             commands::code_browser_bookmarks_toggle,
             commands::apply_patch_preview,

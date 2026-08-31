@@ -15,7 +15,6 @@ import {
   BookOpen,
   Columns3,
   Code2,
-  Grid2X2,
   ListTodo,
   Maximize2,
   MessageCircle,
@@ -233,7 +232,7 @@ async function minimizeWindow() {
 }
 
 async function applyWindowLayout(
-  layout: 'fullscreen' | 'left' | 'right' | 'top' | 'bottom' | 'fill' | 'three-column' | 'four-grid' | 'restore',
+  layout: 'fullscreen' | 'left' | 'right' | 'top' | 'bottom' | 'fill' | 'three-column' | 'quarter-tl' | 'quarter-tr' | 'quarter-bl' | 'quarter-br' | 'restore',
 ) {
   if (!appWindow) return
   try {
@@ -281,7 +280,20 @@ async function applyWindowLayout(
           height = workHeight - halfHeight
         } else if (layout === 'three-column') {
           width = Math.floor(workWidth / 3)
-        } else if (layout === 'four-grid') {
+        } else if (layout === 'quarter-tl') {
+          width = halfWidth
+          height = halfHeight
+        } else if (layout === 'quarter-tr') {
+          x = workX + halfWidth
+          width = halfWidth
+          height = halfHeight
+        } else if (layout === 'quarter-bl') {
+          y = workY + halfHeight
+          width = halfWidth
+          height = halfHeight
+        } else if (layout === 'quarter-br') {
+          x = workX + halfWidth
+          y = workY + halfHeight
           width = halfWidth
           height = halfHeight
         }
@@ -308,6 +320,21 @@ async function startWindowDrag(event: MouseEvent) {
     console.warn('[window] start dragging failed:', error)
   }
 }
+
+/** 原生绿点行为：点击切换全屏；macOS 退出全屏自动恢复原尺寸，无需手动 restore。 */
+async function toggleFullscreen() {
+  if (!appWindow) return
+  try {
+    if (await appWindow.isFullscreen()) {
+      await appWindow.setFullscreen(false)
+    } else {
+      await appWindow.setFullscreen(true)
+    }
+    windowLayoutMenuOpen.value = false
+  } catch (error) {
+    console.warn('[window] fullscreen toggle failed:', error)
+  }
+}
 </script>
 
 <template>
@@ -322,27 +349,29 @@ async function startWindowDrag(event: MouseEvent) {
             @mouseenter="bridge.kind === 'tauri' && (windowLayoutMenuOpen = true)"
             @mouseleave="windowLayoutMenuOpen = false"
           >
-            <button class="window-button maximize" :disabled="bridge.kind !== 'tauri'" title="窗口布局" aria-label="窗口布局" @mousedown.stop @click.stop><span class="window-dot"></span></button>
+            <button class="window-button maximize" :disabled="bridge.kind !== 'tauri'" title="全屏（悬停显示移动与调整大小）" aria-label="全屏" @mousedown.stop @click.stop="toggleFullscreen"><span class="window-dot"></span></button>
             <div v-if="windowLayoutMenuOpen" class="window-layout-menu" @mousedown.stop @click.stop>
               <section class="window-layout-section">
                 <h3>移动与调整大小</h3>
                 <div class="window-layout-options">
-                  <button title="左半屏" aria-label="左半屏" @click="applyWindowLayout('left')"><PanelLeft :size="18" /></button>
-                  <button title="右半屏" aria-label="右半屏" @click="applyWindowLayout('right')"><PanelRight :size="18" /></button>
-                  <button title="上半屏" aria-label="上半屏" @click="applyWindowLayout('top')"><PanelTop :size="18" /></button>
-                  <button title="下半屏" aria-label="下半屏" @click="applyWindowLayout('bottom')"><PanelBottom :size="18" /></button>
+                  <button title="移到屏幕左侧" aria-label="移到屏幕左侧" @click="applyWindowLayout('left')"><PanelLeft :size="18" /></button>
+                  <button title="移到屏幕右侧" aria-label="移到屏幕右侧" @click="applyWindowLayout('right')"><PanelRight :size="18" /></button>
+                  <button title="移到屏幕上半部" aria-label="移到屏幕上半部" @click="applyWindowLayout('top')"><PanelTop :size="18" /></button>
+                  <button title="移到屏幕下半部" aria-label="移到屏幕下半部" @click="applyWindowLayout('bottom')"><PanelBottom :size="18" /></button>
                 </div>
               </section>
               <section class="window-layout-section">
                 <h3>填充与排列</h3>
                 <div class="window-layout-options">
+                  <button class="window-layout-quarter" title="填充屏幕左上角" aria-label="填充屏幕左上角" @click="applyWindowLayout('quarter-tl')">左上</button>
+                  <button class="window-layout-quarter" title="填充屏幕右上角" aria-label="填充屏幕右上角" @click="applyWindowLayout('quarter-tr')">右上</button>
+                  <button class="window-layout-quarter" title="填充屏幕左下角" aria-label="填充屏幕左下角" @click="applyWindowLayout('quarter-bl')">左下</button>
+                  <button class="window-layout-quarter" title="填充屏幕右下角" aria-label="填充屏幕右下角" @click="applyWindowLayout('quarter-br')">右下</button>
                   <button title="填充屏幕" aria-label="填充屏幕" @click="applyWindowLayout('fill')"><Maximize2 :size="18" /></button>
-                  <button title="左侧填充" aria-label="左侧填充" @click="applyWindowLayout('left')"><PanelLeft :size="18" /></button>
                   <button title="三列排列" aria-label="三列排列" @click="applyWindowLayout('three-column')"><Columns3 :size="18" /></button>
-                  <button title="四格排列" aria-label="四格排列" @click="applyWindowLayout('four-grid')"><Grid2X2 :size="18" /></button>
                 </div>
               </section>
-              <button class="window-layout-fullscreen" title="全屏" aria-label="全屏" @click="applyWindowLayout('fullscreen')">
+              <button class="window-layout-fullscreen" title="进入或退出全屏" aria-label="进入或退出全屏" @click="toggleFullscreen">
                 <Maximize2 :size="16" />
                 <span>全屏</span>
               </button>
@@ -383,9 +412,12 @@ async function startWindowDrag(event: MouseEvent) {
             <button class="growth-toggle" :class="{ active: revealAllCapabilities }" @click="toggleRevealAll">{{ revealAllCapabilities ? '仅显示核心能力' : '查看全部能力' }}</button>
             <p v-if="lockedCount" class="growth-hint">{{ lockedCount }} 项进阶能力待解锁；解锁规则和使用记录仅保存在本机。</p>
             <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
-            <transition name="fade"><p v-if="opMsg" :class="['op-toast', opOk ? 'op-ok' : 'op-err']">{{ opMsg }}</p></transition>
           </div>
         </template>
+
+        <!-- 报错/操作反馈 toast：必须放 toolbox 模板外，否则其他视图（代码浏览器等）的
+             IPC 失败会完全静默（Q22 教训） -->
+        <transition name="fade"><p v-if="opMsg" :class="['op-toast', opOk ? 'op-ok' : 'op-err']">{{ opMsg }}</p></transition>
 
         <div class="sidebar-foot">
           <div class="update-box">

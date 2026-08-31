@@ -634,6 +634,18 @@ pub fn push_recent_file(store: &mut RecentStore, file: RecentFile) {
     store.files.truncate(MAX_RECENT_FILES);
 }
 
+/// 移除一条最近项目记录，并顺带清掉该项目名下的最近文件。
+/// 收藏与书签是用户显式沉淀的数据，不随最近列表删除；返回是否发生移除。
+pub fn remove_recent_project(store: &mut RecentStore, root_path: &str) -> bool {
+    let before = store.projects.len();
+    store.projects.retain(|p| p.root_path != root_path);
+    let removed = store.projects.len() != before;
+    if removed {
+        store.files.retain(|f| f.project_root != root_path);
+    }
+    removed
+}
+
 /// 从用户配置层读取；不存在 / 损坏时返回默认。
 pub fn load_recent(root: &Path) -> RecentStore {
     fs::read_to_string(root.join("code-browser.json"))
@@ -923,5 +935,76 @@ mod tests {
         let loaded = load_recent(&root);
         assert_eq!(loaded.projects.len(), MAX_RECENT_PROJECTS);
         fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn remove_recent_project_drops_project_and_its_files_only() {
+        let mut store = RecentStore::default();
+        push_recent_project(
+            &mut store,
+            RecentProject {
+                name: "a".into(),
+                root_path: "/a".into(),
+                last_opened_at: 1,
+            },
+        );
+        push_recent_project(
+            &mut store,
+            RecentProject {
+                name: "b".into(),
+                root_path: "/b".into(),
+                last_opened_at: 2,
+            },
+        );
+        push_recent_file(
+            &mut store,
+            RecentFile {
+                project_root: "/a".into(),
+                path: "src/A.java".into(),
+                last_opened_at: 1,
+            },
+        );
+        push_recent_file(
+            &mut store,
+            RecentFile {
+                project_root: "/b".into(),
+                path: "src/B.java".into(),
+                last_opened_at: 2,
+            },
+        );
+        store.favorites.push(Favorite {
+            project_root: "/a".into(),
+            path: "src/A.java".into(),
+        });
+        store.bookmarks.push(Bookmark {
+            project_root: "/a".into(),
+            path: "src/A.java".into(),
+            line: 3,
+            label: "保留".into(),
+        });
+
+        assert!(
+            !remove_recent_project(&mut store, "/missing"),
+            "不存在的项目返回 false"
+        );
+        assert_eq!(store.projects.len(), 2);
+
+        assert!(remove_recent_project(&mut store, "/a"));
+        assert_eq!(store.projects.len(), 1);
+        assert_eq!(store.projects[0].root_path, "/b");
+        assert!(
+            !store.files.iter().any(|f| f.project_root == "/a"),
+            "项目名下的最近文件应一并清除"
+        );
+        assert!(
+            store.files.iter().any(|f| f.project_root == "/b"),
+            "其他项目的最近文件保留"
+        );
+        assert_eq!(
+            store.favorites.len(),
+            1,
+            "收藏是显式沉淀数据，不随最近项目删除"
+        );
+        assert_eq!(store.bookmarks.len(), 1);
     }
 }

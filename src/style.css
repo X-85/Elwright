@@ -301,6 +301,11 @@ code {
   padding: 0;
 }
 
+/* 四角四分之一分屏：文字按钮（无合适图标，文字更直观） */
+.window-layout-options button.window-layout-quarter {
+  font-size: 11px;
+}
+
 .window-layout-options button:hover,
 .window-layout-fullscreen:hover,
 .window-layout-restore:hover {
@@ -2171,6 +2176,9 @@ button.primary:disabled {
 /* ---- 代码浏览器（feature-2026-08-code-browser-phase1）---- */
 
 .code-browser {
+  /* .content 是「列表+详情」两列网格（为工具箱设计），全宽视图需自行横跨所有列，
+     否则整个代码浏览器被压进 300-380px 的第一列（与 chat-view / workspace-view 同惯例） */
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2234,7 +2242,36 @@ button.primary:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.cb-recent-open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
   text-align: left;
+}
+
+.cb-recent-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted, var(--text));
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.cb-recent-remove:hover {
+  color: var(--err, #c0392b);
+  border-color: var(--err, #c0392b);
 }
 
 .cb-empty {
@@ -2247,6 +2284,9 @@ button.primary:disabled {
   gap: 12px;
   min-height: 0;
   flex: 1;
+  /* 占满外层主区高度；外层若把 .code-browser 挤窄，这里兜底撑高，避免「左侧窄 + 预览区挤没」 */
+  height: 100%;
+  align-self: stretch;
 }
 
 .cb-tree {

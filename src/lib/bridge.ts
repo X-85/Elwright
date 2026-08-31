@@ -296,6 +296,8 @@ export interface Bridge {
   codeBrowserRecentLoad(): Promise<CodeBrowserRecent>
   /** 记录一次打开（项目 / 项目+文件），返回更新后的最近列表。 */
   codeBrowserRecentOpen(projectRoot: string, rel: string): Promise<CodeBrowserRecent>
+  /** 删除一条最近项目（含其名下最近文件；收藏/书签保留），返回更新后的最近列表。 */
+  codeBrowserRecentRemoveProject(projectRoot: string): Promise<CodeBrowserRecent>
   /** 流式对话（阶段④，仅桌面）：事件 type = delta | done | error | cancelled。 */
   chatCompletionStream(
     requestId: number,
@@ -627,6 +629,11 @@ const browserBridge: Bridge = {
 
   async codeBrowserRecentOpen() {
     // 浏览器端不落盘，返回空记录，不伪造持久化。
+    return { projects: [], files: [], favorites: [], bookmarks: [] }
+  },
+
+  async codeBrowserRecentRemoveProject() {
+    // 浏览器端最近列表本为空，删除是无害空操作。
     return { projects: [], files: [], favorites: [], bookmarks: [] }
   },
 
@@ -1017,6 +1024,10 @@ const tauriBridge: Bridge = {
 
   codeBrowserRecentOpen(projectRoot, rel) {
     return tauriInvoke<CodeBrowserRecent>('code_browser_recent_open', { projectRoot, rel })
+  },
+
+  codeBrowserRecentRemoveProject(projectRoot) {
+    return tauriInvoke<CodeBrowserRecent>('code_browser_recent_remove_project', { projectRoot })
   },
 
   async chatCompletionStream(requestId, messages, onEvent) {

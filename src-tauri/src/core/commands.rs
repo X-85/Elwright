@@ -695,6 +695,19 @@ pub fn code_browser_recent_open(
     Ok(store)
 }
 
+/// 删除一条最近项目（含其名下最近文件；收藏/书签保留），返回更新后的最近列表。
+#[tauri::command]
+#[allow(non_snake_case)]
+pub fn code_browser_recent_remove_project(
+    projectRoot: String,
+) -> Result<code_browser::RecentStore, String> {
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let mut store = code_browser::load_recent(&user);
+    code_browser::remove_recent_project(&mut store, &projectRoot);
+    code_browser::save_recent(&user, &store)?;
+    Ok(store)
+}
+
 /// 切换收藏文件，返回更新后的收藏列表。
 #[allow(non_snake_case)]
 #[tauri::command]

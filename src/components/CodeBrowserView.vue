@@ -14,7 +14,9 @@ const emit = defineEmits<{
 
 const projectRoot = ref('')
 const projectName = ref('')
-const treeCache = ref(new Map<string, CodeTreeEntry[]>())
+// 注意：必须是普通对象而非 Map——Vue 3 v-for 遍历 Map 得到的是 [key, value] 对儿 +
+// 数字下标，模板里的 (entries, rel) 会拿错（rel 恒为数字 → v-show 恒 false → 整棵树不可见）
+const treeCache = ref<Record<string, CodeTreeEntry[]>>({})
 const expanded = ref(new Set<string>())
 const recentProjects = ref<CodeBrowserRecent['projects']>([])
 const favorites = ref<CodeBrowserRecent['favorites']>([])
@@ -77,7 +79,7 @@ async function openProject(root: string, rel = '') {
     await props.bridge.codeBrowserTree(root, '')
     projectRoot.value = root
     projectName.value = root.split(/[\\/]/).filter(Boolean).pop() ?? root
-    treeCache.value = new Map()
+    treeCache.value = {}
     expanded.value = new Set()
     tabs.value = []
     activePath.value = ''
@@ -95,10 +97,21 @@ async function openProject(root: string, rel = '') {
   }
 }
 
+async function removeRecentProject(rootPath: string) {
+  try {
+    const r = await props.bridge.codeBrowserRecentRemoveProject(rootPath)
+    recentProjects.value = r.projects
+    recentFiles.value = r.files
+    notify('已从最近项目移除（不影响磁盘上的项目文件）', true)
+  } catch (e) {
+    notify(String(e), false)
+  }
+}
+
 async function loadTree(rel: string) {
-  if (treeCache.value.has(rel)) return
+  if (treeCache.value[rel] !== undefined) return
   const entries = await props.bridge.codeBrowserTree(projectRoot.value, rel)
-  treeCache.value.set(rel, entries)
+  treeCache.value[rel] = entries
 }
 
 async function toggleDir(entry: CodeTreeEntry) {
@@ -115,6 +128,23 @@ async function toggleDir(entry: CodeTreeEntry) {
     notify(String(e), false)
   }
 }
+
+/**
+ * 扁平化可见树行：按 expanded 递归下钻 treeCache（懒加载，任意深度）。
+ * 模板只渲染这一个列表——勿改回「外层 v-for treeCache + 模板手工嵌套」：
+ * 外层循环会把每个已缓存层级再当顶级列表渲染一遍，展开后每级目录出现两次（Q23）。
+ */
+const visibleRows = computed(() => {
+  const rows: { entry: CodeTreeEntry; depth: number }[] = []
+  const walk = (rel: string, depth: number) => {
+    for (const e of treeCache.value[rel] ?? []) {
+      rows.push({ entry: e, depth })
+      if (e.kind === 'dir' && expanded.value.has(e.path)) walk(e.path, depth + 1)
+    }
+  }
+  walk('', 0)
+  return rows
+})
 
 async function ensureSymbols() {
   if (symbolsScanned.value) return
@@ -167,7 +197,7 @@ async function scrollToLine(line: number) {
 }
 
 async function refreshTree() {
-  treeCache.value.delete('')
+  delete treeCache.value['']
   expanded.value = new Set()
   await loadTree('')
 }
@@ -326,9 +356,12 @@ defineExpose({ openProject, openAbsolute })
     <div v-if="!projectRoot" class="cb-recent">
       <div v-if="recentProjects.length" class="cb-recent-block">
         <div class="cb-panel-title">最近项目</div>
-        <button v-for="p in recentProjects" :key="p.rootPath" class="cb-recent-row" @click="openProject(p.rootPath)">
-          <Folder :size="14" /> {{ p.name }} <code class="cb-muted">{{ p.rootPath }}</code>
-        </button>
+        <div v-for="p in recentProjects" :key="p.rootPath" class="cb-recent-row">
+          <button class="cb-recent-open" :title="p.rootPath" @click="openProject(p.rootPath)">
+            <Folder :size="14" /> {{ p.name }} <code class="cb-muted">{{ p.rootPath }}</code>
+          </button>
+          <button class="cb-recent-remove" :aria-label="'删除最近项目 ' + p.name" title="从最近列表移除（不影响磁盘上的项目文件）" @click.stop="removeRecentProject(p.rootPath)">×</button>
+        </div>
       </div>
       <p v-if="previewNotice" class="cb-notice">{{ previewNotice }}</p>
       <p v-else class="cb-empty">还没有最近项目。选择一个本地项目目录开始浏览。</p>
@@ -366,48 +399,19 @@ defineExpose({ openProject, openAbsolute })
         </div>
 
         <div class="cb-tree-body">
-          <template v-for="(entries, rel) in treeCache" :key="rel">
-            <ul v-show="rel === '' || expanded.has(rel)" class="cb-dir">
-              <li v-for="e in entries" :key="e.path">
-                <button v-if="e.kind === 'dir'" class="cb-row" @click="toggleDir(e)">
-                  <component :is="expanded.has(e.path) ? ChevronDown : ChevronRight" :size="13" />
-                  <Folder :size="14" /> {{ e.name }}
-                </button>
-                <button v-else class="cb-row" :class="{ 'cb-locked': !e.readable }" @click="onTreeFileClick(e)">
-                  <span class="cb-indent"></span><FileText :size="14" /> {{ e.name }}
-                  <span v-if="e.sensitive" class="cb-tag">敏感</span>
-                  <span class="cb-fav" :class="{ on: isFavorite(e.path) }" role="button" :aria-label="(isFavorite(e.path) ? '取消收藏 ' : '收藏 ') + e.name" @click.stop="toggleFavorite(e.path)">★</span>
-                </button>
-                <template v-if="e.kind === 'dir' && expanded.has(e.path)">
-                  <ul class="cb-dir cb-sub">
-                    <li v-for="c in treeCache.get(e.path) ?? []" :key="c.path">
-                      <button v-if="c.kind === 'dir'" class="cb-row" @click="toggleDir(c)">
-                        <component :is="expanded.has(c.path) ? ChevronDown : ChevronRight" :size="13" />
-                        <Folder :size="14" /> {{ c.name }}
-                      </button>
-                      <button v-else class="cb-row" :class="{ 'cb-locked': !c.readable }" @click="onTreeFileClick(c)">
-                        <span class="cb-indent"></span><FileText :size="14" /> {{ c.name }}
-                        <span v-if="c.sensitive" class="cb-tag">敏感</span>
-                      </button>
-                      <!-- 阶段①树最多展示两层懒加载展开，更深层级继续点开时复用同一机制 -->
-                      <ul v-if="c.kind === 'dir' && expanded.has(c.path)" class="cb-dir cb-sub2">
-                        <li v-for="gc in treeCache.get(c.path) ?? []" :key="gc.path">
-                          <button v-if="gc.kind === 'file'" class="cb-row" :class="{ 'cb-locked': !gc.readable }" @click="onTreeFileClick(gc)">
-                            <span class="cb-indent"></span><FileText :size="14" /> {{ gc.name }}
-                            <span v-if="gc.sensitive" class="cb-tag">敏感</span>
-                          </button>
-                          <button v-else class="cb-row" @click="toggleDir(gc)">
-                            <component :is="expanded.has(gc.path) ? ChevronDown : ChevronRight" :size="13" />
-                            <Folder :size="14" /> {{ gc.name }}
-                          </button>
-                        </li>
-                      </ul>
-                    </li>
-                  </ul>
-                </template>
-              </li>
-            </ul>
-          </template>
+          <ul class="cb-dir">
+            <li v-for="row in visibleRows" :key="row.entry.path">
+              <button v-if="row.entry.kind === 'dir'" class="cb-row" :style="{ paddingLeft: 4 + row.depth * 14 + 'px' }" @click="toggleDir(row.entry)">
+                <component :is="expanded.has(row.entry.path) ? ChevronDown : ChevronRight" :size="13" />
+                <Folder :size="14" /> {{ row.entry.name }}
+              </button>
+              <button v-else class="cb-row" :class="{ 'cb-locked': !row.entry.readable }" :style="{ paddingLeft: 4 + row.depth * 14 + 'px' }" @click="onTreeFileClick(row.entry)">
+                <FileText :size="14" /> {{ row.entry.name }}
+                <span v-if="row.entry.sensitive" class="cb-tag">敏感</span>
+                <span class="cb-fav" :class="{ on: isFavorite(row.entry.path) }" role="button" :aria-label="(isFavorite(row.entry.path) ? '取消收藏 ' : '收藏 ') + row.entry.name" @click.stop="toggleFavorite(row.entry.path)">★</span>
+              </button>
+            </li>
+          </ul>
         </div>
 
         <div v-if="favorites.length || projectBookmarks.length" class="cb-marks">
