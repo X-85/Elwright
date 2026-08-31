@@ -2285,3 +2285,55 @@ button.primary:disabled {
 .tok-kw { color: #c678dd; }
 .tok-str { color: #98c379; }
 .tok-comment { color: #7f848e; font-style: italic; }
+
+/* ---- 代码浏览器阶段③：收藏/书签/发送到 AI ---- */
+
+.cb-fav {
+  margin-left: auto;
+  opacity: 0.25;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+}
+
+.cb-fav:hover { opacity: 0.8; }
+.cb-fav.on { opacity: 1; color: #e8b339; }
+.cb-fav-on { color: #e8b339; }
+
+.cb-line.cb-marked .cb-lno {
+  color: #e8b339;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cb-lno { cursor: pointer; }
+
+.cb-send-ai {
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.cb-ai-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.cb-ai-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cb-marks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

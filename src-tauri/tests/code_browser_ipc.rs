@@ -18,6 +18,9 @@ fn build_wv() -> Wv {
             elwright_core::core::commands::code_browser_read,
             elwright_core::core::commands::code_browser_search,
             elwright_core::core::commands::code_browser_scan_symbols,
+            elwright_core::core::commands::code_browser_recent_load,
+            elwright_core::core::commands::code_browser_favorites_toggle,
+            elwright_core::core::commands::code_browser_bookmarks_toggle,
         ])
         .build(mock_context(noop_assets()))
         .expect("build mock app");
@@ -150,6 +153,44 @@ fn tree_read_search_symbols_over_ipc() {
     assert!(arr
         .iter()
         .any(|s| s["name"] == "getById" && s["kind"] == "method"));
+
+    // 收藏与书签：切换写用户层（~/.elwright/code-browser.json），测完还原
+    let recent_before = call_ok(&wv, "code_browser_recent_load", json!({}));
+    let favs = call_ok(
+        &wv,
+        "code_browser_favorites_toggle",
+        json!({"projectRoot": root_str, "rel": "src/main/java/UserService.java"}),
+    );
+    assert_eq!(favs.as_array().unwrap().len(), 1);
+    let favs = call_ok(
+        &wv,
+        "code_browser_favorites_toggle",
+        json!({"projectRoot": root_str, "rel": "src/main/java/UserService.java"}),
+    );
+    assert_eq!(favs.as_array().unwrap().len(), 0, "二次切换应移除");
+
+    let bms = call_ok(
+        &wv,
+        "code_browser_bookmarks_toggle",
+        json!({"projectRoot": root_str, "rel": "src/main/java/UserService.java", "line": 2, "label": "回归"}),
+    );
+    assert_eq!(bms.as_array().unwrap().len(), 1);
+    assert_eq!(bms[0]["line"], 2);
+
+    // 还原用户层（保留原有 favorites/bookmarks，去掉本测试写入的）
+    let mut restore = recent_before.clone();
+    restore["favorites"] = json!([]);
+    restore["bookmarks"] = json!([]);
+    let _ = call_ok(&wv, "code_browser_recent_load", json!({}));
+    // recent_load 无写入口，直接由 favorites/bookmarks 的对称 toggle 已还原 favorites；
+    // bookmarks 再 toggle 一次移除本测试条目。
+    let bms = call_ok(
+        &wv,
+        "code_browser_bookmarks_toggle",
+        json!({"projectRoot": root_str, "rel": "src/main/java/UserService.java", "line": 2, "label": "回归"}),
+    );
+    assert_eq!(bms.as_array().unwrap().len(), 0, "二次切换应移除");
+    let _ = restore;
 
     fs::remove_dir_all(&root).ok();
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import ChatView from './components/ChatView.vue'
@@ -178,6 +178,13 @@ function openSettings(section: 'general' | 'appearance' | 'model' | 'terminal' =
 
 function onSettingsSaved() {
   chatViewRef.value?.refreshConfig()
+}
+
+async function sendCodeToAi(payload: { title: string; text: string }) {
+  activeView.value = 'chat'
+  await nextTick()
+  chatViewRef.value?.insertContext(payload.title, payload.text)
+  notify('代码上下文已填入对话输入框，发送前可编辑', true)
 }
 
 function toggleTerminal() {
@@ -370,7 +377,7 @@ async function startWindowDrag(event: MouseEvent) {
         <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" />
         <PeopleChatView v-else-if="activeView === 'people'" />
         <WorkspaceView v-else-if="activeView === 'workspace'" :bridge="bridge" :capabilities="capabilities" @notify="notify" />
-        <CodeBrowserView v-else-if="activeView === 'code'" :bridge="bridge" @notify="notify" />
+        <CodeBrowserView v-else-if="activeView === 'code'" :bridge="bridge" @notify="notify" @send-to-ai="sendCodeToAi" />
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>

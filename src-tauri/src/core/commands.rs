@@ -692,6 +692,36 @@ pub fn code_browser_recent_open(
     Ok(store)
 }
 
+/// 切换收藏文件，返回更新后的收藏列表。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub fn code_browser_favorites_toggle(
+    projectRoot: String,
+    rel: String,
+) -> Result<Vec<code_browser::Favorite>, String> {
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let mut store = code_browser::load_recent(&user);
+    code_browser::toggle_favorite(&mut store, &projectRoot, &rel)?;
+    code_browser::save_recent(&user, &store)?;
+    Ok(store.favorites)
+}
+
+/// 切换代码书签，返回更新后的书签列表。
+#[allow(non_snake_case)]
+#[tauri::command]
+pub fn code_browser_bookmarks_toggle(
+    projectRoot: String,
+    rel: String,
+    line: u32,
+    label: String,
+) -> Result<Vec<code_browser::Bookmark>, String> {
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let mut store = code_browser::load_recent(&user);
+    code_browser::toggle_bookmark(&mut store, &projectRoot, &rel, line, &label)?;
+    code_browser::save_recent(&user, &store)?;
+    Ok(store.bookmarks)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
