@@ -10,7 +10,7 @@
 //! 命令从 `State<AppCtx>` 取——替代原 main.rs 的 static OnceLock，
 //! mock 测试可注入自定义后端（如可观测的 MockBackend）。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -19,6 +19,7 @@ use tauri::ipc::Channel;
 use tauri::{Manager, State};
 
 use super::chat_store;
+use super::code_browser;
 use super::workbench;
 use super::{executor, export, invoke, llm, registry, terminal, version, workspace};
 
@@ -598,6 +599,92 @@ fn offline_report(topic: &workspace::Topic, source: &str) -> String {
         if topic.question.is_empty() { "（未填写）" } else { &topic.question },
         resources
     )
+}
+
+// ---- 代码浏览器阶段①（feature-2026-08-code-browser-phase1）----
+// 只读：目录树 / 文件读取 / 搜索 / 轻量符号扫描。projectRoot 由用户经
+// 系统目录选择器主动提供，core 侧做路径边界与大小限制。
+
+fn project_root(root: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(root);
+    if !p.is_dir() {
+        return Err(format!("项目根不是目录: {root}"));
+    }
+    Ok(p)
+}
+
+#[tauri::command]
+pub fn code_browser_tree(
+    projectRoot: String,
+    rel: String,
+) -> Result<Vec<code_browser::TreeEntry>, String> {
+    code_browser::tree(&project_root(&projectRoot)?, &rel)
+}
+
+#[tauri::command]
+pub fn code_browser_read(
+    projectRoot: String,
+    rel: String,
+) -> Result<code_browser::CodeDocument, String> {
+    code_browser::read_file(&project_root(&projectRoot)?, &rel)
+}
+
+#[tauri::command]
+pub fn code_browser_search(
+    projectRoot: String,
+    query: String,
+    mode: String,
+) -> Result<Vec<code_browser::SearchHit>, String> {
+    code_browser::search(&project_root(&projectRoot)?, &query, &mode)
+}
+
+#[tauri::command]
+pub fn code_browser_scan_symbols(
+    projectRoot: String,
+) -> Result<Vec<code_browser::SymbolHit>, String> {
+    code_browser::scan_symbols(&project_root(&projectRoot)?)
+}
+
+/// 读取最近项目/文件（用户配置层 ~/.elwright/code-browser.json）。
+#[tauri::command]
+pub fn code_browser_recent_load() -> Result<code_browser::RecentStore, String> {
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    Ok(code_browser::load_recent(&user))
+}
+
+/// 记录一次「打开项目 / 打开文件」，返回更新后的最近列表。
+#[tauri::command]
+pub fn code_browser_recent_open(
+    projectRoot: String,
+    rel: String,
+) -> Result<code_browser::RecentStore, String> {
+    let user = registry::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let mut store = code_browser::load_recent(&user);
+    let now = chrono_like_now();
+    let name = Path::new(&projectRoot)
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| projectRoot.clone());
+    code_browser::push_recent_project(
+        &mut store,
+        code_browser::RecentProject {
+            name,
+            root_path: projectRoot.clone(),
+            last_opened_at: now as u64,
+        },
+    );
+    if !rel.is_empty() {
+        code_browser::push_recent_file(
+            &mut store,
+            code_browser::RecentFile {
+                project_root: projectRoot,
+                path: rel,
+                last_opened_at: now as u64,
+            },
+        );
+    }
+    code_browser::save_recent(&user, &store)?;
+    Ok(store)
 }
 
 #[cfg(test)]

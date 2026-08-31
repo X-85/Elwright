@@ -131,6 +131,54 @@ export interface TopicReportResult {
   note?: string
 }
 
+
+// ---- 代码浏览器阶段①（feature-2026-08-code-browser-phase1）----
+
+/** 目录树条目。 */
+export interface CodeTreeEntry {
+  path: string
+  name: string
+  kind: 'dir' | 'file'
+  size: number
+  readable: boolean
+  sensitive: boolean
+}
+
+/** 打开的代码文档。 */
+export interface CodeDocument {
+  path: string
+  name: string
+  language: string
+  size: number
+  truncated: boolean
+  content: string
+  sensitive: boolean
+  notice: string
+}
+
+/** 搜索命中。 */
+export interface CodeSearchHit {
+  path: string
+  name: string
+  line: number
+  snippet: string
+}
+
+/** 轻量符号命中。 */
+export interface CodeSymbolHit {
+  name: string
+  kind: 'class' | 'interface' | 'enum' | 'record' | 'method' | string
+  path: string
+  line: number
+  declaration: string
+}
+
+/** 最近项目 / 最近文件持久化结构。 */
+export interface CodeBrowserRecent {
+  projects: { name: string; rootPath: string; lastOpenedAt: number }[]
+  files: { projectRoot: string; path: string; lastOpenedAt: number }[]
+}
+
 /**
  * 前端可见的终端会话抽象。
  * - `onData`：Rust 通过 Tauri Channel 推送的 PTY 输出（已 flush 的批次）
@@ -211,6 +259,16 @@ export interface Bridge {
   updateWorkspaceTopic(topic: WorkspaceTopic): Promise<void>
   deleteWorkspaceTopic(id: string): Promise<void>
   generateTopicReport(id: string): Promise<TopicReportResult>
+  // ---- 代码浏览器（只读；浏览器预览端明确降级，不伪造文件访问）----
+  /** 打开系统目录选择器选项目根；浏览器预览返回 null 并提示。 */
+  chooseProjectDirectory(): Promise<string | null>
+  codeBrowserTree(projectRoot: string, rel: string): Promise<CodeTreeEntry[]>
+  codeBrowserRead(projectRoot: string, rel: string): Promise<CodeDocument>
+  codeBrowserSearch(projectRoot: string, query: string, mode: 'filename' | 'content'): Promise<CodeSearchHit[]>
+  codeBrowserScanSymbols(projectRoot: string): Promise<CodeSymbolHit[]>
+  codeBrowserRecentLoad(): Promise<CodeBrowserRecent>
+  /** 记录一次打开（项目 / 项目+文件），返回更新后的最近列表。 */
+  codeBrowserRecentOpen(projectRoot: string, rel: string): Promise<CodeBrowserRecent>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -468,6 +526,35 @@ const browserBridge: Bridge = {
 
   async chooseWorkspaceFile() {
     return null
+  },
+
+  async chooseProjectDirectory() {
+    return null
+  },
+
+  async codeBrowserTree() {
+    throw new Error('【预览模式】浏览器无法读取本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserRead() {
+    throw new Error('【预览模式】浏览器无法读取本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserSearch() {
+    throw new Error('【预览模式】浏览器无法搜索本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserScanSymbols() {
+    throw new Error('【预览模式】浏览器无法扫描本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserRecentLoad() {
+    return { projects: [], files: [] }
+  },
+
+  async codeBrowserRecentOpen() {
+    // 浏览器端不落盘，返回空记录，不伪造持久化。
+    return { projects: [], files: [] }
   },
 
   async createWorkspaceResource(resource) {
@@ -765,6 +852,36 @@ const tauriBridge: Bridge = {
     const { open } = await import('@tauri-apps/plugin-dialog')
     const path = await open({ title: '选择要收藏的本地文件', multiple: false, directory: false })
     return typeof path === 'string' ? path : null
+  },
+
+  async chooseProjectDirectory() {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const path = await open({ title: '选择要浏览的项目目录', multiple: false, directory: true })
+    return typeof path === 'string' ? path : null
+  },
+
+  codeBrowserTree(projectRoot, rel) {
+    return tauriInvoke<CodeTreeEntry[]>('code_browser_tree', { projectRoot, rel })
+  },
+
+  codeBrowserRead(projectRoot, rel) {
+    return tauriInvoke<CodeDocument>('code_browser_read', { projectRoot, rel })
+  },
+
+  codeBrowserSearch(projectRoot, query, mode) {
+    return tauriInvoke<CodeSearchHit[]>('code_browser_search', { projectRoot, query, mode })
+  },
+
+  codeBrowserScanSymbols(projectRoot) {
+    return tauriInvoke<CodeSymbolHit[]>('code_browser_scan_symbols', { projectRoot })
+  },
+
+  codeBrowserRecentLoad() {
+    return tauriInvoke<CodeBrowserRecent>('code_browser_recent_load', {})
+  },
+
+  codeBrowserRecentOpen(projectRoot, rel) {
+    return tauriInvoke<CodeBrowserRecent>('code_browser_recent_open', { projectRoot, rel })
   },
 
   createWorkspaceResource(resource) {

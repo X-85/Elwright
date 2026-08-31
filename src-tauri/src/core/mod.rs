@@ -1,4 +1,5 @@
 pub mod chat_store;
+pub mod code_browser;
 pub mod commands;
 pub mod degrade;
 pub mod executor;
