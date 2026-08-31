@@ -2347,3 +2347,21 @@ button.primary:disabled {
   padding: 0;
   text-decoration: underline;
 }
+
+/* ---- 设置中心后续：密度/缩放/偏好行 ---- */
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.pref-row label { font-size: 13px; }
+.pref-row select { min-width: 180px; }
+
+html.density-compact .sidebar { padding: 8px 8px 8px; gap: 10px; }
+html.density-compact .cb-toolbar,
+html.density-compact .workspace-shell { gap: 6px; }
+html.density-compact .chat-input { min-height: 48px; }

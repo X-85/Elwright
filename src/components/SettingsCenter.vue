@@ -4,6 +4,7 @@ import { Bot, CircleHelp, Palette, SlidersHorizontal, TerminalSquare } from 'luc
 import LlmSettings from './LlmSettings.vue'
 import type { Bridge } from '../lib/bridge'
 import { setThemePreference, themePreference, type ThemePreference } from '../lib/theme'
+import { preferences, updatePreferences, TERMINAL_FONT_OPTIONS, TERMINAL_FONT_SIZE_OPTIONS, TERMINAL_SCROLLBACK_OPTIONS, UI_SCALE_OPTIONS, STARTUP_VIEW_OPTIONS } from '../lib/preferences'
 
 const props = defineProps<{ bridge: Bridge; initialSection?: 'general' | 'appearance' | 'model' | 'terminal' }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -51,8 +52,23 @@ function chooseTheme(value: ThemePreference) {
         <main class="settings-content">
           <template v-if="activeSection === 'general'">
             <h3>常规</h3>
-            <p class="settings-muted">常用应用行为将在这里统一配置。</p>
-            <div class="settings-placeholder">第一阶段暂不增加未经验证的通用偏好。</div>
+            <p class="settings-muted">应用行为偏好，保存在本机。</p>
+            <div class="pref-row">
+              <label for="pref-startup">启动视图</label>
+              <select id="pref-startup" :value="preferences.startupView" @change="updatePreferences({ startupView: ($event.target as HTMLSelectElement).value as typeof preferences.startupView })">
+                <option v-for="o in STARTUP_VIEW_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
+            <div class="pref-row">
+              <label for="pref-autoupd">启动时自动检查更新</label>
+              <input id="pref-autoupd" type="checkbox" :checked="preferences.autoUpdateCheck" @change="updatePreferences({ autoUpdateCheck: ($event.target as HTMLInputElement).checked })" />
+            </div>
+            <div class="pref-row">
+              <label for="pref-lang">界面语言</label>
+              <select id="pref-lang" disabled>
+                <option>中文（多语言需要 i18n 基建，暂未开放）</option>
+              </select>
+            </div>
           </template>
 
           <template v-else-if="activeSection === 'appearance'">
@@ -69,6 +85,19 @@ function chooseTheme(value: ThemePreference) {
                 <span><strong>{{ option.label }}</strong><small>{{ option.note }}</small></span>
               </label>
             </div>
+            <div class="pref-row">
+              <label for="pref-density">界面密度</label>
+              <select id="pref-density" :value="preferences.density" @change="updatePreferences({ density: ($event.target as HTMLSelectElement).value as typeof preferences.density })">
+                <option value="comfortable">舒适</option>
+                <option value="compact">紧凑</option>
+              </select>
+            </div>
+            <div class="pref-row">
+              <label for="pref-scale">界面缩放</label>
+              <select id="pref-scale" :value="preferences.uiScale" @change="updatePreferences({ uiScale: Number(($event.target as HTMLSelectElement).value) as typeof preferences.uiScale })">
+                <option v-for="s in UI_SCALE_OPTIONS" :key="s" :value="s">{{ s }}%</option>
+              </select>
+            </div>
           </template>
 
           <template v-else-if="activeSection === 'model'">
@@ -79,8 +108,25 @@ function chooseTheme(value: ThemePreference) {
 
           <template v-else>
             <h3>终端</h3>
-            <p class="settings-muted">终端字体、主题和滚动历史将在后续阶段提供。</p>
-            <div class="settings-placeholder">当前终端行为保持现状。</div>
+            <p class="settings-muted">字号即时生效；滚动历史对新输出生效。主题已随界面主题自动切换。</p>
+            <div class="pref-row">
+              <label for="pref-tfont">终端字体</label>
+              <select id="pref-tfont" :value="preferences.terminalFontFamily" @change="updatePreferences({ terminalFontFamily: ($event.target as HTMLSelectElement).value })">
+                <option v-for="o in TERMINAL_FONT_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
+            <div class="pref-row">
+              <label for="pref-tsize">终端字号</label>
+              <select id="pref-tsize" :value="preferences.terminalFontSize" @change="updatePreferences({ terminalFontSize: Number(($event.target as HTMLSelectElement).value) })">
+                <option v-for="s in TERMINAL_FONT_SIZE_OPTIONS" :key="s" :value="s">{{ s }} px</option>
+              </select>
+            </div>
+            <div class="pref-row">
+              <label for="pref-tscroll">滚动历史</label>
+              <select id="pref-tscroll" :value="preferences.terminalScrollback" @change="updatePreferences({ terminalScrollback: Number(($event.target as HTMLSelectElement).value) })">
+                <option v-for="s in TERMINAL_SCROLLBACK_OPTIONS" :key="s" :value="s">{{ s }} 行</option>
+              </select>
+            </div>
           </template>
         </main>
       </div>
