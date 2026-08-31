@@ -1,5 +1,19 @@
 # AI 对话变更记录
 
+## 2026-08-31（阶段④ 余项：长上下文，ADR-004）
+
+- 新增 `core::chat_context::fit_messages`：字符预算滑动窗口（默认 24000 字符，
+  `contextBudgetChars` 配置链字段 / `ELWRIGHT_LLM_CONTEXT_BUDGET_CHARS` 环境变量可覆盖）。
+  最新消息必留（超预算中段截断留头尾并标注），更早消息从新到旧整条保留、放不下整条丢弃。
+- `assemble_chat_messages` 收口 `chat_completion` 与 `chat_completion_stream`，
+  静默裁剪，system 不受预算影响。
+- `ew config` 新增 context 行展示；`ew config set` 新增 `context_budget_chars` 键。
+- 顺手修数据丢失隐患：`ew config set` 原按纯 flat 表回写 config.json，配置含
+  profiles/activeProfile（Q19 档案）时会被整体抹掉——改经 `UserConfigFile` 读写保留档案。
+- 测试：`chat_context` 6 单测 + 新 `tests/chat_completion_ipc.rs`（本地 mock LLM
+  服务捕获真实请求体，断言 system 前置 / 最新 user 完整 / 历史收敛 ≤ 预算 / 最旧轮次被裁）。
+- 决策与拒绝项见 `decisions/ADR-004-long-context.md`。
+
 ## 2026-08-23（阶段② 会话管理）
 
 - 新增桌面壳会话存储 `src-tauri/src/chat_store.rs`：`~/.elwright/chats/<id>.json` 一文件一会话；手写 UTC ISO8601 时间戳（字典序可排序）、`AtomicU64` 计数器生成 id，零新依赖；列表按 updated_at 降序、损坏文件跳过、删除幂等；6 个单元测试。

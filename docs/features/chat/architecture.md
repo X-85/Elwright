@@ -44,6 +44,15 @@ core::llm（多轮 OpenAI-compatible 请求）
 - 全程无有效输出且未取消时回退非流式一次性返回（供应商兼容容错）。
 - ChatView 桌面走流式增量渲染（50ms 节流）；浏览器预览维持旧降级路径。
 
+## 阶段④ 余项：长上下文（2026-08-31，ADR-004）
+
+- `core::chat_context::fit_messages`：字符预算滑动窗口（默认 24000，
+  `contextBudgetChars` 配置链字段 / `ELWRIGHT_LLM_CONTEXT_BUDGET_CHARS` 环境变量可覆盖）。
+  最新消息必留（超预算中段截断留头尾），更早消息从新到旧整条保留、放不下整条丢弃。
+- `assemble_chat_messages`（commands.rs）为唯一收口：`chat_completion` 与
+  `chat_completion_stream` 同源，桌面/流式/非流式行为一致。
+- 预算按消息 content 字符数近似 token，零依赖纯本地（LLM 摘要压缩被 ADR-004 拒绝）。
+
 ## 阶段④补丁联动（与代码浏览器阶段④同源）
 
 - `src/lib/patch.ts::extractFirstDiff` 在助手消息里识别 `\`\`\`diff` 围栏，仅作粗筛。

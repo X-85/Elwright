@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::{Manager, State};
 
+use super::chat_context;
 use super::chat_store;
 use super::code_browser;
 use super::workbench;
@@ -233,6 +234,27 @@ pub struct ChatMessageArg {
     content: String,
 }
 
+/// ADR-004：system 前置 + core 侧字符预算裁剪（两个 chat 命令共用，
+/// 保证桌面/CLI/流式与非流式行为一致）。
+fn assemble_chat_messages(
+    sys: &str,
+    messages: Vec<ChatMessageArg>,
+    budget: usize,
+) -> Vec<llm::ChatMessage> {
+    let history: Vec<llm::ChatMessage> = messages
+        .into_iter()
+        .map(|m| llm::ChatMessage {
+            role: m.role,
+            content: m.content,
+        })
+        .collect();
+    let (fitted, _) = chat_context::fit_messages(&history, budget);
+    let mut all = Vec::with_capacity(fitted.len() + 1);
+    all.push(llm::ChatMessage::new("system", sys));
+    all.extend(fitted);
+    all
+}
+
 /// 多轮对话：合并 LLM 配置链（与 invoke_skill 同链路），前置系统提示词，
 /// 非流式返回 assistant 回复。未配置/失败返回中文 Err——对话无降级 SOP，
 /// 会话保留与重试由前端负责。
@@ -261,14 +283,14 @@ pub async fn chat_completion<R: tauri::Runtime>(
             return Err("未配置 LLM：请在「⚙ 模型设置」填写 base_url 后使用 AI 对话".to_string());
         }
         let client = llm::LlmClient { config };
-        let mut all = vec![llm::ChatMessage::new(
-            "system",
-            chat_system_prompt(registry.list()),
-        )];
-        all.extend(messages.into_iter().map(|m| llm::ChatMessage {
-            role: m.role,
-            content: m.content,
-        }));
+        let all = assemble_chat_messages(
+            &chat_system_prompt(registry.list()),
+            messages,
+            client
+                .config
+                .context_budget_chars
+                .unwrap_or(chat_context::DEFAULT_BUDGET_CHARS),
+        );
         client.chat_messages(&all)
     })
     .await
@@ -927,11 +949,14 @@ pub async fn chat_completion_stream<R: tauri::Runtime>(
         }
         let client = llm::LlmClient { config };
         let sys = chat_system_prompt(registry.list());
-        let mut all = vec![llm::ChatMessage::new("system", sys)];
-        all.extend(messages.into_iter().map(|m| llm::ChatMessage {
-            role: m.role,
-            content: m.content,
-        }));
+        let all = assemble_chat_messages(
+            &sys,
+            messages,
+            client
+                .config
+                .context_budget_chars
+                .unwrap_or(chat_context::DEFAULT_BUDGET_CHARS),
+        );
 
         let outcome =
             client.chat_messages_streaming(&all, request_id, is_chat_cancelled, |delta| {

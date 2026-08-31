@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+pub use crate::core::chat_context::DEFAULT_BUDGET_CHARS;
+
 /// LLM client configuration.
 ///
 /// Thin self-written client against any OpenAI-compatible endpoint
@@ -14,6 +16,9 @@ pub struct LlmConfig {
     pub api_key: String,
     #[serde(default)]
     pub model: String,
+    /// 对话上下文字符预算（ADR-004）；None = 用 chat_context::DEFAULT_BUDGET_CHARS。
+    #[serde(default)]
+    pub context_budget_chars: Option<usize>,
 }
 
 /// 用户级配置文件路径（`~/.elwright/config.json`；Windows 用 USERPROFILE）。
@@ -65,6 +70,8 @@ pub struct UserConfigFile {
     #[serde(default)]
     model: String,
     #[serde(default)]
+    context_budget_chars: Option<usize>,
+    #[serde(default)]
     profiles: std::collections::BTreeMap<String, LlmProfile>,
     #[serde(default)]
     active_profile: Option<String>,
@@ -77,7 +84,7 @@ impl UserConfigFile {
             .active_profile
             .as_ref()
             .and_then(|n| self.profiles.get(n));
-        match active {
+        let mut cfg = match active {
             Some(p) => LlmConfig {
                 base_url: if p.base_url.is_empty() {
                     self.base_url.clone()
@@ -94,13 +101,39 @@ impl UserConfigFile {
                 } else {
                     p.model.clone()
                 },
+                context_budget_chars: None,
             },
             None => LlmConfig {
                 base_url: self.base_url.clone(),
                 api_key: self.api_key.clone(),
                 model: self.model.clone(),
+                context_budget_chars: None,
             },
+        };
+        // 预算不参与 profile 命中（ADR-004：profile 级覆盖后置），恒取 flat
+        cfg.context_budget_chars = self.context_budget_chars;
+        cfg
+    }
+
+    /// 设置 flat 字段（CLI `ew config set` 用）。整文件经 UserConfigFile
+    /// 读写以保留 profiles/activeProfile——此前按纯 flat 表回写会把档案抹掉。
+    pub fn set_flat_field(&mut self, key: &str, value: &str) -> Result<(), String> {
+        match key {
+            "base_url" => self.base_url = value.to_string(),
+            "model" => self.model = value.to_string(),
+            "api_key" => self.api_key = value.to_string(),
+            "context_budget_chars" => {
+                let n: usize = value
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("'{}' 不是合法的字符数（正整数）", value))?;
+                self.context_budget_chars = Some(n);
+            }
+            other => return Err(format!(
+                "不支持的 key: {other}（可选 base_url / model / api_key / context_budget_chars）"
+            )),
         }
+        Ok(())
     }
 }
 
@@ -166,6 +199,9 @@ impl ConfigLayers {
             base_url: std::env::var("ELWRIGHT_LLM_BASE_URL").unwrap_or_default(),
             api_key: std::env::var("ELWRIGHT_LLM_API_KEY").unwrap_or_default(),
             model: std::env::var("ELWRIGHT_LLM_MODEL").unwrap_or_default(),
+            context_budget_chars: std::env::var("ELWRIGHT_LLM_CONTEXT_BUDGET_CHARS")
+                .ok()
+                .and_then(|v| v.trim().parse().ok()),
         };
         let project_path = root.join("config.local.json");
         let project = read_config_file(&project_path).map(|c| (project_path, c));
@@ -212,6 +248,9 @@ impl ConfigLayers {
             if cfg.model.is_empty() && !layer.model.is_empty() {
                 cfg.model = layer.model.clone();
                 source[2] = label.to_string();
+            }
+            if cfg.context_budget_chars.is_none() && layer.context_budget_chars.is_some() {
+                cfg.context_budget_chars = layer.context_budget_chars;
             }
         }
         (cfg, source)
@@ -516,6 +555,7 @@ impl LlmClient {
                 base_url,
                 api_key,
                 model,
+                context_budget_chars: None,
             },
         })
     }
@@ -757,6 +797,7 @@ mod tests {
                     base_url: "http://project:1/v1".into(),
                     api_key: String::new(),
                     model: "proj-model".into(),
+                    context_budget_chars: None,
                 },
             )),
             user: None,
@@ -764,6 +805,7 @@ mod tests {
                 base_url: "http://default:2/v1".into(),
                 api_key: "reg-key".into(),
                 model: "reg-model".into(),
+                context_budget_chars: None,
             }),
         };
         // 项目文件覆盖 base_url/model，api_key 字段级回退到注册表默认
@@ -904,6 +946,7 @@ mod tests {
                 base_url,
                 api_key: "sk-test".into(),
                 model: "mock-model".into(),
+                context_budget_chars: None,
             },
         };
         let reply = client
@@ -940,6 +983,7 @@ mod tests {
                 base_url,
                 api_key: String::new(),
                 model: "m".into(),
+                context_budget_chars: None,
             },
         };
         let reply = client.chat("tpl", "input").unwrap();

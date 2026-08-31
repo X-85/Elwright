@@ -340,14 +340,15 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
             outln!("  api_key  : {}", mask(&cfg.api_key));
             outln!("    来源   : {}", source[1]);
             outln!(
-                "\n设置：ew config set base_url <值>   档案：ew config profile list|use|show|add|remove|rename"
+                "  context  : {} 字符（对话上下文预算，ADR-004）",
+                cfg.context_budget_chars
+                    .unwrap_or(llm::DEFAULT_BUDGET_CHARS)
+            );
+            outln!(
+                "\n设置：ew config set <base_url|model|api_key|context_budget_chars> <值>   档案：ew config profile list|use|show|add|remove|rename"
             );
         }
         Some(ConfigAction::Set { key, value, local }) => {
-            if !matches!(key.as_str(), "base_url" | "model" | "api_key") {
-                errln!("错误: key 只能是 base_url / model / api_key");
-                std::process::exit(1);
-            }
             let path = if local {
                 reg.root.join("config.local.json")
             } else {
@@ -359,12 +360,16 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
                     }
                 }
             };
-            let mut cfg: std::collections::BTreeMap<String, String> =
-                std::fs::read_to_string(&path)
-                    .ok()
-                    .and_then(|t| serde_json::from_str(&t).ok())
-                    .unwrap_or_default();
-            cfg.insert(key.clone(), value);
+            // 经 UserConfigFile 读写以保留 profiles/activeProfile（此前按纯 flat
+            // 表回写，配置里带档案时会被整体抹掉）
+            let mut cfg: llm::UserConfigFile = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|t| serde_json::from_str(&t).ok())
+                .unwrap_or_default();
+            if let Err(e) = cfg.set_flat_field(&key, &value) {
+                errln!("错误: {}", e);
+                std::process::exit(1);
+            }
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }

@@ -450,3 +450,9 @@
   - ROADMAP「进行中」登记本项；ADR 内容在 Agent 最终回复中供用户低成本否决（沿用两阶段协议，但 ADR 不单独开 PR，随收口提交入库）。
 - 实际结果：ADR-004 与任务目录已入库（6583057）；ROADMAP「当前版本 v0.1.11 / 未发版清空 / 里程碑补发版条目 / 进行中登记」+ AGENTS 一句话现状 + README 当前状态同步完成（本提交）。
 - 下一步：用户对 ADR-004 无异议即开工实施（core::chat_context 模块 + 单测 → 两命令接入 → IPC 用例 → `ew config` 展示预算 → 文档回填 → 闸门全绿）；完成后按 ROADMAP 顺序继续「人与人消息会话②（轻量身份/邀请与一对一传输）」立项。
+
+### Q28 | 第1次处理（长上下文实施，ADR-004 落地）
+- 问题或新增信息：用户确认「按建议进行下一步开发」= 实施 ADR-004。
+- 本轮方案与实现：①`core::chat_context` 新模块——`fit_messages(history, budget) -> (Vec<ChatMessage>, bool)`：总长≤预算原样返回；否则最新消息必留（超预算 mid_truncate 中段截断留头尾+「（超长截断）」标注），更早消息从新到旧整条保留（不切半条），6 个单测。②llm.rs 配置链：LlmConfig/UserConfigFile 加 `context_budget_chars: Option<usize>`（serde default，JSON snake 与文件既有风格一致）、env `ELWRIGHT_LLM_CONTEXT_BUDGET_CHARS`、merged() Option 字段级合并、`set_flat_field` pub 方法；`pub use DEFAULT_BUDGET_CHARS`。③commands.rs `assemble_chat_messages` 唯一收口两 chat 命令（预算从 config 取，None→24000）。④ew.rs：config 显示 context 行 + set 走 UserConfigFile。⑤顺手修数据丢失隐患：set 原按 BTreeMap<String,String> 回写，配置含 profiles 时解析失败→静默清空——改经 UserConfigFile 后档案保留。⑥新 tests/chat_completion_ipc.rs：TcpListener 起 mock LLM（记录请求体+回 OpenAI 响应），断言裁剪后请求体。踩坑记录：test_env 为 #[cfg(test)] 门控集成测试不可见（本测试进程内唯一用例，天然隔离，无需锁）；AppCtx 需 manage 且 SessionRegistry::new(backend) 签名带 SharedBackend（照抄 terminal_ipc 的 LocalBackend 构造）；批量正则补结构体字段误伤 LlmProfile（ADR 明确 profile 不加此字段），逐处回修。
+- 实际结果：已验证——cargo test 84 核心（含 6 新）+ 集成（含新 IPC 用例）全绿；clippy -D warnings 0 警告；fmt 无差异；eslint 0；vitest 60/60；build 成功；CLI 冒烟（set/显示/档案保留）通过。文档回填 chat behavior/architecture/changelog + ROADMAP（AI 对话条目、里程碑、进行中清空）+ 任务目录 plan 勾选与 verification.md。
+- 下一步：随本提交进 main + CI 确认；长会话真机点验（需真实 LLM）留 PENDING；下一项「人与人消息会话②：轻量身份/邀请与一对一消息传输」待用户定向立项。
