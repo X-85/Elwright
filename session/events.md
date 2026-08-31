@@ -323,3 +323,13 @@
 - 本轮方案（发版）：①版本号四件套同步：src-tauri/Cargo.toml、src-tauri/tauri.conf.json、src/package.json → 0.1.10，Cargo.lock 自动联动；②install.ps1 ProductCode 同步为新生成 GUID（219CB3F6-F3AA-4E23-9634-2346D926593C，避免与 v0.1.9 撞码导致同机重复装）；③本地五道闸：cargo test 62+1+6+4+1 全过、strict clippy 0 警告、fmt 无差异、vitest 43 全过、build 成功；④commit chore(release) + 打 tag v0.1.10 + push；⑤盯 release.yml 一次全绿（macOS dmg 2m18s + Windows msi 3m24s + Publish 11s），产物 Elwright_0.1.10_aarch64.dmg + Elwright_0.1.10_x64_en-US.msi 上 GitHub Release，自动生成 5 个 PR 的完整 changelog。
 - 实际结果：已验证——Release 页面 [v0.1.10](https://github.com/X-85/Elwright/releases/tag/v0.1.10) 公开可见，两个安装包资产就绪，变更日志覆盖 PR #4 #5 #6 #7 #8。
 - 下一步：ROADMAP 同步（当前版本、里程碑、进行中三处）；真机点验清单延续挂起（v0.1.10 新增项：流式首字延迟、停止按钮立即生效、能力协作全链路确认面板）；下一阶段待用户定向。
+
+### Q18 | 第1次处理（代码浏览器阶段④ 受控补丁编辑）
+- 问题或新增信息：按用户"按你的推荐进行"，落到 ROADMAP V2 第二档"代码浏览器阶段④"；本轮先 ADR-001「再评估」暂不引入 Java LSP，再实施"受控补丁编辑"。
+- 本轮方案（分两阶段 PR）：
+  - **ADR + 任务清单**（PR #9，6f5171a，3ed09ef）：ADR-001 决策"不引入 jdtls / 走受控补丁编辑"，plan/checklist/verification 在 `docs/work/active/feature-2026-08-code-browser-phase4-patches/`。
+  - **实施**（PR #10，90bc346）：后端 `core::patch`（parse_unified_diff / apply_hunks_to_content / is_sensitive_path / sha256_hex / build_preview / apply_preview / revert_snapshot_in + 快照持久化），10 个单测 + IPC mock runtime 3 例（env_lock 串行化避免共享 ELWRIGHT_USER_ROOT 串扰）；IPC `apply_patch_preview` / `apply_patch_apply` / `apply_patch_revert` / `apply_patch_snapshots`；前端 `lib/patch.ts::extractFirstDiff` 粗筛 + `PatchPreviewDialog.vue` 三栏 + `ChatView.vue` diff 围栏识别入口 + Bridge 4 方法 + patch.test.ts 4 例；路径黑名单 `.env/.pem/.key/.ssh/.aws/node_modules/target/.git`；上下文不匹配 → 整文件 warnings 跳过不写盘不入快照。
+  - **本地五道闸**：cargo 87（72 核心 + 3 apply_patch_ipc + 6 terminal + 4 workbench + 1 workspace + 1 code_browser_symbols）+ vitest 47 + strict clippy -D warnings + fmt + build 全绿；CI 7/7（mac/win/linux clippy+fmt + 三平台 cargo + 前端 + dmg + msi）一次全绿。
+  - **文档回填**：code-browser behavior/architecture/changelog + ADR-001 verification；chat README/behavior/architecture/changelog 阶段③④ + 补丁入口补齐（v0.1.10 时漏的同步）。
+- 实际结果：已验证——PR #10 squash 入 main，main HEAD 90bc346；分支 feat/code-browser-phase4-patches 自动删除。
+- 下一步：真机点验待用户（选中 → AI 回复 → 应用补丁 → 撤销 + 敏感路径拒绝 + 写入冲突兜底）；Q18 收口。下一步推荐按既定顺序推进"设置中心模型档案 → 工程质量第三档"，等用户定向。
