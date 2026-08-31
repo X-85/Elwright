@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
-import { MessageSquarePlus } from 'lucide-vue-next'
+import { MessageSquarePlus, Zap } from 'lucide-vue-next'
 import { renderChatMarkdown } from '../lib/safeMarkdown'
-import type { Bridge, ChatMessage, ChatSessionSummary, LlmConfigInfo } from '../lib/bridge'
+import type { Bridge, Capability, ChatMessage, ChatSessionSummary, LlmConfigInfo } from '../lib/bridge'
+import { isCapabilityResult, parseProposalId, resultFeedbackMessage, splitCapabilityResult } from '../lib/chatProposal'
 
 interface UiMessage {
   role: 'user' | 'assistant'
@@ -33,6 +34,12 @@ const userRenamed = ref<Set<string>>(new Set())
 const input = ref('')
 const sending = ref(false)
 const chatScroll = ref<HTMLElement | null>(null)
+
+// 能力协作（阶段③）：能力清单 + 提议/调用确认卡片 + 执行/回灌
+const capabilities = ref<Capability[]>([])
+const capPickerOpen = ref(false)
+const capArgs = ref<Record<number, string>>({})
+const runningIdx = ref<number | null>(null)
 
 const configInfo = ref<LlmConfigInfo | null>(null)
 const configState = ref<'loading' | 'ready' | 'unconfigured' | 'preview'>('loading')
@@ -186,6 +193,7 @@ async function commitRename() {
 
 onMounted(async () => {
   await refreshConfig()
+  props.bridge.listCapabilities().then((cs) => { capabilities.value = cs }).catch(() => {})
   await loadSessionList()
   if (sessions.value.length) {
     await selectSession(sessions.value[0].id)
@@ -239,6 +247,85 @@ async function complete() {
 function stop() {
   requestSeq++
   sending.value = false
+}
+
+// ---- 能力协作（阶段③）----
+
+function proposalOf(m: UiMessage) {
+  const id = parseProposalId(m.content)
+  if (!id) return null
+  const cap = capabilities.value.find((c) => c.id === id) ?? null
+  return { id, cap }
+}
+
+function isResult(m: UiMessage) {
+  return m.role === 'assistant' && isCapabilityResult(m.content)
+}
+
+function resultParts(m: UiMessage) {
+  return splitCapabilityResult(m.content)
+}
+
+function pickCapability(cap: Capability) {
+  capPickerOpen.value = false
+  messages.value.push({ role: 'user', content: `【能力调用】\nid: ${cap.id}` })
+  void persistCurrent()
+}
+
+async function runProposal(idx: number) {
+  const m = messages.value[idx]
+  if (!m || runningIdx.value !== null) return
+  const id = parseProposalId(m.content)
+  const cap = capabilities.value.find((c) => c.id === id)
+  if (!cap) {
+    notifyError(idx, `能力不存在或已被移除: ${id ?? ''}`)
+    return
+  }
+  runningIdx.value = idx
+  try {
+    let header: string
+    let body: string
+    let note: string | undefined
+    if (cap.type === 'script') {
+      const args = (capArgs.value[idx] ?? '').split(/\s+/).filter(Boolean)
+      const r = await props.bridge.runScript(cap, args)
+      header = `【能力结果】${cap.name}（${cap.type}）`
+      body = r.output
+    } else if (cap.type === 'knowledge') {
+      const r = await props.bridge.viewDoc(cap)
+      header = `【能力结果】${cap.name}（${cap.type}）`
+      body = r.content
+    } else {
+      const prompt = capArgs.value[idx] ?? ''
+      const r = await props.bridge.invokeSkill(cap, prompt)
+      header = `【能力结果】${cap.name}（${cap.type}${r.source === 'degraded' ? ' · 离线 SOP' : ''}）`
+      body = r.content
+      note = r.note
+    }
+    if (body.length > 4000) body = body.slice(0, 4000) + '\n…（超长截断）'
+    if (note) body += `\n\n> ${note}`
+    messages.value.push({ role: 'assistant', content: `${header}\n\n${body}` })
+    await persistCurrent()
+  } catch (e) {
+    notifyError(idx, `能力执行失败：${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    runningIdx.value = null
+    await nextTick()
+    chatScroll.value?.scrollTo({ top: chatScroll.value.scrollHeight })
+  }
+}
+
+function notifyError(idx: number, msg: string) {
+  messages.value.splice(idx + 1, 0, { role: 'assistant', content: msg, error: true })
+}
+
+function tellAiResult(idx: number) {
+  const m = messages.value[idx]
+  if (!m) return
+  const { header, body } = splitCapabilityResult(m.content)
+  messages.value.push({ role: 'user', content: resultFeedbackMessage(header, body) })
+  void persistCurrent()
+  void complete()
 }
 
 async function retry() {
@@ -336,7 +423,42 @@ const render = renderChatMarkdown
           输入消息开始对话。Enter 发送，Shift+Enter 换行；回复支持 Markdown，代码块可一键复制。
         </p>
         <div v-for="(m, i) in messages" :key="i" :class="['chat-msg', m.role, { error: m.error }]">
-          <template v-if="m.role === 'assistant'">
+          <!-- 执行结果 -->
+          <template v-if="!m.error && isResult(m)">
+            <div class="cap-result">
+              <div class="cap-result-head">{{ resultParts(m).header }}</div>
+              <pre class="cap-result-body">{{ resultParts(m).body }}</pre>
+              <button class="cap-tell-ai" :disabled="sending" @click="tellAiResult(i)">把结果告诉 AI</button>
+            </div>
+          </template>
+          <!-- 能力提议/调用确认卡片 -->
+          <template v-else-if="!m.error && proposalOf(m)">
+            <div class="cap-proposal" role="group" aria-label="能力确认">
+              <div class="cap-proposal-title">⚡ 能力{{ m.role === 'assistant' ? '提议' : '调用' }}</div>
+              <template v-if="proposalOf(m)!.cap">
+                <div><strong>{{ proposalOf(m)!.cap!.name }}</strong> <span class="cap-type">{{ proposalOf(m)!.cap!.type }}</span> <code class="cap-id">{{ proposalOf(m)!.cap!.id }}</code></div>
+                <p class="cap-note">
+                  {{ proposalOf(m)!.cap!.type === 'script' ? '将运行本地脚本（可在下方填写参数）。'
+                    : proposalOf(m)!.cap!.type === 'knowledge' ? '将展示知识文档内容。'
+                    : '将调用技能（可在下方填写输入；未配置模型时走离线 SOP）。' }}
+                </p>
+                <input
+                  v-model="capArgs[i]"
+                  class="cap-args"
+                  :placeholder="proposalOf(m)!.cap!.type === 'script' ? '脚本参数（可选，空格分隔）' : '输入 / 参数（可选）'"
+                  @keydown.enter.prevent
+                />
+                <div class="cap-actions">
+                  <button class="cap-run" :disabled="runningIdx !== null" @click="runProposal(i)">
+                    {{ runningIdx === i ? '执行中…' : '确认运行' }}
+                  </button>
+                  <span class="cap-muted">执行需你确认；模型不会自行运行。</span>
+                </div>
+              </template>
+              <p v-else class="cap-note">能力不存在或已被移除：{{ proposalOf(m)!.id }}</p>
+            </div>
+          </template>
+          <template v-else-if="m.role === 'assistant'">
             <div v-if="m.error" class="chat-error-box">
               <p class="error">{{ m.content }}</p>
               <button class="retry-btn" :disabled="sending" @click="retry">↻ 重试</button>
@@ -363,6 +485,20 @@ const render = renderChatMarkdown
           <p v-if="input.length > LONG_INPUT_HINT" class="chat-hint">
             输入较长（{{ input.length }} 字符），部分模型会截断或拒绝。
           </p>
+          <div class="cap-picker-wrap">
+            <button class="cap-picker-btn" title="选择能力（确认后执行）" @click="capPickerOpen = !capPickerOpen">
+              <Zap :size="14" /> 能力
+            </button>
+            <ul v-if="capPickerOpen" class="cap-picker" role="listbox" aria-label="选择能力">
+              <li v-for="c in capabilities" :key="c.id">
+                <button class="cap-picker-item" @click="pickCapability(c)">
+                  <strong>{{ c.name }}</strong> <span class="cap-type">{{ c.type }}</span>
+                  <span class="cap-muted">{{ c.id }}</span>
+                </button>
+              </li>
+              <li v-if="!capabilities.length" class="cap-muted cap-picker-empty">能力清单为空</li>
+            </ul>
+          </div>
           <button class="primary send-btn" :disabled="sending || !input.trim()" @click="send">发送</button>
         </div>
       </div>

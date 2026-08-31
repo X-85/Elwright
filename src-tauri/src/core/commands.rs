@@ -261,7 +261,10 @@ pub async fn chat_completion<R: tauri::Runtime>(
             return Err("未配置 LLM：请在「⚙ 模型设置」填写 base_url 后使用 AI 对话".to_string());
         }
         let client = llm::LlmClient { config };
-        let mut all = vec![llm::ChatMessage::new("system", llm::CHAT_SYSTEM_PROMPT)];
+        let mut all = vec![llm::ChatMessage::new(
+            "system",
+            chat_system_prompt(registry.list()),
+        )];
         all.extend(messages.into_iter().map(|m| llm::ChatMessage {
             role: m.role,
             content: m.content,
@@ -722,6 +725,21 @@ pub fn code_browser_bookmarks_toggle(
     Ok(store.bookmarks)
 }
 
+/// AI 对话系统提示：基础提示 + 能力清单（阶段③能力协作）。
+/// 模型只能提议（固定格式），执行永远在用户确认后由前端走既有 run/view/invoke 路径。
+fn chat_system_prompt(caps: &[registry::Capability]) -> String {
+    let mut sys = String::from(llm::CHAT_SYSTEM_PROMPT);
+    let mut lines: Vec<String> = Vec::new();
+    for cap in caps {
+        lines.push(format!("- {}（{}）{}", cap.id, cap.kind, cap.name));
+    }
+    if !lines.is_empty() {
+        sys.push_str("\n\n你可以向用户提议使用以下本地能力。仅提议，用户确认后才会执行；提议必须严格使用单独一行格式（不要包代码块）：【能力提议】id: <id>。可用能力：\n");
+        sys.push_str(&lines.join("\n"));
+    }
+    sys
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -751,5 +769,37 @@ mod tests {
             json["releaseUrl"],
             "https://github.com/X-85/Elwright/releases/tag/v0.1.2"
         );
+    }
+}
+
+#[cfg(test)]
+mod chat_prompt_tests {
+    use super::*;
+
+    fn cap(id: &str, kind: &str, name: &str) -> registry::Capability {
+        registry::Capability {
+            id: id.into(),
+            name: name.into(),
+            kind: kind.into(),
+            category: Some("示例".into()),
+            entry: None,
+            doc: None,
+            offline: Some(true),
+            prompt: None,
+            degrade_doc: None,
+            release_tier: 1,
+            unlock_after_uses: None,
+        }
+    }
+
+    #[test]
+    fn chat_system_prompt_lists_capabilities_and_proposal_format() {
+        let caps = vec![cap("text-stats", "script", "文本统计")];
+        let sys = chat_system_prompt(&caps);
+        assert!(sys.contains(llm::CHAT_SYSTEM_PROMPT));
+        assert!(sys.contains("- text-stats（script）文本统计"));
+        assert!(sys.contains("【能力提议】id: <id>"), "必须约定提议格式");
+        let empty = chat_system_prompt(&[]);
+        assert!(!empty.contains("【能力提议】"), "空注册表不注入提议约定");
     }
 }
