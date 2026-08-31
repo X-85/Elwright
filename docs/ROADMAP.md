@@ -25,7 +25,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 - v0.1.8：代码浏览器阶段①②（只读查看 + 轻量符号跳转，PR #2）。
 - v0.1.9：代码浏览器阶段③第一批（收藏/书签/发送到 AI，PR #3）。
 - v0.1.10：设置中心后续（常规/外观/终端本地偏好，PR #4）+ 代码浏览器阶段③第二批（转为 Todo + 终端定位）+ AI 对话阶段③用户确认式能力协作（PR #6）+ AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。
-- **未发版**（进 main 待下次发版）：代码浏览器阶段④ 受控补丁编辑（ADR-001，PR #10）+ 设置中心 模型档案（ADR-001-model-profiles，PR #11+实施 PR 待开）。
+- **未发版**（进 main 待下次发版）：代码浏览器阶段④ 受控补丁编辑（PR #10）+ 设置中心 模型档案（PR #11 ADR + PR #12 实施）+ 工程质量第三档 ESLint + coverage（PR #13 ADR + PR #14 实施）。
 
 ## 开发预览环境约束（本机 Windows / GNU-only）
 
@@ -40,7 +40,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 
 ## 进行中
 
-- **Q19 设置中心：模型档案 实施**（`docs/work/active/feature-2026-08-settings-center-model-profiles/`）：ADR 已合（PR #11），实施进行中——core::llm profile CRUD + activeProfile + flat 兼容 + 5 单测、CLI `ew config profile` 6 子命令、5 IPC + main.rs 注册 + mock runtime 5 例、前端 Bridge 5 方法 + LlmSettings.vue 档案下拉/新建/清单删除 + vitest 4 例。下一步等 PR 开 + CI 7/7 + 合并 + 台账收口。
+（无进行中——v0.1.10 已发版，main 攒下 Q18 代码浏览器阶段④ / Q19 设置中心模型档案 / Q20 工程质量第三档均已并入；下一阶段待用户定向。归档说明：各任务目录随合并归档；真机点验项统一留档 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`，按用户指示挂起。）
 
 ## V1（短期，做完即发版）
 
@@ -74,7 +74,7 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 - **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
   - ~~**第一档（立即）**~~ **已完成（2026-08-23）**：CI clippy + rustfmt 闸门；vitest 覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数），随 v0.1.5 进包。
   - **第二档（已完成 2026-08-24，`enhancement-2026-08-quality-tier2-e2e`）**：分层 e2e 冒烟——IPC 层用 tauri mock runtime 真协议测试（`src-tauri/tests/terminal_ipc.rs`，macOS/Linux 走真 PTY 全链路，Windows+CI 跳真 PTY 用例），浏览器层用 Playwright chromium（`src/e2e/`，接缝 + 降级守卫）；验证清单 `【自动化】/【手测】` 标记约定已写入 AI_CODE_AGENT_MAINTENANCE.md §6。tauri-driver 弃选（Windows CI 无 WinAppDriver），取舍见 `docs/features/engineering-quality/decisions/ADR-001-e2e-layering.md`。已并入 main（`6f84109`）。
-  - **第三档（按需）**：eslint（风格已统一，低优先）；覆盖率门槛（等测试有存量）。
+  - **第三档（已完成 2026-08-31，[ADR-002-eslint-and-coverage](docs/features/engineering-quality/decisions/ADR-002-eslint-and-coverage.md)，PR #13 ADR + PR #14 实施）**：ESLint 10 flat config（`typescript-eslint` + `eslint-plugin-vue`，规则 `no-unused-vars` + `vue/no-unused-components` + `vue/no-unused-vars` + `no-explicit-any` warn，TS/Vue 下 `no-undef` 关闭）；vitest coverage v8 provider（`lib/**/*.ts` 排除 `bridge.ts` facade + test 文件，thresholds lines/functions/statements 70% / branches 60%）；CI frontend job 新增 `npm run lint` 与 `npm run test:coverage` 两步；TypeScript 7.0.2 → 6.0.3（typescript-eslint 8.68 显式拒绝 TS 7）；实测覆盖率 95/76/100/95。弃选：prettier（独立 ADR）、`.vue` 纳入门槛（Playwright e2e 兜底）、istanbul/c8（v8 provider 更轻）、husky/lint-staged（团队规模扩大后再议）。
 
 ### 后置验证
 
@@ -103,7 +103,8 @@ v0.1.10（2026-08-31，tag `v0.1.10`，GitHub Release 附 dmg + msi）。
 - 2026-08-31 代码浏览器阶段③两批（PR #3 + 续）：第一批收藏文件/代码书签/发送到 AI（确认面板 + 对话预填）；第二批转为 Todo（位置标记跳回工作台）+ 终端定位（终端新 tab 打开文件目录）。期间 CI 揪出 save_recent 全新环境目录缺失问题。已随 v0.1.9 / v0.1.10 全部发版。
 - 2026-08-31 设置中心后续（PR #4）：常规（启动视图/自动检查更新；语言置灰待 i18n）、外观（密度/缩放）、终端（字体/字号/滚动历史，主题保持联动）；lib/preferences.ts 逐字段校验。模型档案留后续批次。
 - 2026-08-31 代码浏览器阶段④（PR #10，ADR-001 落地）：受控补丁编辑——core::patch（parse/apply/sensitive/sha256/preview/apply/revert + 快照持久化，10 单测）、IPC 4 + mock runtime 3 例（env_lock 串行化）、前端 lib/patch.ts + PatchPreviewDialog 三栏 + ChatView diff 围栏识别入口 + Bridge 4 方法 + patch.test.ts 4 例；路径黑名单（.env/.pem/.key/.ssh/.aws/node_modules/target/.git）；上下文不匹配 → 整文件 warnings 跳过不写盘不入快照。本地五道闸全绿（cargo 87 + strict clippy + fmt + vitest 47 + build），CI 7/7 一次过。
-- 2026-08-31 设置中心 模型档案（PR #11 ADR + 实施 PR 进行中）：profiles + activeProfile 与既有 flat 字段共存兼容；core::llm 5 单测 + CLI `ew config profile list|use|show|add|remove|rename` 6 子命令 + 5 IPC + main.rs 注册 + mock runtime 5 例 + Bridge 5 方法 + LlmSettings.vue 档案下拉/新建/清单删除 + vitest 4 例。本地五道闸全绿（cargo 97 + strict clippy + fmt + vitest 51 + build）。
+- 2026-08-31 设置中心 模型档案（PR #11 ADR + PR #12 实施）：profiles + activeProfile 与既有 flat 字段共存兼容；core::llm 5 单测 + CLI `ew config profile list|use|show|add|remove|rename` 6 子命令 + 5 IPC + main.rs 注册 + mock runtime 5 例 + Bridge 5 方法 + LlmSettings.vue 档案下拉/新建/清单删除 + vitest 4 例。本地五道闸全绿（cargo 97 + strict clippy + fmt + vitest 51 + build），CI 7/7 全绿。
+- 2026-08-31 工程质量第三档（PR #13 ADR + PR #14 实施）：ESLint 10 flat config（`typescript-eslint` + `eslint-plugin-vue`，规则 `no-unused-vars` + `vue/no-unused-components` + `vue/no-unused-vars` + `no-explicit-any` warn，TS/Vue 下 `no-undef` 关闭）；vitest coverage v8 provider（`lib/**/*.ts` 排除 `bridge.ts` facade + test 文件，thresholds lines/functions/statements 70% / branches 60%）；CI frontend job 新增 `npm run lint` 与 `npm run test:coverage` 两步；TypeScript 7.0.2 → 6.0.3（typescript-eslint 8.68 显式拒绝 TS 7）；vitest 测试 51 → 60（新增 9 例覆盖 preferences 副作用）；实测覆盖率 95/76/100/95。本地六道闸全绿（eslint + vitest + coverage + vite build + cargo fmt + clippy + test），CI 7/7 全绿。
 - 2026-08-31 v0.1.8 发版：携带代码浏览器阶段①②。
 
 - 2026-08-31 代码浏览器阶段①（含轻量符号跳转，PR #2）：本地项目只读查看——项目选择、懒加载目录树、escape-first 轻量高亮、文件名/内容搜索、接口→实现与 JavaBean→类定义多候选跳转、最近项目/文件持久化；敏感文件拒读与路径边界在 core 收口。测试：core 8 + IPC 1 + vitest 5 + e2e 1，全量闸门全绿。真机点验按用户指示跳过留档。任务目录已归档。

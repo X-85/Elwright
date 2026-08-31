@@ -350,3 +350,24 @@
   - **文档回填**：settings-center behavior（模型档案章节）/ architecture（配置解析顺序小节 + 架构图扩）/ changelog / README；ROADMAP「设置中心后续阶段」标注完成 + 「未发版」更新 + 「进行中」写 Q19 + 历史时间线。
 - 实际结果：已验证——PR #12 squash 入 main（92597f8），CI 7/7 全绿；分支 feat/settings-center-model-profiles 自动删除；本地五道闸：cargo 97（72 核心 + 5 profile + 3 apply_patch_ipc + 1 code_browser_symbols + 5 llm_profiles_ipc + 6 terminal + 4 workbench + 1 workspace）+ strict clippy -D warnings 0 警告 + fmt 无差异 + vitest 51（含 4 新 profileName 测试）+ build 成功。
 - 下一步：Q19 收口；下一步按既定顺序推进「工程质量第三档（ESLint + coverage 阈值）」，等用户定向（也可以由 Agent 直接接续按 ROADMAP 推荐顺序开工）。
+
+### Q20 | 第1次处理（工程质量第三档 ADR）
+- 问题或新增信息：按既定顺序，Q19 模型档案已并 main，下一步是 ROADMAP V1「工程质量治理」第三档（立项前置条件已达成——vitest 存量 51 例 / 10 test file）；本轮先 ADR-002「评估决策」再实施（沿用 Q18/Q19 的"先 ADR 再实施"协议）。
+- 本轮方案（ADR 阶段）：决策=引入 ESLint 10 flat config + @vitest/coverage-v8。ESLint：typescript-eslint + eslint-plugin-vue，规则三组——`no-unused-vars`（`_` 前缀豁免）+ `vue/no-unused-components` + `vue/no-unused-vars` + `no-explicit-any` warn；TS/Vue 下 `no-undef` 关闭；vue 模板风格规则 off（prettier 独立 ADR）。Coverage：v8 provider，include `src/lib/**/*.ts`，**exclude `src/lib/bridge.ts` facade**（同构于「弃选把 .vue 纳入门槛」——facade 由 IPC mock runtime + Playwright e2e 覆盖），thresholds lines/functions/statements 70% + branches 60%。CI：frontend job 加 `npm run lint` 与 `npm run test:coverage` 两步，三平台 matrix 复用。范围：配置 + 清零现有告警 + CI 接缝 + 文档回填。拒绝：prettier / istanbul / c8 / SonarQube / husky（独立 ADR 或低 ROI）。任务目录 `docs/work/active/enhancement-2026-08-quality-tier3-eslint-coverage/{plan,checklist,verification}.md`。
+- 实际结果：已验证——ADR PR #13 合并（f25501f），CI 7/7 全绿；分支 feat/engineering-tier3-eslint-coverage-adr 自动删除。
+- 下一步：开实施 PR——ESLint 10 flat config（rules 三组 + no-undef off + vue 风格 off）+ 清零 6 真未用 + 1 `_id` 化；vitest coverage v8 + thresholds 70/60 + bridge.ts 排除；preferences.test.ts 补 9 例（51 → 60）；TS 7.0.2 → 6.0.3（typescript-eslint 8.68 显式拒绝 TS 7）；CI frontend job 加两步；本地六道闸（eslint + vitest + coverage + vite build + cargo fmt + clippy + test）+ PR + CI 7/7 + 合并 + Q20 实施段收口。
+
+### Q20 | 第2次处理（工程质量第三档 实施）
+- 问题或新增信息：按既定 ADR-002 落地实施，沿用 Q18/Q19 的"先 ADR 再实施"两阶段协议；遇到意外阻塞——typescript-eslint 8.68 显式拒绝 TS 7.0（启动期硬错），临时降级 TS 7.0.2 → 6.0.3（vite 8 / vitest 4 peer 与 TS 版本无关，安全降级）。
+- 本轮方案：
+  - **ESLint 10 flat config**（`src/eslint.config.js`）：`typescript-eslint` + `eslint-plugin-vue`；rules：`no-unused-vars`（`_` 前缀豁免）+ `vue/no-unused-components` + `vue/no-unused-vars` + `no-explicit-any` warn；TS/Vue 下 `no-undef` 关闭（TS 自己管类型）；vue 模板风格规则（multiline/first-attribute/closing-bracket/max-attributes-per-line）全 off（prettier 独立 ADR）。
+  - **清零 6 真未用 + 1 watch 形参**：删 `favoriteOf` (CodeBrowserView.vue) / `diffLines` computed + `renderDiffLines` import (PatchPreviewDialog.vue) / `emit` defineEmits 整段 (TerminalPanel.vue) / `WorkspaceTopic` type import (WorkspaceView.vue) / `LINE_COMMENTS` 常量 (codeHighlight.ts) / `applyTheme` 解构 (theme.test.ts)；`CapabilityDetail.vue` 的 watch 形参 `id` → `_id`。
+  - **vitest coverage v8**（`src/vitest.config.ts`）：provider `v8`；include `lib/**/*.ts`；exclude `lib/**/*.test.ts` + `lib/__tests__/**` + **`lib/bridge.ts` facade**；thresholds lines/functions/statements 70% + branches 60%；reporter `text` + `html`。
+  - **preferences.test.ts 51 → 60**：新增 9 例覆盖副作用——`updatePreferences` 部分覆盖 + `initializePreferences` 应用 density/zoom + localStorage 写入 + 写入失败不抛 + `saveLastView` 拒绝 `last` 与非法值 + `resolveStartupView` 4 路径。
+  - **CI 接缝**（`.github/workflows/ci.yml`）：frontend job 加 `npm run lint`（紧跟 `npm ci`）+ `npm run test:coverage`（紧跟 `npm test`）；三平台 matrix 复用，不新增 job。
+  - **TypeScript 7.0.2 → 6.0.3**：typescript-eslint 8.68 拒绝 TS 7.0（启动时抛 "typescript-eslint does not support TS 7.0"），vite 8 / vitest 4 peer 不绑 TS 版本，安全降级。
+  - **package.json scripts**：`lint` (`eslint .`)、`lint:fix` (`eslint . --fix`)、`test:coverage` (`vitest run --coverage`)；devDependencies 新增 `eslint` / `typescript-eslint` / `eslint-plugin-vue` / `@vitest/coverage-v8` / `@eslint/js` / `vue-eslint-parser`。
+  - **实测覆盖率**：statements 95% / branches 76.52% / functions 100% / lines 95.48% —— 全过 70/60 阈值；最差的 `chatProposal.ts` 仍 88.88/71.42/100/100；`safeMarkdown.ts` branches 55%（条件分支）—— 60% 阈值已通过。
+  - **文档回填**：engineering-quality README 表格第三档「按需」→「已完成 2026-08-31 ADR-002 PR #14」+ ADR-002 链接 + 第二条 decisions；changelog.md 新建（2026-08-31 条目）；ROADMAP「未发版」补 Q20 + 第三档条目「按需」→「已完成 ADR-002 PR #13+14」+ 「进行中」清理 + 历史时间线 Q20 段。
+- 实际结果：已验证——PR #14 squash 入 main（21cfbc1），CI 7/7 全绿；分支 feat/engineering-tier3-eslint-coverage-impl 自动删除。本地六道闸：eslint exit 0 + vitest 60/60 + coverage 95/76/100/95（过阈值）+ vite build ok + cargo fmt exit 0 + cargo clippy --all-targets -D warnings exit 0 + cargo test exit 0。
+- 下一步：Q20 收口——`session/index.md` 加 Q20 行 + `session/events.md` 写 Q20 第1/第2次处理（本条）；commit + push 至 main。下一阶段待用户定向（v0.1.11 发版？继续 V1 余下工作？）。

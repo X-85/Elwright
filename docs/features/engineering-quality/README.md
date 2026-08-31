@@ -8,7 +8,7 @@
 |---|---|---|
 | 第一档 | CI clippy + rustfmt；前端 vitest 覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数） | 已完成（2026-08-23） |
 | 第二档 | 分层 e2e 冒烟 + 验证清单标记约定 | 已完成（2026-08-24，`docs/work/active/enhancement-2026-08-quality-tier2-e2e/`） |
-| 第三档 | eslint、覆盖率门槛 | 按需（eslint 低优先；覆盖率等测试有存量） |
+| 第三档 | ESLint 10 + vitest coverage v8 阈值（70/70/70/60） | 已完成（2026-08-31，[ADR-002](decisions/ADR-002-eslint-and-coverage.md)，PR #14） |
 
 ## 测试分层（第二档确立）
 
@@ -34,3 +34,4 @@
 ## decisions
 
 - [ADR-001-e2e-layering](decisions/ADR-001-e2e-layering.md) — e2e 选型：弃 tauri-driver，IPC mock + Playwright 分层
+- [ADR-002-eslint-and-coverage](decisions/ADR-002-eslint-and-coverage.md) — 第三档选型：ESLint 10 flat + @vitest/coverage-v8；阈值 70/60；不引 prettier、不把 .vue / bridge.ts 纳入门槛
