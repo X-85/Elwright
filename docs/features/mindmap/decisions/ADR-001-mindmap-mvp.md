@@ -47,6 +47,14 @@
 - MVP 零 LLM 依赖：离线全功能。AI 草稿（一句话生成子树）等按路线图后置，
   届时以独立 ADR 评估。
 
+## 与既有规划文档的关系
+
+实施时发现 `docs/features/mindmap/` 存在 2026-08-22 的规划文档（README MVP 清单、
+嵌套 JSON schema 草案、愿景 behavior）。本 ADR 对其做一次**收窄**：
+撤销/重做、颜色/标签/备注、缩放平移、导出、书签/能力/AI 多对象关联均未纳入 MVP，
+已显式转入 README「当前状态」与 behavior「后续升级」；数据模型由嵌套树改为扁平 DFS
+（architecture 已注记）。关联设计的 `{type,id}` 引用式方案保留给后续多对象关联。
+
 ## 后果
 
 - 新增 `core::mindmap` + 4 IPC + Bridge 4 方法 + `MindmapView.vue` + 侧栏入口。

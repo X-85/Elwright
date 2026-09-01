@@ -2,6 +2,10 @@
 
 ## 数据模型（ADR-001 §D2）
 
+> 早期草案（2026-08-22）为嵌套 JSON 树（`elwright-mindmap/0.1` schema + children 递归）；
+> 实施时改为扁平 DFS 方案（下方），关联设计（`{type,id}` 引用不复制状态）保留给后续
+> 多对象关联功能。
+
 - `MindmapDoc { id, title, nodes: Vec<MindNode>, updatedAt }`
 - `MindNode { id, text, parent, collapsed, convertedTodo }`；根 `parent=null` 恒为首节点。
 - **扁平数组 + parent 指针，数组顺序 = DFS 文档序（子树连续）**——所有树操作维持该
