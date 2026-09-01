@@ -72,6 +72,8 @@ pub struct UserConfigFile {
     #[serde(default)]
     context_budget_chars: Option<usize>,
     #[serde(default)]
+    messaging_relay_url: String,
+    #[serde(default)]
     profiles: std::collections::BTreeMap<String, LlmProfile>,
     #[serde(default)]
     active_profile: Option<String>,

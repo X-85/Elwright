@@ -35,6 +35,9 @@ crossbeam-channel = "0.5"
 # 实施期调整：去 dryoc 与 secretstream 单独封装，简化协议层；调整写入 ADR-002（实施偏差段）。
 snow = "0.9"
 ed25519-dalek = "2"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+rand = "0.8"
+hex = "0.4"
 thiserror = "1"
 
 [build-dependencies]
@@ -44,3 +47,4 @@ tauri-build = { version = "2", features = [] }
 # dev-dependencies 不进发布二进制
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
+tempfile = "3"

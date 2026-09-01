@@ -5,6 +5,7 @@ pub mod commands;
 pub mod degrade;
 pub mod executor;
 pub mod export;
+pub mod identity;
 pub mod invoke;
 pub mod llm;
 pub mod messaging_transport;
