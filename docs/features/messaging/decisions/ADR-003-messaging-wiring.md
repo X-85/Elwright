@@ -61,8 +61,9 @@ ADR-002 §5 原设想「队列存会话密文」有缺陷：会话密钥不跨�
   「明文不入盘」单测继续强制
 - flush 时解出明文，用**当次握手的新会话** `transport.send()` 重加密——
   队列内容与会话密钥解耦
-- 新增依赖：`chacha20poly1305` + `hkdf` + `hmac`（RustCrypto 纯 Rust 小件，
-  rustls 同源，windows-gnu 无负担）
+- 新增依赖：`chacha20poly1305`（RustCrypto 纯 Rust，rustls 同源，windows-gnu 无负担）。
+  实施备注：原列 `hkdf`/`hmac` 未引入——本地密钥为单用途专用密钥，直接作为
+  ChaCha20Poly1305 key 使用即可，少两个依赖（与项目极简底线一致）
 - 弃选：存明文 + 文件权限（不满足清单硬要求）；sealed box（ephemeral X25519
   每条加密，对本地静态场景是杀鸡用牛刀）
 

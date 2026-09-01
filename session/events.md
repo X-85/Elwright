@@ -510,3 +510,21 @@
 - 本轮方案：接线切片按 ADR-003（本轮新写，沿用「先 ADR 再实施」惯例，用户已定向批准开工）收口四个设计决定：①邀请 v3——QR 增载对端 X25519 DH 公钥并校验 id==derive(dh_pub)（补 v2 只带签名公钥、DH 绑定缺失的洞）；②成对房间 + 按 ID 排序确定性角色（小 ID=initiator）；③收发路径——sync_peer 阻塞式「连接→握手→验 remote_static==联系人 DH 公钥→flush 发件箱→收至超时→落 inbox」，后台 listener 线程轮询联系人，前端 poll inbox 合并进 phase1 localStorage 会话；④离线队列改存「本地静态密钥（chacha20poly1305+hkdf）加密的明文」——原设计存会话密文在重连后无法解密（会话密钥不持久），flush 时用新会话重加密。新增依赖 chacha20poly1305/hkdf/hmac（纯 Rust 小件）。
 - 实际结果：进行中。
 - 下一步：ADR-003 落盘 → identity v3 + contacts → 队列 v2 + client 收发 + inbox + IPC → 前端 bridge/SettingsCenter/PeopleChatView → vitest/e2e → 文档回填；随后 Q36 i18n 增量迁移。
+
+### Q37 | 第1次处理（工具路线图整理）
+- 问题或新增信息：用户要求将 Markdown 文档预览/编辑和 JSON 工具补入路线图，并询问路线图是否应拆分工具类文档。
+- 本轮方案：核对现有工作台工具与 Markdown 行为；保持总路线图为唯一优先级入口，新增工具明细路线图承载范围和验收边界。
+- 实际结果：已确认 JSON 格式化/压缩已实现，JSON 转义/反转义尚未实现；今日记录有 Markdown 编辑/预览，但不存在任意本地 Markdown 文档编辑器。已建立 `docs/TOOL-ROADMAP.md` 并将两项登记为 V2 P1 计划。
+- 下一步：实施前各自建立 Feature 文档、实现任务和自动化/真机验收清单。
+
+### Q37 | 第2次处理（核对页面入口与完成状态）
+- 问题或新增信息：用户看到路线图中的 JSON、Markdown 后，在页面找不到对应功能，询问是否已经完成。
+- 本轮方案：对照 ROADMAP、工具明细路线图和当前前端导航/工作台实现，区分“已实现功能”与“已登记计划”。
+- 实际结果：已确认：JSON 格式化/压缩已实现，入口在「工作台 → 实用工具 → JSON」；JSON 转义/反转义仍只是计划。Markdown 目前只有「工作台 → 今日记录」里的编辑/预览，不是任意 Markdown 文件编辑器；独立 Markdown 文档预览/编辑仍未实现。
+- 下一步：若要看到 JSON 入口需运行包含工作台二期的 v0.1.12 或更新版本；Markdown 独立编辑器和 JSON 转义工具需后续单独开发。
+
+### Q35 | 第2次处理（UI 接线切片完成，消息功能端到端可用）
+- 问题或新增信息：按 ADR-003 三切片实施并全部完成。
+- 本轮方案：切片 A——ADR-003 落盘；identity 邀请升级 v3（QR 增载对端 X25519 DH 公钥，签名内容含 dh_pub，accept 增加 `id==derive(dh_pub)` 硬绑定校验，v2 不再接受）；core::contacts（contacts.json）；core::local_crypto（chacha20poly1305，AAD 绑定 peer_id）+ identity::load_or_create_local_key；messaging_queue v2（本地密钥加密明文落盘——修复原「存会话密文重连后不可解」设计缺陷，flush 新会话重加密）；core::messaging_inbox（poll(since_id) cursor）；messaging_client::sync_peer（成对房间 pair_room 按 ID 排序、role_for 定角色、握手后校验 remote_static==联系人 DH 公钥防中间人、发件箱 FIFO flush 失败保留+attempts、收 Data 帧落收件箱空闲收尾）+ ensure_listener_started 后台线程 + 全局同步锁；IPC +6。切片 B——bridge +12 方法（浏览器预览统一中文降级抛错）；Rust 视图结构体统一 serde camelCase（对齐 TodoItem 等既有约定，IPC 测试同步回归）；SettingsCenter「消息中继」分组（MessagingSettings.vue：URL/保存/测试连接 + 双语 i18n，en 字典被替换吞掉的 terminal key 已补回——键集守卫测试抓到）；PeopleChatView 全接线（身份 chip/邀请弹窗复制/添加联系人弹窗/联系人快捷条/会话绑定 peerId/发送状态机 sending→sent|queued|failed/3s 收件轮询合并+对端左气泡/预览降级）；e2e +1 消息页降级守卫。
+- 实际结果：已验证——门禁全绿：130 lib（identity 15/contacts 2/crypto 2/queue 6/inbox 3）+ IPC 7（camelCase 回归）+ 中继冒烟 3（**双身份全链路：v3 邀请互加→A flush 2 条中文→B 收件箱按序收齐**，经真实 relay 子进程）+ eslint 0 + vitest 81（键集守卫抓到 en 缺 key）+ vite build + e2e 11/11 + clippy -D warnings 0 + fmt。文档回填 behavior/architecture/changelog/ROADMAP/verification/ADR-003 实施备注（hkdf/hmac 未引入）。提交：8c477c0（A1）/ c04fc59（A2）/ dc4523d（B）+ 本轮 docs。
+- 下一步：真机双账户点验（互发/篡改 DH 握手失败/离线补投/docker 部署）留 PENDING；随后按用户指示直接开始 Q36 i18n 增量迁移。

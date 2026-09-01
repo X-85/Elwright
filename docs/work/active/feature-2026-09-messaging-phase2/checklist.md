@@ -30,19 +30,19 @@
   - [x] `create_invite(ttl)` → `(short_code, qr_payload, expires_at)`
   - [x] `accept_invite(&InboundInvite)` 完整校验（长度/字符集/有效期/ed25519 签名/短码一致）
   - [x] 单测：ID 一致性、邀请校验签名/有效期
-- [x] IPC：`identity_get`、`identity_create_invite`、`identity_accept_invite`（commit d4c9251 + 7 例 mock runtime）
-- [x] main.rs 注册
-- [ ] Bridge：5 方法（前端接线待做）
-- [ ] vitest：identity.test.ts / invite.test.ts
+- [x] IPC：`identity_get`、`identity_create_invite`、`identity_accept_invite`（d4c9251 + 7 例 mock runtime）
+- [x] main.rs 注册（A2 再 +6：contacts ×3 / send / poll / listener）
+- [x] Bridge：12 方法（切片 B，dc4523d；浏览器预览统一降级文案）
+- [x] vitest：邀请/身份校验逻辑在 Rust 侧覆盖（identity 15 + IPC 7，比 TS 重复实现更可靠——记录为偏差）；前端 i18n 键集守卫 81 用例继续兜底
 
 ## Step 3 — 设置中心「消息中继」
 
 - [x] `UserConfigFile::messaging_relay_url` 字段（commit d4c9251）
 - [x] `ew config messaging` 子命令（show/set/clear；test 在 step4 补齐）
-- [ ] SettingsCenter.vue 新分组（前端接线待做）
+- [x] SettingsCenter.vue「消息中继」分组（MessagingSettings.vue：URL + 保存 + 测试连接，双语 i18n）
 - [x] 「测试连接」——核心探测 `messaging_client::probe_relay` + IPC `test_messaging_relay` + `ew config messaging test`（commit step4）
-- [ ] vitest：URL 校验
-- [ ] e2e：URL 输入 + 校验 + 保存
+- [x] URL 校验在 Rust `validate_relay_url`（4 单测）；前端 e2e 守卫预览降级（11/11）
+- [x] e2e：消息页预览降级守卫（邀请按钮不渲染 + 本地会话可用）
 
 ## Step 4 — 客户端 + 中继最小回路
 
@@ -76,3 +76,13 @@
 - [ ] CI 全绿（ci.yml + 视情况 release.yml）
 - [ ] 台账 Q34 收口
 - [ ] 任务目录归档（人执行）
+## UI 接线切片（2026-09-01，ADR-003，commit 8c477c0 / c04fc59 / dc4523d）
+
+- [x] ADR-003 落盘（D1 邀请 v3 / D2 成对房间定角色 / D3 sync_peer + listener + 轮询 / D4 队列本地密钥加密）
+- [x] identity v3：QR 增载 DH 公钥 + `id==derive(dh_pub)` 硬绑定；`parse_invite_qr`
+- [x] core::contacts（contacts.json）+ core::local_crypto（chacha20poly1305）+ core::messaging_inbox
+- [x] messaging_queue v2：本地密钥加密明文落盘，flush 新会话重加密
+- [x] messaging_client::sync_peer（握手验 remote_static / flush / 收件）+ ensure_listener_started
+- [x] IPC +6 + Bridge +12 + SettingsCenter 消息中继分组 + PeopleChatView 全接线
+- [x] e2e：双身份全链路经真 relay（邀请互加→flush→收件箱收齐中文消息）
+- [ ] 真机点验：双账户互发 / 篡改 DH 公钥联系人握手失败 / 离线补投 / 中继 docker-compose 部署

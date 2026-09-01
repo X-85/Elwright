@@ -31,6 +31,7 @@
 
 ## 相关文档
 
+- 工具明细路线图：[`docs/TOOL-ROADMAP.md`](../../TOOL-ROADMAP.md)
 - 现有能力模型：`docs/features/desktop-ui/`、`src/lib/bridge.ts`
 - AI 对话：`docs/features/chat/`
 - 桌宠：`docs/features/desktop-pet/`

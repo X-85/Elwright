@@ -8,7 +8,14 @@ App.vue
        └─ 输入区（文字 / 图片 / 表情）
             └─ localStorage（第一阶段）
 
-第二阶段传输层核心（已落地，UI 接线待做）：
+UI 接线（2026-09-01，ADR-003，全部落地）：
+
+PeopleChatView.vue  邀请互加弹窗 / 联系人绑定 / 发送状态机（sending→sent|queued|failed）
+                    / 3s 收件轮询合并（cursor 持久化 localStorage）/ 预览模式降级
+SettingsCenter.vue  「消息中继」分组（MessagingSettings.vue：URL + 保存 + 测试连接）
+lib/bridge.ts       +12 方法（桌面 tauriInvoke；浏览器统一中文降级抛错）
+
+第二阶段传输层核心：
 
 src-tauri/src/core/
   ├─ messaging_transport.rs   Noise_XX 握手 + AEAD 帧 + 帧序列化（协议层，12 单测）
@@ -28,7 +35,9 @@ src-tauri/tests/
 - 消息类型先定义为 `text`、`image`、`emoji`，保留 `status` 字段供后续增加 `sending/sent/delivered/failed`。
 - 图片仅保存用户主动选择的内容；不读取剪贴板、终端或其他本地文件。
 - 网络传输、身份认证、邀请和附件服务另建 MessageTransport，不塞入 `Bridge` 的现有能力执行接口。
-- 第二阶段传输层原语已按 [ADR-002](./decisions/ADR-002-messaging-transport.md) 落地：
-  身份即 X25519 静态密钥（Noise_XX），会话密钥端到端协商，中继只见密文与房间哈希；
-  离线队列只存密文。PeopleChatView 从本地适配器切到真实传输时，仅需在
-  `Bridge` 增加传输方法并接线（见 behavior.md §本阶段边界）。
+- 传输层按 [ADR-002](./decisions/ADR-002-messaging-transport.md)（协议/身份/队列）与
+  [ADR-003](./decisions/ADR-003-messaging-wiring.md)（接线：邀请 v3 DH 硬绑定、成对房间
+  按 ID 定角色、sync_peer 收发、离线队列本地密钥加密）落地：身份即 X25519 静态密钥
+  （Noise_XX），会话密钥端到端协商，中继只见密文与房间号；收发路径握手后校验
+  `remote_static == 联系人 DH 公钥` 防中间人；消息模型仍以阶段① localStorage 会话
+  为展示层，收件箱/发件箱在 Rust 侧加密落盘。

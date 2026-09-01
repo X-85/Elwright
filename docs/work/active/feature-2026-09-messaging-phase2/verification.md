@@ -42,6 +42,13 @@
 - behavior.md §第二阶段 + 本阶段边界、architecture.md 传输层结构图、changelog.md 2026-09-01 条目
 - ROADMAP「人与人消息会话」条目更新为「传输层核心已落地，UI 接线待做」
 
+**UI 接线切片 A/B（2026-09-01 完成，ADR-003，commit 8c477c0 / c04fc59 / dc4523d）：**
+
+- identity v3 15 单测（含 `parse_invite_qr` v2 拒收、**DH-ID 硬绑定拒绝**）；contacts 2；local_crypto 2（AAD 绑定/篡改拒绝）；队列 v2 6（明文不入盘继续强制）；inbox 3
+- **双身份全链路 e2e（经真实 relay 子进程）**：v3 邀请互加落盘 → A 发件箱 2 条（含中文）flush → B 收件箱按序收齐；顺带修测试把 TempDir move 进闭包连目录删除的坑
+- IPC 7/7（camelCase 统一后回归）；门禁：130 lib + eslint 0 + vitest 81 + build + e2e 11/11 + clippy 0 + fmt
+- 实施偏差：计划中 `hkdf`/`hmac` 未引入（本地密钥单用途直接作 AEAD key，记入 ADR-003）；前端 vitest identity/invite 不重复实现 TS 版（Rust 单测为准，前端由 i18n 键集守卫 + e2e 降级守卫兜底）
+
 **最终门禁（Step 6 时点）：**
 
 - cargo test：120 lib + 全部集成套件（含 7 IPC + 2 中继冒烟）全绿
