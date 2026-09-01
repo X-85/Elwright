@@ -6,6 +6,7 @@
 - **接续**：ADR-001 — 客户端本地消息会话（PR #1 已并入 main，行为见 [behavior.md §第一阶段](../behavior.md)）
 - **阶段**：三阶段规划之②——「轻量身份/邀请与一对一消息传输」
 - **红线对齐**：[ROADMAP §主干红线与准入](../../../ROADMAP.md) — 数据本地优先、用户明确授权、不默认采集屏幕/终端/剪贴板
+- **实施偏差（Step 1 后追加）**：原计划用独立 libsodium `secretstream` 流加密（ADR §D4）；实施期调研发现 snow 0.9 TransportState 自带 ChaCha20-Poly1305 AEAD + nonce 单调管理 + `rekey_*` 接口，已覆盖 ADR §D4 的全部安全需求。去掉独立 secretstream 封装，少引 `dryoc` 与 `libsodium-sys` 两个依赖。详细帧协议见 [transport-protocol.md](../transport-protocol.md)。
 
 ---
 

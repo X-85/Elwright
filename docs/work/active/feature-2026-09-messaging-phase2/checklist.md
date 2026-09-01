@@ -4,19 +4,23 @@
 
 ## Step 1 — 协议层骨架
 
-- [ ] `src-tauri/Cargo.toml` 加依赖：`snow = "0.9"`、`libsodium-sys = "0.2"`（或 `dryoc` 看哪个跨平台友好）
-- [ ] `src-tauri/src/core/messaging_transport.rs` 新建
-  - [ ] `NoiseHandshake::new_initiator / new_responder`
-  - [ ] `Session::encrypt(plaintext) -> Frame`
-  - [ ] `Session::decrypt(frame) -> Plaintext`（含 nonce 重放拒绝）
-  - [ ] `Frame` 序列化（handshake / data / control 三类）
-- [ ] 帧格式文档：`docs/features/messaging/transport-protocol.md`
-- [ ] 单测（`#[cfg(test)]`）：
-  - [ ] 握手 round-trip
-  - [ ] 密文不可破（手工改字节）
-  - [ ] nonce 重放拒绝
-  - [ ] 帧解析边界（短/长/截断/版本错配）
-- [ ] windows-gnu 工具链下 libsodium 编译通过（CI + 公司机手测）
+- [x] `src-tauri/Cargo.toml` 加依赖：`snow = "0.9"` + `ed25519-dalek` + `thiserror`
+- [x] `src-tauri/src/core/messaging_transport.rs` 新建
+  - [x] `Handshake::new_initiator / new_responder / step / read_final / into_transport`
+  - [x] `Transport::send / recv / rekey_send / rekey_recv / send_nonce / recv_nonce / remote_static`
+  - [x] `Frame` 序列化（handshake / data / control 三类 + 帧头解析 + 控制码解析）
+  - [x] `complete_handshake(alice, bob)` 测试辅助
+- [x] 帧格式文档：`docs/features/messaging/transport-protocol.md`
+- [x] 单测（`#[cfg(test)]`，12 个）：
+  - [x] 握手 round-trip（远端 static 公钥双向不同）
+  - [x] 加解密 round-trip（双向）
+  - [x] 密文不可破（手工改字节）
+  - [x] nonce 重放拒绝
+  - [x] 显式 rekey 后仍能加解密
+  - [x] 帧握手/数据/控制三类的 encode-decode round-trip
+  - [x] 版本错配 / 截断头 / 未知帧类型 三种边界
+  - [x] 密文不出现明文（窗口匹配测试）
+- [x] windows-gnu 工具链下 snow 编译通过（CI 验证；公司机手测延后到 PENDING）
 
 ## Step 2 — 本地身份 + 邀请
 

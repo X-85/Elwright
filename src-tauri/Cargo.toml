@@ -29,6 +29,13 @@ tauri-plugin-dialog = "2.7.2"
 portable-pty = "0.8"
 parking_lot = "0.12"
 crossbeam-channel = "0.5"
+# Messaging phase 2 — Noise_XX 握手 + snow 自带 AEAD 数据通道（ADR-002）
+# ADR-002 原计划独立 secretstream，调研发现 snow TransportState 自带 ChaCha20-Poly1305 AEAD
+# + nonce 管理 + rekey，足够覆盖 ADR §D4 的全部安全需求（重放拒绝、顺序保证、显式 rekey）。
+# 实施期调整：去 dryoc 与 secretstream 单独封装，简化协议层；调整写入 ADR-002（实施偏差段）。
+snow = "0.9"
+ed25519-dalek = "2"
+thiserror = "1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
