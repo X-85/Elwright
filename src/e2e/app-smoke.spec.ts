@@ -8,6 +8,12 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('能力详情可点击调用，并展示预览模式的离线 SOP', async ({ page }) => {
+  // weekly-report 现为进阶档位（ADR-001）：beforeEach 的 clear 是先注册的 initScript，
+  // 这里追加后置种子（注册序在后），每次导航清空后重新预置累计使用 3 次
+  await page.addInitScript(() =>
+    localStorage.setItem('elwright-capability-uses', JSON.stringify({ 'text-stats': 3 })),
+  )
+  await page.reload()
   await page.getByText('周报生成', { exact: true }).click()
   const invoke = page.getByRole('button', { name: /调用/ })
   await expect(invoke).toBeEnabled()

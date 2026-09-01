@@ -19,3 +19,11 @@
    toast「🎉 已解锁进阶能力「周报生成」——在列表中即可使用」弹出；
    提示行消失；周报生成进入核心视图且无待解锁徽标；uses 落盘 {"text-stats":3}。
    验证后已清除浏览器测试用 localStorage。
+
+## 【自动化】e2e 对齐新行为（CI 首跑抓到，已修）
+
+- `app.spec.ts` 首用例改为断言新行为：默认核心视图 3 项 + 提示行进度 +
+  查看全部后 4 项且 weekly-report 带待解锁徽标。
+- `app-smoke.spec.ts` 离线 SOP 用例：weekly-report 现为进阶档位，追加后置
+  initScript 预置累计使用 3 次（注册序在 beforeEach 的 clear 之后）再验调用降级。
+- 本地 Playwright 10/10 全绿。

@@ -10,10 +10,18 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('.cap-item').first()).toBeVisible()
 })
 
-test('工具箱加载内置 4 能力，计数徽标同步', async ({ page }) => {
+test('工具箱默认核心视图 3 项，查看全部后 4 项（weekly-report 进阶档位，ADR-001）', async ({ page }) => {
+  // 默认核心视图：进阶档位隐藏，提示行显示最近解锁进度
+  await expect(page.locator('.cap-item')).toHaveCount(3)
+  await expect(page.locator('.count')).toHaveText('3 / 4 项')
+  await expect(page.locator('.growth-hint')).toContainText('距解锁「周报生成」还差 3 次')
+  await expect(page.locator('.bridge-badge')).toHaveText('预览模式 · 浏览器')
+
+  // 查看全部：进阶项出现并带待解锁徽标
+  await page.click('.growth-toggle')
   await expect(page.locator('.cap-item')).toHaveCount(4)
   await expect(page.locator('.count')).toHaveText('4 / 4 项')
-  await expect(page.locator('.bridge-badge')).toHaveText('预览模式 · 浏览器')
+  await expect(page.locator('.cap-item:has-text("周报生成") .locked-badge')).toHaveText('待解锁')
 })
 
 test('筛选与搜索联动：script 过滤只剩文本统计', async ({ page }) => {
