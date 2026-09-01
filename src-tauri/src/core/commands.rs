@@ -23,8 +23,8 @@ use super::chat_store;
 use super::code_browser;
 use super::workbench;
 use super::{
-    contacts, executor, export, identity, invoke, llm, messaging_inbox, messaging_queue, patch,
-    registry, terminal, version, workspace,
+    contacts, executor, export, identity, invoke, llm, messaging_inbox, messaging_queue, mindmap,
+    patch, registry, terminal, version, workspace,
 };
 
 /// 桌面壳全局状态：setup 期填充，经 `.manage()` 注入，命令层只读。
@@ -625,6 +625,48 @@ pub async fn messaging_poll_inbox(since_id: u64) -> Result<InboxPoll, String> {
 #[tauri::command]
 pub fn messaging_start_listener() -> Result<bool, String> {
     Ok(crate::core::messaging_client::ensure_listener_started())
+}
+
+// ---- 脑图（mindmap MVP，ADR-001）----
+
+fn mindmap_user_root() -> Result<PathBuf, String> {
+    identity::user_root().ok_or_else(|| "无法定位用户主目录".to_string())
+}
+
+#[tauri::command]
+pub fn mindmap_list() -> Result<(Vec<mindmap::MindmapSummary>, Vec<String>), String> {
+    mindmap::list(&mindmap_user_root()?).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn mindmap_create(title: String) -> Result<mindmap::MindmapDoc, String> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("标题不能为空".to_string());
+    }
+    if title.chars().count() > 80 {
+        return Err("标题过长（≤80 字符）".to_string());
+    }
+    let mut doc = mindmap::new_doc(title);
+    mindmap::save(&mindmap_user_root()?, &mut doc).map_err(|e| e.to_string())?;
+    Ok(doc)
+}
+
+#[tauri::command]
+pub fn mindmap_load(id: String) -> Result<mindmap::MindmapDoc, String> {
+    mindmap::load(&mindmap_user_root()?, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn mindmap_save(doc: mindmap::MindmapDoc) -> Result<mindmap::MindmapDoc, String> {
+    let mut doc = doc;
+    mindmap::save(&mindmap_user_root()?, &mut doc).map_err(|e| e.to_string())?;
+    Ok(doc)
+}
+
+#[tauri::command]
+pub fn mindmap_delete(id: String) -> Result<(), String> {
+    mindmap::delete(&mindmap_user_root()?, &id).map_err(|e| e.to_string())
 }
 
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----

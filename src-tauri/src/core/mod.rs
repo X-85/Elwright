@@ -14,6 +14,7 @@ pub mod messaging_client;
 pub mod messaging_inbox;
 pub mod messaging_queue;
 pub mod messaging_transport;
+pub mod mindmap;
 pub mod patch;
 pub mod registry;
 pub mod terminal;

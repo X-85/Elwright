@@ -545,3 +545,9 @@
 - 本轮方案：纯盘点无代码变更。当前候选：①发版 v0.1.13（消息②全量 + i18n 第一批均已进 main 未发版）；②i18n 第二批（其余视图壳层 + 能力类型/档位枚举标签）；③新主干立项：脑图 MVP 或工程图 MVP（后置验证已解锁）；④用户动作：真机点验（消息双账户互发/离线补投 + v0.1.7~v0.1.12 历史 PENDING 清单）；⑤误收文档处置决策（2a55766 中的 TOOL-ROADMAP 等：保留或拆出）。
 - 实际结果：已给出建议排序（推荐先发版收口）。
 - 下一步：等用户定向。
+
+### Q37 | 第1次处理（发版 v0.1.13 完成）
+- 问题或新增信息：用户定向「先发 v0.1.13 收口今天的工作」——携带人与人消息会话②全量（传输层核心 ADR-002 + UI 接线 ADR-003）+ i18n 第一批。
+- 本轮方案：沿用既有发版协议。**过程中抓到发布阻断 bug**：切片 A2 的 6 个接线 IPC 命令（contacts ×3 / messaging_send / poll_inbox / start_listener）在 commands.rs 已实现并进了 mock 测试，但桌面壳 main.rs 的注册当时漏 `git add` 未提交——CI 测不出来（mock 测试自带 handler 列表），不修则发版后桌面端消息功能全部「命令不存在」。版本号提交后核对 git status 时发现该残留（0fc83b5 → 9e9aeae 修复），修后才继续发版。
+- 实际结果：已验证——①版本号四处同步 + ROADMAP（0fc83b5）②main.rs 补注册（9e9aeae）③CI 7/7 全绿（run 33528025024）④windows msi 制品 `file` 提取 Revision Number = {FF2A83D1-9F64-4573-8D79-3B48474A63ED} → install.ps1 同步（78d4f7c）⑤tag v0.1.13 → release.yml 3 job 全绿（run 33529230457：msi 3m56s + dmg 2m21s + Publish 10s）⑥GitHub Release v0.1.13 双资产就位（Elwright_0.1.13_aarch64.dmg + Elwright_0.1.13_x64_en-US.msi）。
+- 下一步：真机安装 v0.1.13 验证消息功能 + msi 幂等升级（用户动作）；教UPD：**动 main.rs 的功能提交必须显式核对 staged 清单**（与 Q35 附注教训同源，本次在发版闸门内拦住）。

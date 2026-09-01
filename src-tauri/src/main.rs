@@ -109,7 +109,12 @@ fn main() {
             commands::contacts_remove,
             commands::messaging_send,
             commands::messaging_poll_inbox,
-            commands::messaging_start_listener
+            commands::messaging_start_listener,
+            commands::mindmap_list,
+            commands::mindmap_create,
+            commands::mindmap_load,
+            commands::mindmap_save,
+            commands::mindmap_delete
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");
