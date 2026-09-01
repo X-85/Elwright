@@ -533,3 +533,9 @@
 - 问题或新增信息：docs 回填提交（2a55766）用 `git add docs/` 时误收了非本任务的非跟踪文件——`docs/TOOL-ROADMAP.md`、`docs/work/active/feature-2026-09-roadmap-tools/{plan,checklist,verification}.md`（工具路线图规划，疑似用户/并行会话所建）与 `docs/features/workbench/README.md` 的 +1 行改动，混入消息文档提交且提交信息未提及。
 - 本轮方案：已推送不改写历史；内容为纯文档无功能影响。向用户明确披露，保留与否由用户决定（需要时可拆出重建跟踪）。
 - 教训：提交前必须 `git status` 逐文件核对 staged 清单，任务目录外的非跟踪文件绝不顺手 add（呼应 Q13 提交卫生教训）。
+
+### Q36 | 第1次处理（i18n 增量迁移第一批完成）
+- 问题或新增信息：Q35 收口后按用户指示直接开始 i18n 增量迁移（设置中心 ADR-002 第 3 条遗留）。
+- 本轮方案：任务目录 `feature-2026-09-i18n-incremental/{plan}.md`（范围 + 后续增量清单）。第一批：①`STARTUP_VIEW_OPTIONS` label → labelKey（`startup.*` 7 个双语键），设置中心渲染走 `t()`；②`LlmSettings.vue` 全量迁移（26 个 `llm.*` 双语键，覆盖字段标签/来源/占位符/按钮/档案切换·新建·删除文案与确认框，`{name}` 占位符调用方 replace）；③补 en 字典历史缺口 `settings.section.terminal`（此前缺失靠 zh 回退，本轮被键集完整性守卫暴露——迁移过程中替换误吞该 key 即被守卫抓到，守卫有效性顺带验证）。
+- 实际结果：已验证——eslint 0 / vitest 81（键集守卫过）/ vite build / Playwright e2e 11/11；CI 7/7 全绿（run 33526326926）。commit 43efe7a 推 main。
+- 下一步：其余视图壳层文案（PeopleChatView / ToolboxView / TerminalPanel / WorkbenchView）与能力类型/档位枚举标签留后续增量（plan.md 已列）；真机点验项（消息双账户 + 历史 PENDING 清单）由用户执行。
