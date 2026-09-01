@@ -77,6 +77,21 @@ enum ConfigAction {
         #[command(subcommand)]
         action: ProfileAction,
     },
+    /// 消息中继 URL：show / set <url> / clear
+    Messaging {
+        #[command(subcommand)]
+        action: MessagingAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum MessagingAction {
+    /// 显示当前消息中继 URL
+    Show,
+    /// 设置消息中继 URL（ws:// 或 wss://）
+    Set { url: String },
+    /// 清除消息中继 URL（恢复「未配置」状态）
+    Clear,
 }
 
 #[derive(Subcommand)]
@@ -400,6 +415,7 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
             }
         }
         Some(ConfigAction::Profile { action }) => profile_command(action),
+        Some(ConfigAction::Messaging { action }) => messaging_command(action),
     }
 }
 
@@ -552,6 +568,37 @@ fn profile_command(action: ProfileAction) {
                 llm::normalize_profile_name(&old).unwrap_or(old),
                 llm::normalize_profile_name(&new).unwrap_or(new)
             );
+        }
+    }
+}
+
+fn messaging_command(action: MessagingAction) {
+    use elwright_core::core::llm;
+    match action {
+        MessagingAction::Show => {
+            let url = llm::read_messaging_relay_url();
+            outln!(
+                "消息中继 URL：{}",
+                if url.is_empty() {
+                    "（未配置）".to_string()
+                } else {
+                    url
+                }
+            );
+        }
+        MessagingAction::Set { url } => {
+            if let Err(e) = llm::set_messaging_relay_url(&url) {
+                errln!("错误: {}", e);
+                std::process::exit(1);
+            }
+            outln!("已设置消息中继 URL：{}", url);
+        }
+        MessagingAction::Clear => {
+            if let Err(e) = llm::set_messaging_relay_url("") {
+                errln!("错误: {}", e);
+                std::process::exit(1);
+            }
+            outln!("已清除消息中继 URL（恢复「未配置」）");
         }
     }
 }

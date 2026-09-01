@@ -402,6 +402,79 @@ fn load_user_config_file_for_write() -> Result<(PathBuf, UserConfigFile), String
     Ok((path, cfg))
 }
 
+// ---- 消息中继 URL ----
+//
+// 仅写用户层 `~/.elwright/config.json` 的 `messaging_relay_url` 字段；
+// 暂不开放环境变量/项目层覆盖（中继是部署选择，由用户主动配）。
+// 校验规则：`ws://` 或 `wss://` 开头，host 非空，无 path/query/fragment。
+
+/// 读当前消息中继 URL（来自用户层）。空串 = 未配置。
+pub fn read_messaging_relay_url() -> String {
+    user_config_path()
+        .and_then(|p| read_user_config_file(&p))
+        .map(|c| c.messaging_relay_url)
+        .unwrap_or_default()
+}
+
+/// 校验消息中继 URL 格式。空串视为清除（合法）。
+pub fn validate_relay_url(url: &str) -> Result<(), String> {
+    if url.is_empty() {
+        return Ok(());
+    }
+    if url.len() > 512 {
+        return Err(format!("URL 过长（>{} 字符）", 512));
+    }
+    let (scheme, rest) = url
+        .split_once("://")
+        .ok_or_else(|| "URL 必须以 ws:// 或 wss:// 开头".to_string())?;
+    if scheme != "ws" && scheme != "wss" {
+        return Err(format!("协议必须是 ws:// 或 wss://，收到 '{}'", scheme));
+    }
+    let after_scheme = rest;
+    // 取 host：遇到 /、?、#、终止即停
+    let host_end = after_scheme
+        .find(['/', '?', '#'])
+        .unwrap_or(after_scheme.len());
+    let host = &after_scheme[..host_end];
+    if host.is_empty() {
+        return Err("URL 缺少主机名".to_string());
+    }
+    // host 不能含空白或控制字符；端口号形如 :1234——若含 ':'，最后一段必须可解析为 u16，
+    // 否则视为非法端口（避免把 "host:abc" 当作合法）。
+    let host_only = match host.rsplit_once(':') {
+        Some((h, p)) => {
+            if p.is_empty() {
+                return Err("端口号不能为空".to_string());
+            }
+            if p.parse::<u16>().is_err() {
+                return Err(format!("端口号非法: '{}'", p));
+            }
+            h
+        }
+        None => host,
+    };
+    if host_only.is_empty() {
+        return Err("URL 缺少主机名".to_string());
+    }
+    if host_only.contains(char::is_whitespace) {
+        return Err("主机名不能含空白字符".to_string());
+    }
+    Ok(())
+}
+
+/// 设置消息中继 URL（保留文件里其他键，包括 profiles/activeProfile）。
+/// 空串 = 清除该字段（落盘时不写）。空串以外的非法值会被 `validate_relay_url` 拒绝。
+pub fn set_messaging_relay_url(url: &str) -> Result<(), String> {
+    validate_relay_url(url)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    if url.is_empty() {
+        cfg.messaging_relay_url.clear();
+    } else {
+        cfg.messaging_relay_url = url.to_string();
+    }
+    write_user_config_file(&path, &cfg)
+}
+
 /// 保存（或覆盖）指定 name 的 profile，校验 name 合法。
 pub fn save_profile(profile: LlmProfile) -> Result<(), String> {
     let name = normalize_profile_name(&profile.name)?;
@@ -1044,8 +1117,9 @@ mod profile_tests {
     use super::{is_valid_profile_name, normalize_profile_name, LlmProfile, UserConfigFile};
     use crate::core::llm::ConfigLayers;
     use crate::core::llm::{
-        active_profile_name, delete_profile, get_profile, list_profiles, rename_profile,
-        save_profile, set_active_profile,
+        active_profile_name, delete_profile, get_profile, list_profiles, read_messaging_relay_url,
+        rename_profile, save_profile, set_active_profile, set_messaging_relay_url, set_user_config,
+        validate_relay_url,
     };
     use crate::core::test_env::env_serialization_guard;
     use std::fs;
@@ -1194,6 +1268,94 @@ mod profile_tests {
         })
         .unwrap();
         assert!(rename_profile("new", "third").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    // ---- messaging_relay_url ----
+
+    #[test]
+    fn validate_relay_url_accepts_valid_forms() {
+        assert!(validate_relay_url("").is_ok());
+        assert!(validate_relay_url("ws://127.0.0.1:9000").is_ok());
+        assert!(validate_relay_url("wss://relay.example.com").is_ok());
+        assert!(validate_relay_url("wss://relay.example.com:9443").is_ok());
+        // 路径/query/fragment 同样允许（校验只看 host 是否存在）
+        assert!(validate_relay_url("ws://localhost:9000/path").is_ok());
+    }
+
+    #[test]
+    fn validate_relay_url_rejects_invalid_forms() {
+        assert!(validate_relay_url("http://example.com").is_err());
+        assert!(validate_relay_url("ws://").is_err()); // 无 host
+        assert!(validate_relay_url("ws://").is_err());
+        assert!(validate_relay_url("wss://host with space").is_err());
+        assert!(validate_relay_url("not a url").is_err());
+        assert!(validate_relay_url("ws://host:not_a_port").is_err());
+        // 超长
+        let too_long = format!("wss://{}", "a".repeat(600));
+        assert!(validate_relay_url(&too_long).is_err());
+    }
+
+    #[test]
+    fn messaging_relay_url_round_trip() {
+        let _g = env_serialization_guard();
+        let dir = std::env::temp_dir().join(format!(
+            "elwright-test-messaging-relay-rt-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        // 初始为空
+        assert_eq!(read_messaging_relay_url(), "");
+        // 写入
+        set_messaging_relay_url("wss://relay.example.com:9443").unwrap();
+        assert_eq!(read_messaging_relay_url(), "wss://relay.example.com:9443");
+        // 清除（空串 = 清字段）
+        set_messaging_relay_url("").unwrap();
+        assert_eq!(read_messaging_relay_url(), "");
+        // 非法值拒绝
+        assert!(set_messaging_relay_url("http://x").is_err());
+        assert!(set_messaging_relay_url("ws://").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn messaging_relay_url_preserves_other_fields() {
+        let _g = env_serialization_guard();
+        let dir = std::env::temp_dir().join(format!(
+            "elwright-test-messaging-relay-preserve-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        // 先写 base_url + profile，再写 relay
+        set_user_config("https://api.example.com", "k", "gpt-x").unwrap();
+        save_profile(LlmProfile {
+            name: "work".into(),
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        })
+        .unwrap();
+        set_messaging_relay_url("ws://127.0.0.1:9000").unwrap();
+
+        // 重读确认三个字段都在
+        let cfg: UserConfigFile =
+            serde_json::from_str(&fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+        assert_eq!(cfg.base_url, "https://api.example.com");
+        assert_eq!(cfg.model, "gpt-x");
+        assert_eq!(cfg.messaging_relay_url, "ws://127.0.0.1:9000");
+        assert!(cfg.profiles.contains_key("work"));
 
         std::env::remove_var("ELWRIGHT_USER_ROOT");
         fs::remove_dir_all(&dir).ok();

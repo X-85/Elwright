@@ -22,7 +22,9 @@ use super::chat_context;
 use super::chat_store;
 use super::code_browser;
 use super::workbench;
-use super::{executor, export, invoke, llm, patch, registry, terminal, version, workspace};
+use super::{
+    executor, export, identity, invoke, llm, patch, registry, terminal, version, workspace,
+};
 
 /// 桌面壳全局状态：setup 期填充，经 `.manage()` 注入，命令层只读。
 pub struct AppCtx {
@@ -369,6 +371,113 @@ pub fn note_save(date: String, content: String) -> Result<(), String> {
 #[tauri::command]
 pub fn note_list() -> Result<Vec<String>, String> {
     Ok(workbench::note_list_dates())
+}
+
+// ---- Messaging（phase 2 step 3）----
+
+/// 本地身份的对外视图（不下发密钥）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct IdentityView {
+    pub id_base32: String,
+    pub signing_pub_hex: String,
+    pub dh_pub_hex: String,
+    pub identity_dir: String,
+}
+
+/// 联系人条目（accept_invite 成功后的对外形态）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContactView {
+    pub inviter_id: String,
+    pub signing_pub_hex: String,
+    pub dh_pub_hex: String,
+}
+
+/// 消息中继配置的对外视图。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MessagingConfigView {
+    pub relay_url: String,
+}
+
+/// 加载本地身份（首次访问时按需生成）。`None` = 主目录不可定位。
+#[tauri::command]
+pub fn identity_get() -> Result<Option<IdentityView>, String> {
+    let dir = identity::default_user_identity_dir();
+    let Some(dir) = dir else {
+        return Ok(None);
+    };
+    let id =
+        identity::Identity::load_or_create(&dir).map_err(|e| format!("加载本地身份失败: {}", e))?;
+    Ok(Some(IdentityView {
+        id_base32: id.id_base32().to_string(),
+        signing_pub_hex: hex::encode(id.signing_public_bytes()),
+        dh_pub_hex: hex::encode(id.dh_public_bytes()),
+        identity_dir: dir.display().to_string(),
+    }))
+}
+
+/// 生成邀请（默认 5 分钟有效）。返回 short_code + qr_payload。
+#[tauri::command]
+pub fn identity_create_invite(ttl_secs: Option<i64>) -> Result<identity::Invite, String> {
+    let dir = identity::default_user_identity_dir()
+        .ok_or_else(|| "无法定位用户主目录（HOME/USERPROFILE 均缺失）".to_string())?;
+    let id =
+        identity::Identity::load_or_create(&dir).map_err(|e| format!("加载本地身份失败: {}", e))?;
+    let ttl = ttl_secs.unwrap_or(identity::DEFAULT_INVITE_TTL_SECS);
+    if !(30..=3600).contains(&ttl) {
+        return Err(format!("ttl_secs 必须在 30..=3600 之间，收到 {}", ttl));
+    }
+    id.create_invite(ttl)
+        .map_err(|e| format!("生成邀请失败: {}", e))
+}
+
+/// 解析并校验对端邀请 qr_payload（接收方使用）。校验通过后返回联系人视图。
+/// 当前实现只做格式/签名校验；**不**把联系人写入持久化存储（后续 Step 加）。
+#[tauri::command]
+pub fn identity_accept_invite(qr_payload: String) -> Result<ContactView, String> {
+    let parts: Vec<&str> = qr_payload.split(':').collect();
+    if parts.len() != 8 || parts[0] != "elwright-invite" || parts[1] != "v2" {
+        return Err("邀请格式非法（期望 8 段: elwright-invite:v2:...）".to_string());
+    }
+    let inbound = identity::InboundInvite {
+        inviter_id: parts[2].to_string(),
+        inviter_signing_pub_hex: parts[3].to_string(),
+        short_code: parts[4].to_string(),
+        expires_at: parts[5]
+            .parse()
+            .map_err(|_| "expires_at 解析失败".to_string())?,
+        nonce_hex: parts[6].to_string(),
+        signature_hex: parts[7].to_string(),
+    };
+    let dir = identity::default_user_identity_dir()
+        .ok_or_else(|| "无法定位用户主目录（HOME/USERPROFILE 均缺失）".to_string())?;
+    let me =
+        identity::Identity::load_or_create(&dir).map_err(|e| format!("加载本地身份失败: {}", e))?;
+    me.accept_invite(&inbound)
+        .map_err(|e| format!("邀请校验失败: {}", e))?;
+    // 解析对端 DH 公钥：v2 QR 不含 DH 公钥，仅含签名公钥；
+    // 真实 Noise 握手后由对端 DH 公钥取代此处 placeholder。
+    Ok(ContactView {
+        inviter_id: inbound.inviter_id,
+        signing_pub_hex: inbound.inviter_signing_pub_hex,
+        dh_pub_hex: String::new(),
+    })
+}
+
+/// 读消息中继 URL（来自用户层 `~/.elwright/config.json`）。
+#[tauri::command]
+pub fn get_messaging_config() -> Result<MessagingConfigView, String> {
+    Ok(MessagingConfigView {
+        relay_url: llm::read_messaging_relay_url(),
+    })
+}
+
+/// 设置消息中继 URL。空串 = 清除。非法值（含非 ws/wss）会被拒绝。
+#[tauri::command]
+pub fn set_messaging_relay_url(url: String) -> Result<MessagingConfigView, String> {
+    llm::set_messaging_relay_url(&url)?;
+    Ok(MessagingConfigView {
+        relay_url: llm::read_messaging_relay_url(),
+    })
 }
 
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----

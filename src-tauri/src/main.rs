@@ -97,7 +97,12 @@ fn main() {
             commands::llm_save_profile,
             commands::llm_delete_profile,
             commands::chat_completion_stream,
-            commands::chat_cancel
+            commands::chat_cancel,
+            commands::identity_get,
+            commands::identity_create_invite,
+            commands::identity_accept_invite,
+            commands::get_messaging_config,
+            commands::set_messaging_relay_url
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");

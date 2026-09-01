@@ -23,6 +23,22 @@ pub fn default_identity_dir(user_root: &Path) -> PathBuf {
     user_root.join("identity")
 }
 
+/// 用户根目录（与 `llm::user_config_path` 同源：`ELWRIGHT_USER_ROOT` > `$HOME/.elwright`）。
+/// 返回 `None` = 主目录不可定位。
+pub fn user_root() -> Option<PathBuf> {
+    if let Ok(custom) = std::env::var("ELWRIGHT_USER_ROOT") {
+        return Some(PathBuf::from(custom));
+    }
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(|h| PathBuf::from(h).join(".elwright"))
+}
+
+/// 默认身份目录路径（基于 user_root）。`None` = 主目录不可定位。
+pub fn default_user_identity_dir() -> Option<PathBuf> {
+    user_root().map(|r| r.join("identity"))
+}
+
 /// 16 字符 ID 派生长度（base32 字符数）。
 pub const ID_LENGTH: usize = 16;
 
@@ -262,12 +278,12 @@ pub struct InboundInvite {
     pub signature_hex: String,
 }
 
-/// 由 X25519 公钥派生 16 字符 base32 ID（Crockford）。
+/// 由 X25519 公钥派生 16 字符 base32 ID（Crockford）。取 SHA-256 前 10 字节（80 bit → 16 字符）。
 pub fn derive_id_from_dh_public(dh_public: &x25519_dalek::PublicKey) -> String {
     let mut hasher = Sha256::new();
     hasher.update(dh_public.as_bytes());
     let hash = hasher.finalize();
-    encode_base32(&hash[..5], ID_LENGTH)
+    encode_base32(&hash[..10], ID_LENGTH)
 }
 
 /// 由原始字节编 base32 Crockford（按 5 bit 一组，MSB 在前）。
@@ -360,6 +376,16 @@ mod tests {
         let b = Identity::generate().unwrap();
         assert_ne!(a.id_base32(), b.id_base32());
         assert_ne!(a.dh_public_bytes(), b.dh_public_bytes());
+    }
+
+    #[test]
+    fn derived_id_is_16_chars_crockford() {
+        // 回归：派生 ID 长度必须是 16（Step 2 早期版用 5 字节=8 字符，已修）
+        let id = Identity::generate().unwrap();
+        assert_eq!(id.id_base32().len(), 16);
+        for c in id.id_base32().chars() {
+            assert!(CROCKFORD.contains(&(c.to_ascii_uppercase() as u8)));
+        }
     }
 
     #[test]
