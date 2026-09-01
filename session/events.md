@@ -539,3 +539,9 @@
 - 本轮方案：任务目录 `feature-2026-09-i18n-incremental/{plan}.md`（范围 + 后续增量清单）。第一批：①`STARTUP_VIEW_OPTIONS` label → labelKey（`startup.*` 7 个双语键），设置中心渲染走 `t()`；②`LlmSettings.vue` 全量迁移（26 个 `llm.*` 双语键，覆盖字段标签/来源/占位符/按钮/档案切换·新建·删除文案与确认框，`{name}` 占位符调用方 replace）；③补 en 字典历史缺口 `settings.section.terminal`（此前缺失靠 zh 回退，本轮被键集完整性守卫暴露——迁移过程中替换误吞该 key 即被守卫抓到，守卫有效性顺带验证）。
 - 实际结果：已验证——eslint 0 / vitest 81（键集守卫过）/ vite build / Playwright e2e 11/11；CI 7/7 全绿（run 33526326926）。commit 43efe7a 推 main。
 - 下一步：其余视图壳层文案（PeopleChatView / ToolboxView / TerminalPanel / WorkbenchView）与能力类型/档位枚举标签留后续增量（plan.md 已列）；真机点验项（消息双账户 + 历史 PENDING 清单）由用户执行。
+
+### Q35/Q36 | 附注（路线图咨询：下一步选项盘点）
+- 问题或新增信息：用户问下一步可以做什么。
+- 本轮方案：纯盘点无代码变更。当前候选：①发版 v0.1.13（消息②全量 + i18n 第一批均已进 main 未发版）；②i18n 第二批（其余视图壳层 + 能力类型/档位枚举标签）；③新主干立项：脑图 MVP 或工程图 MVP（后置验证已解锁）；④用户动作：真机点验（消息双账户互发/离线补投 + v0.1.7~v0.1.12 历史 PENDING 清单）；⑤误收文档处置决策（2a55766 中的 TOOL-ROADMAP 等：保留或拆出）。
+- 实际结果：已给出建议排序（推荐先发版收口）。
+- 下一步：等用户定向。
