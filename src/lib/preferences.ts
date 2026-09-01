@@ -41,14 +41,14 @@ export const UI_SCALE_OPTIONS: UiScale[] = [90, 100, 110, 125]
 export const TERMINAL_FONT_SIZE_OPTIONS = [11, 12, 13, 14, 16, 18]
 export const TERMINAL_SCROLLBACK_OPTIONS = [1000, 5000, 10000, 50000]
 
-export const STARTUP_VIEW_OPTIONS: { value: StartupView; label: string }[] = [
-  { value: 'last', label: '记住上次视图' },
-  { value: 'toolbox', label: '能力工具箱' },
-  { value: 'workbench', label: '工作台' },
-  { value: 'chat', label: 'AI 对话' },
-  { value: 'people', label: '消息会话' },
-  { value: 'workspace', label: '资源与课题' },
-  { value: 'code', label: '代码浏览器' },
+export const STARTUP_VIEW_OPTIONS: { value: StartupView; labelKey: string }[] = [
+  { value: 'last', labelKey: 'startup.last' },
+  { value: 'toolbox', labelKey: 'startup.toolbox' },
+  { value: 'workbench', labelKey: 'startup.workbench' },
+  { value: 'chat', labelKey: 'startup.chat' },
+  { value: 'people', labelKey: 'startup.people' },
+  { value: 'workspace', labelKey: 'startup.workspace' },
+  { value: 'code', labelKey: 'startup.code' },
 ]
 
 const DEFAULTS: Preferences = {

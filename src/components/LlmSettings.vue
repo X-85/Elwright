@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import type { Bridge, LlmConfigInfo, LlmProfileMeta } from '../lib/bridge'
 import { validateProfileName as validateProfileNameShared } from '../lib/profileName'
+import { t } from '../lib/i18n'
 
 const props = withDefaults(defineProps<{ bridge: Bridge; embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -110,7 +111,7 @@ async function onSave() {
       model.value.trim(),
     )
     fillForm(info.value)
-    saveMsg.value = '已保存（写入用户层，桌面与 CLI 共用）'
+    saveMsg.value = t('llm.saved')
     saveOk.value = true
     emit('saved')
     // 独立弹层保存后自动关闭；嵌入设置中心时保留当前页面。
@@ -144,11 +145,11 @@ async function onProfileSwitch() {
     }
     if (!activeIsFlat.value) {
       await props.bridge.setActiveLlmProfile(currentProfileName.value!)
-      profileActionMsg.value = `已切换到档案：${currentProfileName.value}`
+      profileActionMsg.value = t('llm.switchedTo').replace('{name}', currentProfileName.value!)
     } else {
       // 切回 flat：保存空 active 即可（后端提供 set_active 校验 name 存在；
       // 此处 UI 不允许切回 flat 时单独调 set_active，统一由下次 save profile 时维护）
-      profileActionMsg.value = '当前使用 flat 字段（未指定档案）'
+      profileActionMsg.value = t('llm.usingFlat')
     }
     profileActionOk.value = true
     await loadProfiles()
@@ -201,7 +202,7 @@ async function onConfirmAddProfile() {
       apiKey: apiKeyTouched.value ? apiKey.value.trim() : '',
       model: model.value.trim(),
     })
-    profileActionMsg.value = `已新建档案：${newProfileName.value.trim().toLowerCase()}`
+    profileActionMsg.value = t('llm.created').replace('{name}', newProfileName.value.trim().toLowerCase())
     profileActionOk.value = true
     showAddProfile.value = false
     await loadProfiles()
@@ -222,14 +223,14 @@ function cancelAddProfile() {
 
 async function onDeleteProfile(name: string) {
   if (profileActionBusy.value) return
-  if (!confirm(`确认删除档案 "${name}"？${activeProfile.value === name ? '\n当前正在使用，将自动回退 flat 字段。' : ''}`)) {
+  if (!confirm(t('llm.confirmDelete').replace('{name}', name).replace('{activeNote}', activeProfile.value === name ? '\n' + t('llm.confirmDeleteActive') : ''))) {
     return
   }
   profileActionBusy.value = true
   profileActionMsg.value = ''
   try {
     await props.bridge.deleteLlmProfile(name)
-    profileActionMsg.value = `已删除档案：${name}`
+    profileActionMsg.value = t('llm.deleted').replace('{name}', name)
     profileActionOk.value = true
     if (selectedProfile.value === name) selectedProfile.value = SELECT_FLAT
     await loadProfiles()
@@ -246,7 +247,7 @@ async function onDeleteProfile(name: string) {
   <div :class="{ 'modal-mask': !embedded, 'embedded-settings-form': embedded }" @click.self="!embedded && emit('close')">
     <div :class="{ modal: !embedded }">
       <header v-if="!embedded" class="modal-head">
-        <h3>⚙ 模型设置</h3>
+        <h3>{{ t('llm.title') }}</h3>
         <button class="modal-close" @click="emit('close')">×</button>
       </header>
       <div class="llm-settings-content">
@@ -254,46 +255,46 @@ async function onDeleteProfile(name: string) {
 
         <template v-else>
           <p class="llm-hint">
-            OpenAI 兼容端点（云端 API 或本地 Ollama / llama.cpp）。保存在
-            <code>{{ info?.userConfigPath ?? '~/.elwright/config.json' }}</code
-            >，桌面应用与 CLI（ew config）共用。
+            {{ t('llm.hint') }}
+            <code>{{ info?.userConfigPath ?? '~/.elwright/config.json' }}</code>
+            {{ t('llm.hintTail') }}
           </p>
 
           <!-- Q19 模型档案 -->
           <div class="profile-bar">
             <label class="profile-select-wrap">
-              <span>档案</span>
+              <span>{{ t('llm.profile') }}</span>
               <select v-model="selectedProfile" :disabled="profileActionBusy" @change="onProfileSwitch">
-                <option :value="SELECT_FLAT">（flat 字段，未指定档案）</option>
+                <option :value="SELECT_FLAT">{{ t('llm.flatOption') }}</option>
                 <option v-for="p in profiles" :key="p.name" :value="p.name">
                   {{ p.active ? '★ ' : '  ' }}{{ p.name }}
                 </option>
               </select>
             </label>
-            <button class="profile-add-btn" :disabled="profileActionBusy" @click="openAddProfile">+ 新建档案</button>
+            <button class="profile-add-btn" :disabled="profileActionBusy" @click="openAddProfile">+ {{ t('llm.add') }}</button>
           </div>
 
           <label class="llm-field">
-            <span>base_url <em v-if="info?.source[0]" class="src">来源：{{ info.source[0] }}</em></span>
-            <input v-model="baseUrl" class="search" placeholder="如 https://api.xxx.com/v1 或 http://localhost:11434/v1" />
+            <span>base_url <em v-if="info?.source[0]" class="src">{{ t('llm.source') }}{{ info.source[0] }}</em></span>
+            <input v-model="baseUrl" class="search" :placeholder="t('llm.baseUrlPlaceholder')" />
           </label>
 
           <label class="llm-field">
-            <span>model <em v-if="info?.source[2]" class="src">来源：{{ info.source[2] }}</em></span>
-            <input v-model="model" class="search" placeholder="如 gpt-4o-mini / qwen3:8b" />
+            <span>model <em v-if="info?.source[2]" class="src">{{ t('llm.source') }}{{ info.source[2] }}</em></span>
+            <input v-model="model" class="search" :placeholder="t('llm.modelPlaceholder')" />
           </label>
 
           <label class="llm-field">
             <span>
-              api_key <em v-if="info?.source[1]" class="src">来源：{{ info.source[1] }}</em>
-              <em v-if="info?.apiKeyMasked" class="src">已存：{{ info.apiKeyMasked }}</em>
+              api_key <em v-if="info?.source[1]" class="src">{{ t('llm.source') }}{{ info.source[1] }}</em>
+              <em v-if="info?.apiKeyMasked" class="src">{{ t('llm.stored') }}{{ info.apiKeyMasked }}</em>
             </span>
-            <input v-model="apiKey" type="password" class="search" placeholder="留空 = 不修改已保存的 key" @input="onApiKeyInput" />
+            <input v-model="apiKey" type="password" class="search" :placeholder="t('llm.apiKeyPlaceholder')" @input="onApiKeyInput" />
           </label>
 
           <div class="llm-actions">
-            <button :disabled="testing || !baseUrl.trim()" @click="onTest">{{ testing ? '测试中…' : '测试连接' }}</button>
-            <button class="primary" :disabled="saving" @click="onSave">{{ saving ? '保存中…' : '保存' }}</button>
+            <button :disabled="testing || !baseUrl.trim()" @click="onTest">{{ testing ? t('llm.testing') : t('llm.test') }}</button>
+            <button class="primary" :disabled="saving" @click="onSave">{{ saving ? t('llm.saving') : t('llm.save') }}</button>
           </div>
 
           <p v-if="testMsg" :class="testOk ? 'op-ok-inline' : 'error'">{{ testMsg }}</p>
@@ -303,7 +304,7 @@ async function onDeleteProfile(name: string) {
 
           <!-- 已存在的档案清单（含删除按钮） -->
           <details v-if="profiles.length > 0" class="profile-list">
-            <summary>已配置档案（{{ profiles.length }}）</summary>
+            <summary>{{ t('llm.configured') }}（{{ profiles.length }}）</summary>
             <ul>
               <li v-for="p in profiles" :key="p.name">
                 <span :class="{ 'profile-active': p.active }">
@@ -314,7 +315,7 @@ async function onDeleteProfile(name: string) {
                   :disabled="profileActionBusy"
                   @click="onDeleteProfile(p.name)"
                 >
-                  删除
+                  {{ t('llm.delete') }}
                 </button>
               </li>
             </ul>
@@ -323,19 +324,19 @@ async function onDeleteProfile(name: string) {
           <!-- 新建档案小弹窗（嵌入设置中心时直接渲染，不叠 modal-mask） -->
           <div v-if="showAddProfile" class="add-profile-modal" @click.self="cancelAddProfile">
             <div class="add-profile-card">
-              <h4>新建档案</h4>
-              <p class="hint">档案名将作为本次表单值（base_url / api_key / model）的命名副本保存。仅小写字母/数字/-/_，长度 1-32。</p>
+              <h4>{{ t('llm.addTitle') }}</h4>
+              <p class="hint">{{ t('llm.addHint') }}</p>
               <input
                 v-model="newProfileName"
                 class="search"
-                placeholder="如 local-ollama / work / default"
+                :placeholder="t('llm.namePlaceholder')"
                 @keydown.enter.prevent="onConfirmAddProfile"
                 @keydown.escape.prevent="cancelAddProfile"
               />
               <p v-if="newProfileNameError" class="error">{{ newProfileNameError }}</p>
               <div class="add-profile-actions">
-                <button :disabled="profileActionBusy" @click="cancelAddProfile">取消</button>
-                <button class="primary" :disabled="profileActionBusy" @click="onConfirmAddProfile">保存档案</button>
+                <button :disabled="profileActionBusy" @click="cancelAddProfile">{{ t('llm.cancel') }}</button>
+                <button class="primary" :disabled="profileActionBusy" @click="onConfirmAddProfile">{{ t('llm.saveProfile') }}</button>
               </div>
             </div>
           </div>

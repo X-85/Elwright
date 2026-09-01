@@ -528,3 +528,8 @@
 - 本轮方案：切片 A——ADR-003 落盘；identity 邀请升级 v3（QR 增载对端 X25519 DH 公钥，签名内容含 dh_pub，accept 增加 `id==derive(dh_pub)` 硬绑定校验，v2 不再接受）；core::contacts（contacts.json）；core::local_crypto（chacha20poly1305，AAD 绑定 peer_id）+ identity::load_or_create_local_key；messaging_queue v2（本地密钥加密明文落盘——修复原「存会话密文重连后不可解」设计缺陷，flush 新会话重加密）；core::messaging_inbox（poll(since_id) cursor）；messaging_client::sync_peer（成对房间 pair_room 按 ID 排序、role_for 定角色、握手后校验 remote_static==联系人 DH 公钥防中间人、发件箱 FIFO flush 失败保留+attempts、收 Data 帧落收件箱空闲收尾）+ ensure_listener_started 后台线程 + 全局同步锁；IPC +6。切片 B——bridge +12 方法（浏览器预览统一中文降级抛错）；Rust 视图结构体统一 serde camelCase（对齐 TodoItem 等既有约定，IPC 测试同步回归）；SettingsCenter「消息中继」分组（MessagingSettings.vue：URL/保存/测试连接 + 双语 i18n，en 字典被替换吞掉的 terminal key 已补回——键集守卫测试抓到）；PeopleChatView 全接线（身份 chip/邀请弹窗复制/添加联系人弹窗/联系人快捷条/会话绑定 peerId/发送状态机 sending→sent|queued|failed/3s 收件轮询合并+对端左气泡/预览降级）；e2e +1 消息页降级守卫。
 - 实际结果：已验证——门禁全绿：130 lib（identity 15/contacts 2/crypto 2/queue 6/inbox 3）+ IPC 7（camelCase 回归）+ 中继冒烟 3（**双身份全链路：v3 邀请互加→A flush 2 条中文→B 收件箱按序收齐**，经真实 relay 子进程）+ eslint 0 + vitest 81（键集守卫抓到 en 缺 key）+ vite build + e2e 11/11 + clippy -D warnings 0 + fmt。文档回填 behavior/architecture/changelog/ROADMAP/verification/ADR-003 实施备注（hkdf/hmac 未引入）。提交：8c477c0（A1）/ c04fc59（A2）/ dc4523d（B）+ 本轮 docs。
 - 下一步：真机双账户点验（互发/篡改 DH 握手失败/离线补投/docker 部署）留 PENDING；随后按用户指示直接开始 Q36 i18n 增量迁移。
+
+### Q35 | 附注（提交卫生失误，当轮披露）
+- 问题或新增信息：docs 回填提交（2a55766）用 `git add docs/` 时误收了非本任务的非跟踪文件——`docs/TOOL-ROADMAP.md`、`docs/work/active/feature-2026-09-roadmap-tools/{plan,checklist,verification}.md`（工具路线图规划，疑似用户/并行会话所建）与 `docs/features/workbench/README.md` 的 +1 行改动，混入消息文档提交且提交信息未提及。
+- 本轮方案：已推送不改写历史；内容为纯文档无功能影响。向用户明确披露，保留与否由用户决定（需要时可拆出重建跟踪）。
+- 教训：提交前必须 `git status` 逐文件核对 staged 清单，任务目录外的非跟踪文件绝不顺手 add（呼应 Q13 提交卫生教训）。

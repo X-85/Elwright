@@ -69,7 +69,7 @@ function chooseLanguage(value: Locale) {
             <div class="pref-row">
               <label for="pref-startup">{{ t('settings.general.startupView') }}</label>
               <select id="pref-startup" :value="preferences.startupView" @change="updatePreferences({ startupView: ($event.target as HTMLSelectElement).value as typeof preferences.startupView })">
-                <option v-for="o in STARTUP_VIEW_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                <option v-for="o in STARTUP_VIEW_OPTIONS" :key="o.value" :value="o.value">{{ t(o.labelKey) }}</option>
               </select>
             </div>
             <div class="pref-row">
