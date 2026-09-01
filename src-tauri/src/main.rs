@@ -103,7 +103,13 @@ fn main() {
             commands::identity_accept_invite,
             commands::get_messaging_config,
             commands::set_messaging_relay_url,
-            commands::test_messaging_relay
+            commands::test_messaging_relay,
+            commands::contacts_list,
+            commands::contacts_add,
+            commands::contacts_remove,
+            commands::messaging_send,
+            commands::messaging_poll_inbox,
+            commands::messaging_start_listener
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");
