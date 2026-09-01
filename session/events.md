@@ -486,3 +486,9 @@
 - 本轮方案：gh release view v0.1.12 验证 → 完成 Q33 收口。
 - 实际结果：已验证——release.yml 3 job 全绿（Build Windows msi 3m51s + Build macOS dmg 1m53s + Publish GitHub Release 11s）；GitHub Release v0.1.12 双资产就位（Elwright_0.1.12_aarch64.dmg sha256 7324d966... + Elwright_0.1.12_x64_en-US.msi sha256 39db589b...）。本地闸门全绿（cargo fmt + clippy 0 + test 84 集成 + eslint 0 + vitest 81 + coverage 95/76/100/95 + vite build + Playwright 10/10）；ci.yml 7/7（macOS dmg / Windows msi / Rust lint / Frontend 七步）；install.ps1 ProductCode {968DA9AA-C60A-4459-9A33-D3C52864DF87} 同步。
 - 下一步：v0.1.12 上线完成；真机点验项延续 PENDING 清单（长会话裁剪/补丁编辑全链路/模型档案切换/最近项目删除/v0.1.11 msi 升级安装）；下一项 V2 主干「人与人消息会话②：轻量身份/邀请与一对一消息传输」待用户定向立项。
+
+### Q34 | 第1次处理（人与人消息会话阶段② 立项 + ADR-002 批准）
+- 问题或新增信息：用户定向「先出 ADR 然后进行开发」——V2 主干重启后第二项「人与人消息会话②：轻量身份/邀请与一对一消息传输」。
+- 本轮方案：背景调研（messaging feature README/architecture 显示阶段① PeopleChatView+localStorage，架构留 MessageTransport 替换口；`src-tauri/src/core/` 无 people/message 模块，新建 decisions 目录）→ 出 ADR-002「消息传输通道/身份/邀请/加密」——选型：自托管 WS 中继（仓库附 axum 参考实现）+ 本地 Noise_XX 静态身份（X25519 公钥 16 字符 base32 = ID）+ 6 字符短邀请码 + libsodium secretstream 流加密；弃选 WebRTC P2P / GitHub claim / OIDC / Signal DR / 公共中继实例（理由写入 ADR）→ 用户批准确认 → 任务目录 `feature-2026-09-messaging-phase2/{plan,checklist,verification}.md`（6 步切分：协议层骨架/本地身份+邀请/设置中心中继 URL/客户端+中继最小回路/离线消息队列/文档回填）+ ROADMAP「进行中」与「人与人消息会话」条目同步更新。
+- 实际结果：已验证——ADR-002 状态「提议」→「已批准 2026-09-01」；任务目录三件套齐；ROADMAP「进行中」登记本项，「人与人消息会话」条目标记 ADR-002 已批准 + 任务目录名；commit 待 Step 1 完成一并推。
+- 下一步：开始 Step 1 协议层骨架——`src-tauri/Cargo.toml` 加 `snow` + `libsodium-sys` 依赖（评估 libsodium-sys 与 dryoc 后定）+ `core::messaging_transport.rs`（Noise_XX 握手 + secretstream 数据通道 + Frame 序列化）+ 帧格式文档 `docs/features/messaging/transport-protocol.md` + 单测（握手 round-trip/密文不可破/nonce 重放拒绝/帧解析边界）+ windows-gnu 工具链编译验证。
