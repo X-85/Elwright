@@ -69,6 +69,12 @@ jobs:
         with:
           workspaces: src-tauri
 
+      # Messaging phase 2 中继冒烟的夹具：tests/messaging_relay_smoke.rs 会
+      # spawn 该二进制做真实 WebSocket 端到端（路径即测试探测路径，缺了会跳过）
+      - name: Build relay (messaging smoke fixture)
+        working-directory: docs/features/messaging/relay
+        run: cargo build --release
+
       - name: cargo test
         working-directory: src-tauri
         run: cargo test

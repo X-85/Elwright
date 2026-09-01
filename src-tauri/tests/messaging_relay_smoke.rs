@@ -206,6 +206,14 @@ async fn run_responder(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn relay_round_trip_two_clients_exchange_ciphertext() {
+    // 端到端夹具是预编译的 relay 二进制：CI 有专门构建步；本地缺二进制时
+    // 优雅跳过（纯协议层回环仍由 complete_handshake_direct_loop_works 覆盖）
+    if find_relay_binary().is_none() {
+        eprintln!(
+            "跳过中继端到端：未找到 elwright-relay 二进制（cd docs/features/messaging/relay && cargo build --release 后重跑）"
+        );
+        return;
+    }
     let port = pick_free_port();
     let mut relay = spawn_relay(port);
     let url = format!("ws://127.0.0.1:{}/ws/test-room", port);
