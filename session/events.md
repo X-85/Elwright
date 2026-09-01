@@ -498,3 +498,9 @@
 - 本轮方案：按 plan.md 6 步切片推进，每步 commit 前跑全门禁（cargo test 全量 + clippy -D warnings + fmt + ew 构建）。
 - 实际结果：已验证——最终门禁 120 lib 单测 + 7 IPC 冒烟（messaging_phase2_ipc.rs）+ 2 中继端到端冒烟全绿；clippy -D warnings 0 警告；fmt 干净；CLI 探测三路径手测通过（✓ 已连接 1ms / 未配置报错 / 连接拒绝报错）。5 个 commit 全部推 main：956e054（step1）→ 2342abe（step2）→ d4c9251（step3）→ d3a717b（step4）→ b1e59c8（step5）。
 - 下一步：UI 接线切片待用户定向（PeopleChatView 本地适配器替换为真实传输 + 握手成功后队列补投 + Bridge 方法 + 前端 vitest/e2e + 真机双账户点验）；任务目录 feature-2026-09-messaging-phase2 按协议不自行归档；windows-gnu 工具链编译待 windows CI runner 验证（本批 CI 推送后可见）。
+
+### Q34 | 第3次处理（CI 收口：中继冒烟夹具进 CI，7/7 全绿）
+- 问题或新增信息：Step 6 文档提交后的 CI run 33475533003 三平台 Rust core 全 FAIL——根因：`cargo test` 会跑 `messaging_relay_smoke.rs`，但 CI 从不构建 relay 二进制，`find_relay_binary` panic「未找到 elwright-relay」。本地全绿是因为本地手动构建过 relay release。
+- 本轮方案：双管齐下——①ci.yml rust 矩阵 job 在 cargo test 前加「Build relay (messaging smoke fixture)」步（working-directory 直指 docs/features/messaging/relay，产物路径即测试探测路径），三平台 CI 从此真实跑端到端中继冒烟；②测试对二进制缺失改优雅跳过（提示构建命令），本地开发鲁棒性兜底，纯协议层回环由 complete_handshake_direct_loop_works 持续覆盖。
+- 实际结果：已验证——run 33476022859 CI 7/7 全绿（Rust lint 1m44s + 三平台 Rust core 2m51s~4m58s + Frontend 57s + dmg 1m45s + msi 5m29s）。新依赖 snow/x25519-dalek/tokio/tokio-tungstenite 在 ubuntu/macOS/windows-MSVC 全部编译通过（commit 94d3e0f）。附注：CI 用 MSVC，公司 windows-gnu 工具链编译验证仍是 PENDING 项（snow 纯 Rust 实现预计无碍）。
+- 下一步：同第 2 次处理——UI 接线切片待定向；任务目录不自行归档。
