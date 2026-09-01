@@ -158,6 +158,34 @@ export interface InboxPoll {
   maxId: number
 }
 
+/** 脑图节点（与 core::mindmap::MindNode 对应，camelCase） */
+export interface MindNode {
+  id: string
+  text: string
+  parent: string | null
+  collapsed: boolean
+  convertedTodo: boolean
+}
+
+export interface MindmapDoc {
+  id: string
+  title: string
+  nodes: MindNode[]
+  updatedAt: number
+}
+
+export interface MindmapSummary {
+  id: string
+  title: string
+  updatedAt: number
+  nodeCount: number
+}
+
+export interface MindmapListResult {
+  maps: MindmapSummary[]
+  corrupt: string[]
+}
+
 export interface WorkspaceFolder {
   id: string
   name: string
@@ -412,6 +440,17 @@ export interface Bridge {
   pollInbox(sinceId: number): Promise<InboxPoll>
   /** 启动后台收件/补投 listener（幂等）。 */
   startMessagingListener(): Promise<boolean>
+  // ---- 脑图（mindmap MVP，仅桌面）----
+  /** 列出全部脑图（按更新时间倒序；corrupt 为损坏文件名列表）。 */
+  listMindmaps(): Promise<MindmapListResult>
+  /** 新建脑图（标题 ≤80 字符）。 */
+  createMindmap(title: string): Promise<MindmapDoc>
+  /** 加载单张脑图。 */
+  loadMindmap(id: string): Promise<MindmapDoc>
+  /** 全量保存（原子写）。 */
+  saveMindmap(doc: MindmapDoc): Promise<MindmapDoc>
+  /** 删除脑图。 */
+  deleteMindmap(id: string): Promise<void>
 }
 
 const browserBridge: Bridge = {
@@ -847,6 +886,21 @@ const browserBridge: Bridge = {
   },
   async startMessagingListener() {
     throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async listMindmaps() {
+    throw new Error('【预览模式】脑图仅桌面端可用（浏览器不读写本机文件）。')
+  },
+  async createMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
+  async loadMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
+  async saveMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
+  async deleteMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
   },
 }
 
@@ -1320,6 +1374,24 @@ const tauriBridge: Bridge = {
   },
   async startMessagingListener() {
     return tauriInvoke<boolean>('messaging_start_listener', {})
+  },
+
+  // ---- 脑图 ----
+  async listMindmaps() {
+    const [maps, corrupt] = await tauriInvoke<[MindmapSummary[], string[]]>('mindmap_list', {})
+    return { maps, corrupt }
+  },
+  async createMindmap(title: string) {
+    return tauriInvoke<MindmapDoc>('mindmap_create', { title })
+  },
+  async loadMindmap(id: string) {
+    return tauriInvoke<MindmapDoc>('mindmap_load', { id })
+  },
+  async saveMindmap(doc: MindmapDoc) {
+    return tauriInvoke<MindmapDoc>('mindmap_save', { doc })
+  },
+  async deleteMindmap(id: string) {
+    await tauriInvoke<void>('mindmap_delete', { id })
   },
 }
 

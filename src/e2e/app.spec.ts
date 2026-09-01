@@ -77,6 +77,12 @@ test('降级守卫：消息页在浏览器预览不渲染邀请/添加按钮且�
   await expect(page.locator('.local-status')).toContainText('本地会话')
 })
 
+
+test('降级守卫：脑图在浏览器预览显示降级文案且不可用', async ({ page }) => {
+  await page.click('button[aria-label="脑图"]')
+  await expect(page.locator('.mindmap-degraded')).toContainText('【预览模式】')
+})
+
 test('工作台：Todo 添加/勾选/删除与今日记录自动保存（预览模式模拟存储）', async ({ page }) => {
   await page.click('button[aria-label="工作台"]')
 

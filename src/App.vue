@@ -4,6 +4,7 @@ import CapabilityDetail from './components/CapabilityDetail.vue'
 import CapabilityList from './components/CapabilityList.vue'
 import ChatView from './components/ChatView.vue'
 import PeopleChatView from './components/PeopleChatView.vue'
+import MindmapView from './components/MindmapView.vue'
 import SettingsCenter from './components/SettingsCenter.vue'
 import WorkbenchView from './components/WorkbenchView.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
@@ -25,6 +26,7 @@ import {
   Settings2,
   Sparkles,
   Terminal,
+  Network,
 } from 'lucide-vue-next'
 import { currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize } from '@tauri-apps/api/window'
 
@@ -48,7 +50,7 @@ const capabilityUses = ref<Record<string, number>>(loadCapabilityUses())
 const showSettings = ref(false)
 const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('appearance')
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
-const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code'>('toolbox')
+const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code' | 'mindmap'>('toolbox')
 import { initializePreferences, resolveStartupView, saveLastView, preferences } from './lib/preferences'
 import { growthSummary, newlyUnlocked } from './lib/growth'
 import { recordRecent } from './lib/capabilityRecents'
@@ -414,6 +416,7 @@ async function toggleFullscreen() {
           <button :class="{ active: activeView === 'people' }" title="消息会话" aria-label="消息会话" @click="activeView = 'people'"><MessageCircle :size="16" :stroke-width="1.8" /><span>消息</span></button>
           <button :class="{ active: activeView === 'workspace' }" title="资源与课题" aria-label="资源与课题" @click="activeView = 'workspace'"><BookOpen :size="16" :stroke-width="1.8" /><span>课题</span></button>
           <button :class="{ active: activeView === 'code' }" title="代码浏览器" aria-label="代码浏览器" @click="activeView = 'code'"><Code2 :size="16" :stroke-width="1.8" /><span>代码</span></button>
+          <button :class="{ active: activeView === 'mindmap' }" title="脑图" aria-label="脑图" @click="activeView = 'mindmap'"><Network :size="16" :stroke-width="1.8" /><span>脑图</span></button>
         </nav>
 
         <template v-if="activeView === 'toolbox'">
@@ -453,6 +456,7 @@ async function toggleFullscreen() {
       <main class="content">
         <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" @open-code="openCodeAt" @open-capability="openCapabilityFromWorkbench" />
         <PeopleChatView v-else-if="activeView === 'people'" :bridge="bridge" />
+        <MindmapView v-else-if="activeView === 'mindmap'" :bridge="bridge" />
         <WorkspaceView v-else-if="activeView === 'workspace'" :bridge="bridge" :capabilities="capabilities" @notify="notify" />
         <CodeBrowserView v-else-if="activeView === 'code'" ref="codeBrowserRef" :bridge="bridge" @notify="notify" @send-to-ai="sendCodeToAi" @open-in-terminal="openCodeInTerminal" />
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />

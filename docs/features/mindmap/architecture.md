@@ -1,47 +1,22 @@
-# 脑图架构
+# 架构（Architecture）
 
-## 数据模型
+## 数据模型（ADR-001 §D2）
 
-```json
-{
-  "schema": "elwright-mindmap/0.1",
-  "id": "mindmap-001",
-  "title": "桌宠规划",
-  "root": {
-    "id": "root",
-    "text": "桌宠功能",
-    "children": [],
-    "status": "open",
-    "links": []
-  },
-  "updatedAt": "2026-08-22T10:00:00+08:00"
-}
-```
+- `MindmapDoc { id, title, nodes: Vec<MindNode>, updatedAt }`
+- `MindNode { id, text, parent, collapsed, convertedTodo }`；根 `parent=null` 恒为首节点。
+- **扁平数组 + parent 指针，数组顺序 = DFS 文档序（子树连续）**——所有树操作维持该
+  不变量：子树操作退化为连续区间处理，序列化稳定，渲染按序缩进。
 
-节点关联使用 `{type, id}` 形式，不把 Todo、能力或对话对象复制进脑图文件，避免产生两份状态。
-
-## 调用关系
+## 模块
 
 ```text
-MindMapView.vue
-      ↓ MindMapBridge / WorkbenchBridge
-Tauri IPC：脑图 CRUD、保存、导入导出
-      ↓
-用户层 mindmaps/ 文件
-
-AI 对话 ─→ 草稿/差异预览 ─→ 用户确认 ─→ 脑图存储
-节点关联 ─→ Workbench / Bridge ─→ Todo、书签、能力、对话
+src-tauri/src/core/mindmap.rs   纯函数树操作（5 单测）+ ~/.elwright/mindmaps/ 原子持久化
+src-tauri/src/core/commands.rs  mindmap_list/create/load/save/delete（5 IPC）
+src/lib/mindmap.ts              前端镜像纯函数（vitest 5 例；与 Rust 同一套不变量）
+src/components/MindmapView.vue  大纲编辑器（键盘流/折叠/转 Todo/Todo 导入/自动保存）
 ```
 
-## 实现建议
+## 关联
 
-- 编辑器优先评估 Vue 3 兼容的节点画布库，例如 Vue Flow；先验证节点层级、拖动、缩放和自定义节点，再锁定依赖。
-- 脑图文件属于用户层，不写入 `capabilities.json` 或 `resources/`。
-- 画布组件只处理视图和交互，文件读写、关联对象和 AI 请求都经过 Bridge。
-- 浏览器预览可使用内存数据或只读降级；不能伪装成已经持久化到用户目录。
-
-## 边界与风险
-
-- 大脑图可能变得很大，需要后续限制单图节点数、保存频率和渲染性能。
-- 节点关联对象可能被删除或重命名，必须支持失效关联的可见提示。
-- AI 草稿合并需要稳定的节点 id 和差异模型，不能采用整图覆盖。
+- 存储与 chats 一文件一资源同模式；转 Todo 复用 `todo_add` IPC（工作台）。
+- 工程图 MVP（Mermaid/画布）顺延独立批次，数据模型独立无返工风险（ADR-001 §D1）。

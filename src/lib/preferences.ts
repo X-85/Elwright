@@ -7,7 +7,7 @@ import { setLocale, type Locale } from './i18n'
  * 浏览器预览与桌面壳行为一致（纯前端偏好，不涉 IPC）。
  */
 
-export type StartupView = 'last' | 'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code'
+export type StartupView = 'last' | 'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code' | 'mindmap'
 export type Density = 'comfortable' | 'compact'
 export type UiScale = 90 | 100 | 110 | 125
 
@@ -49,6 +49,7 @@ export const STARTUP_VIEW_OPTIONS: { value: StartupView; labelKey: string }[] = 
   { value: 'people', labelKey: 'startup.people' },
   { value: 'workspace', labelKey: 'startup.workspace' },
   { value: 'code', labelKey: 'startup.code' },
+  { value: 'mindmap', labelKey: 'startup.mindmap' },
 ]
 
 const DEFAULTS: Preferences = {

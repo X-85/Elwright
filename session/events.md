@@ -551,3 +551,9 @@
 - 本轮方案：沿用既有发版协议。**过程中抓到发布阻断 bug**：切片 A2 的 6 个接线 IPC 命令（contacts ×3 / messaging_send / poll_inbox / start_listener）在 commands.rs 已实现并进了 mock 测试，但桌面壳 main.rs 的注册当时漏 `git add` 未提交——CI 测不出来（mock 测试自带 handler 列表），不修则发版后桌面端消息功能全部「命令不存在」。版本号提交后核对 git status 时发现该残留（0fc83b5 → 9e9aeae 修复），修后才继续发版。
 - 实际结果：已验证——①版本号四处同步 + ROADMAP（0fc83b5）②main.rs 补注册（9e9aeae）③CI 7/7 全绿（run 33528025024）④windows msi 制品 `file` 提取 Revision Number = {FF2A83D1-9F64-4573-8D79-3B48474A63ED} → install.ps1 同步（78d4f7c）⑤tag v0.1.13 → release.yml 3 job 全绿（run 33529230457：msi 3m56s + dmg 2m21s + Publish 10s）⑥GitHub Release v0.1.13 双资产就位（Elwright_0.1.13_aarch64.dmg + Elwright_0.1.13_x64_en-US.msi）。
 - 下一步：真机安装 v0.1.13 验证消息功能 + msi 幂等升级（用户动作）；教UPD：**动 main.rs 的功能提交必须显式核对 staged 清单**（与 Q35 附注教训同源，本次在发版闸门内拦住）。
+
+### Q38 | 第1次处理（脑图 MVP 立项 + 开发完成）
+- 问题或新增信息：用户定向「立项脑图 MVP 或工程图 MVP 作为下一个主干重心，ADR 写好后直接开发」。
+- 本轮方案：选**脑图先行**（ADR-001 已记录弃选理由：大纲树数据结构/交互比自由画布+Mermaid 小一个量级，可一次交付闭环；工程图顺延独立批次无返工风险）。ADR-001 五决定：D1 脑图先行 / D2 大纲式树形（弃选放射画布）/ D3 存储走 Rust core（~/.elwright/mindmaps/ 一图一文件原子写，弃选 localStorage）/ D4 Todo 双向关联最小实现 / D5 LLM 零依赖（AI 草稿后置）。实施：S1 core::mindmap——扁平 Vec + parent 指针、**数组序 = DFS 序（子树连续）不变量**，六个树操作全部维持；环防御；损坏文件容忍；id 消毒防路径穿越；5 IPC。S2 前端——lib/mindmap.ts 镜像纯函数（vitest 同套断言）+ MindmapView.vue（键盘流 Enter/Tab/⌘↑↓、折叠、节点转 Todo 打标记、Todo 导入、400ms 防抖自动保存）+ App 导航 + StartupView 体系纳入。
+- 实际结果：已验证——135 lib（mindmap 5）+ vitest 86（mindmap 5）+ e2e 12（预览降级守卫）+ clippy 0 + fmt 全绿。文档四件套（README/behavior/architecture/changelog）+ verification + ROADMAP 标记完成。修 3 个过程错误：Rust 测试两处断言笔误（深度预期/节点数）、clippy identical-blocks（move_vertical 分支合并）、lucide import 逗号笔误。
+- 下一步：真机点验（建图/转 Todo/重启持久化）由用户执行；工程图 MVP 待立项（Mermaid bundle 体积评估前置）。

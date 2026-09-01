@@ -44,6 +44,7 @@ const zh: Record<string, string> = {
   'startup.people': '消息会话',
   'startup.workspace': '资源与课题',
   'startup.code': '代码浏览器',
+  'startup.mindmap': '脑图',
   // ---- 模型设置（增量迁移）----
   'llm.title': '⚙ 模型设置',
   'llm.hint': 'OpenAI 兼容端点（云端 API 或本地 Ollama / llama.cpp）。保存在',
@@ -125,6 +126,7 @@ const en: Record<string, string> = {
   'startup.people': 'People chat',
   'startup.workspace': 'Resources & topics',
   'startup.code': 'Code browser',
+  'startup.mindmap': 'Mind map',
   'llm.title': '⚙ Model settings',
   'llm.hint': 'OpenAI-compatible endpoint (cloud API or local Ollama / llama.cpp). Saved to',
   'llm.hintTail': ', shared by the desktop app and CLI (ew config).',
