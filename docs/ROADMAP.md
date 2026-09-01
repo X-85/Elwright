@@ -41,7 +41,7 @@ v0.1.12（2026-09-01，tag `v0.1.12`，GitHub Release 附 dmg + msi）。
 
 ## 进行中
 
-- **人与人消息会话②：轻量身份/邀请与一对一消息传输**（[ADR-002](docs/features/messaging/decisions/ADR-002-messaging-transport.md) 已批准 2026-09-01）：自托管 WS 中继（仓库附 axum 参考实现，不托管）+ 本地 Noise_XX 静态身份（X25519 公钥 16 字符 base32 = ID）+ 6 字符短邀请码 + libsodium secretstream 流加密；默认无中继 URL，保留阶段①本地模式。任务目录 `docs/work/active/feature-2026-09-messaging-phase2/`。
+- **人与人消息会话②：传输层核心已落地（2026-09-01，6 步全绿），余下 UI 接线切片**（[ADR-002](docs/features/messaging/decisions/ADR-002-messaging-transport.md)）：协议层（Noise_XX + AEAD 帧）/ 本地身份与邀请 / 中继配置与探测 / 中继参考实现 + 真实中继端到端冒烟 / 离线密文队列均已完成（120 lib 单测 + 7 IPC 冒烟 + 2 中继冒烟；实施偏差两处见 ADR-002）。**待做**：PeopleChatView 适配器替换 + 握手成功后队列补投 + 前端 vitest/e2e + 真机双账户点验。任务目录 `docs/work/active/feature-2026-09-messaging-phase2/`。
 
 ## V1（短期，做完即发版）
 
@@ -67,7 +67,7 @@ v0.1.12（2026-09-01，tag `v0.1.12`，GitHub Release 附 dmg + msi）。
 - ~~**资源管理与课题工作区**~~ **第一阶段已完成（2026-08-30 随 PR #1 进 main）**：三层收藏夹、网页/文档/能力/笔记资源、图标化软件快捷方式、资源聚合课题与 LLM/离线报告草稿已交付；收藏/最近使用与更多转换工具顺延（**2026-08-31 已并入工作台第二阶段交付**，见工作台条目）。
 - **AI 对话**：分四阶段实现——①多轮对话页面与基础状态；②本地会话管理；③用户确认式能力协作；④流式输出、取消、长上下文和跨平台完善（~~流式输出与取消~~ ADR-003 已落地；~~长上下文~~ ADR-004 core 侧字符预算滑动窗口已落地；跨平台完善以 PENDING 清单逐项走 bugfix 目录）。模型不配置或不可达时保持明确降级提示，能力执行继续复用现有 core。
 - **代码浏览器**：作为研发代码上下文入口，排在 AI 对话阶段③之后；分阶段交付：①本地项目只读查看与轻量符号跳转（接口→实现、JavaBean 类型→类定义）；②项目关系索引与 Todo/书签/流程图联动；③再评估 Java Language Server 和受控补丁编辑。默认不启动高内存后台索引服务。
-- **人与人消息会话**：分三阶段实现——~~①客户端本地消息会话~~（**已完成，2026-08-30 随 PR #1 进 main**）；②轻量身份/邀请与一对一消息传输（**ADR-002 已批准 2026-09-01**——自托管 WS 中继 + Noise_XX 静态身份 + 短邀请码 + libsodium secretstream 加密；任务目录 `feature-2026-09-messaging-phase2`）；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
+- **人与人消息会话**：分三阶段实现——~~①客户端本地消息会话~~（**已完成，2026-08-30 随 PR #1 进 main**）；②轻量身份/邀请与一对一消息传输（**传输层核心已落地 2026-09-01**——自托管 WS 中继 + Noise_XX 静态身份 + 短邀请码 + AEAD 加密；UI 接线切片待做；任务目录 `feature-2026-09-messaging-phase2`）；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
 - **设置中心后续阶段**：~~第一阶段（常规/外观/模型分组 + 三态主题）~~、~~常规启动视图/更新策略、外观密度/缩放、终端字体/字号/滚动历史~~（2026-08-31 已交付进 main）、~~模型档案（多套 LLM 配置切换）~~（**Q19 已交付**：profiles + activeProfile 与 flat 字段共存兼容；CLI `ew config profile` 子命令；5 IPC；前端 LlmSettings.vue 档案下拉 + 新建）；~~界面语言~~（**2026-08-31 已交付**：i18n 基建 `lib/i18n.ts` + language 偏好 + 设置中心壳层试点，枚举标签与 LlmSettings 文案为增量迁移遗留，ADR-002），均以本地优先、少而明确为准入标准。
 - **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；~~今日记录~~（2026-08-25 调整：与 Todo 一并提前进第一阶段）、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。第一阶段（Todo + 今日记录，`feature-2026-08-workbench-phase1`）已并入 main（2026-08-30）；~~第二阶段（收藏/最近使用 + 高频转换工具）~~ **已交付（2026-08-31，ADR-001）**：常用能力（最近使用+收藏、点击跳转工具箱）与实用工具（JSON/Base64/时间戳三个纯本地转换器）。
 - **能力渐进式发布**：~~MVP（成熟度档位、默认核心视图、全部能力开关、本地使用计数）~~已随 PR #1 进 main；~~透明的解锁规则、成长提示~~（**2026-08-31 已交付**：ADR-001——解锁条件与进度三处可视化、跨阈值解锁 toast、侧栏最近解锁进度、weekly-report 升为进阶档位开箱示例）；社区提案/审核/签名能力包另行排期。
@@ -99,6 +99,8 @@ v0.1.12（2026-09-01，tag `v0.1.12`，GitHub Release 附 dmg + msi）。
 - **扩展工作台工具（实验方向）**：通用 Todo/笔记增强、更多转换工具、时序图/架构图/ER 图、SSH/服务器管理等仅限独立实验分支；不以“替代现有成熟软件”为目标，满足主干红线后才可另行立项。
 
 ## 已完成里程碑
+
+- 2026-09-01 人与人消息会话②传输层核心（ADR-002，6 步切片全绿）：协议层 `core::messaging_transport`（snow Noise_XX_25519 + AEAD 帧 + 控制帧，12 单测）；本地身份与邀请 `core::identity`（ed25519+X25519、16 字符 Crockford ID、6 字符短码 + v2 签名 QR，13 单测，修 8→16 字符派生 bug）；中继配置与探测（`messaging_relay_url` 字段级保留写入、`validate_relay_url`、6 IPC、`ew config messaging show/set/clear/test`）；中继参考实现 `docs/features/messaging/relay/`（axum 纯密文转发 + 64 帧暂存 + Docker）与真实 relay 子进程端到端冒烟（双端 Noise_XX 握手 + 双向 AEAD + **断言中继日志零明文**）；离线队列 `core::messaging_queue`（outbox.jsonl 只存密文，明文不入盘有单测强制；~~sled~~→零依赖 JSONL 偏差入 ADR-002）。门禁：120 lib 单测 + 7 IPC 冒烟 + 2 中继冒烟全绿，clippy -D warnings 0，fmt 干净。遗留：UI 接线切片（PeopleChatView 适配器替换、队列补投、前端 e2e、真机双账户点验）。任务目录 feature-2026-09-messaging-phase2（不自行归档）。
 
 - 2026-09-01 v0.1.12 发版：携带 4 个未发版功能——AI 对话长上下文（ADR-004，core 侧字符预算滑动窗口 + `fit_messages` 收口 chat_completion/stream + `contextBudgetChars` 配置链；IPC 自起 mock LLM 验证裁剪；顺手修 `ew config set` 经 `set_flat_field` 抹掉 Q19 profiles 数据丢失隐患）+ 能力渐进式发布后续成长透明化（ADR-001 解锁条件/跨阈值 toast/侧栏进度；weekly-report 升 tier2 + 3 次示例）+ 工作台第二阶段（ADR-001 常用能力 + 实用工具三个纯本地转换器）+ i18n 基建（ADR-002 设置中心壳层试点 + 语言选择器启用；枚举标签/LlmSettings 为增量迁移遗留）。本地闸门全绿（cargo 84 + 集成 + clippy 0 警告 + fmt + eslint + vitest 81 + coverage 95/76/100/95 + vite build + Playwright 10/10），ci.yml 7/7，release.yml 全绿出 dmg + msi，install.ps1 ProductCode 从 CI msi 制品提取同步。
 

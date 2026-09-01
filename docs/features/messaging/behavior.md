@@ -10,6 +10,34 @@
 - 删除会话前需要确认；删除仅影响本机数据。
 - 页面明确提示网络消息服务尚未接入；不能将本地消息误认为已发给对方。
 
+## 第二阶段（传输层核心，2026-09）
+
+> 决策与取舍见 [ADR-002](./decisions/ADR-002-messaging-transport.md)；帧协议见 [transport-protocol.md](./transport-protocol.md)。
+
+- 本地身份：首次使用消息传输功能时在 `~/.elwright/identity/` 自动生成密钥对
+  （ed25519 签名 + X25519 协商），并派生 16 字符 base32 ID（Crockford，无 I/L/O/U）。
+  密钥不出本机；删除该目录即重置身份。
+- 邀请互加：一方生成邀请（6 字符短码 + 二维码原文，默认 5 分钟有效），
+  对方粘贴二维码原文接受。校验含：格式 / 有效期 / ed25519 签名 / 短码一致性；
+  任何一项失败即拒绝并给出中文错误。
+- 中继配置：设置中心「消息中继」与 `ew config messaging {show,set,clear,test}`
+  共用 `~/.elwright/config.json` 的 `messaging_relay_url` 字段。
+  仅接受 `ws://` 或 `wss://`；「测试连接」实测一次 WebSocket 升级（5 秒超时）。
+- 端到端加密：会话密钥经 Noise_XX_25519 协商，静态密钥即身份；
+  数据帧为 ChaCha20-Poly1305 AEAD（重放自动拒绝，篡改即解密失败）。
+  中继是纯密文转发器：只看房间 ID 与密文，日志零载荷（有自动化测试断言）。
+- 离线队列：发送失败/对端不在线时，密文入 `~/.elwright/messaging/outbox.jsonl`
+  暂存；明文永不落盘（单测强制）。
+- **默认不启用**：未配置中继 URL 时消息功能保持第一阶段本地行为，不发起任何网络连接。
+
+### 本阶段边界（重要）
+
+- 传输层核心（协议 / 身份 / 邀请 / 中继参考实现 / 队列）已完成并有自动化测试；
+  **桌面 UI 接线（PeopleChatView 适配器替换、握手成功后队列补投、前端 vitest/e2e）尚未接入**，
+  真机双账户点验项见任务目录 verification 与 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`。
+- 中继参考实现需用户自行部署（`docs/features/messaging/relay/`，Docker 一键），
+  官方不提供公共中继。
+
 ## 后续升级
 
 - 接入服务后，保留现有会话和消息模型，新增送达、失败、重试、未读和在线状态。

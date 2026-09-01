@@ -1,5 +1,20 @@
 # 变更日志（Changelog）
 
+## 2026-09-01 · 第二阶段传输层核心（ADR-002）
+
+- 本地身份：`~/.elwright/identity/` 密钥对（ed25519 + X25519）与 16 字符 base32 ID 派生。
+- 邀请互加：6 字符短码 + v2 二维码原文（签名 + 有效期），`accept_invite` 全量校验。
+- 传输协议：Noise_XX_25519_ChaChaPoly_SHA256（snow），AEAD 数据帧 + 控制帧，
+  帧格式文档化（transport-protocol.md）；重放拒绝、篡改即失败。
+- 中继参考实现：`docs/features/messaging/relay/`（axum 纯密文转发 + Docker 部署），
+  自动化断言中继日志零明文。
+- 离线队列：`outbox.jsonl` 只存密文，FIFO + 损坏行容忍 + 原子重写。
+- 配置与探测：`messaging_relay_url` 字段（设置中心 / `ew config messaging` 共用）、
+  `test_messaging_relay` IPC 与 CLI 连通性探测。
+- 测试：120 lib 单测 + 7 例 IPC 冒烟 + 2 例真实中继端到端冒烟。
+- 默认不启用：未配置中继时无任何网络行为。
+- UI 接线（PeopleChatView 适配器替换、队列补投、前端 e2e）留待下一切片。
+
 ## 2026-08-23 · 第一阶段客户端基础
 
 - 新增人与人消息会话入口。
