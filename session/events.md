@@ -474,3 +474,15 @@
 - 本轮方案（ADR-002 设置中心）：自写轻量 i18n（lib/i18n.ts：locale ref + zh-CN/en 平铺字典 + t() 双级回退 + dictKeysInSync 键集完整性守卫；拒绝 vue-i18n——无复数/格式需求）；preferences.language 字段（默认 zh-CN、mergePreferences 校验、updatePreferences 副作用 setLocale 即时生效）；设置中心壳层全量字符串走 t()（分区标题/说明/控件标签/主题三选项/语言选择器本体启用）。增量迁移遗留：枚举选项标签（启动视图/密度/字体名）、LlmSettings 内部文案、其余视图。
 - 实际结果：已验证——vitest i18n 4 用例（含键集完整性）+ 全量 81/81；eslint 0；build 成功；preferences 存量测试不回归。
 - 下一步：随本提交进 main + CI；English 模式下枚举标签仍中文为已知遗留；其余视图 i18n 增量迁移按需推进；下一项 V2 主干「人与人消息会话②」待定向。
+
+### Q33 | 第1次处理（发版 v0.1.12，进行中）
+- 问题或新增信息：用户定向「发布 v0.1.12」，携带 4 个未发版功能——AI 对话长上下文（ADR-004，Q28）+ 能力渐进式发布后续（Q30）+ 工作台第二阶段（Q31）+ i18n 基建（Q32）。
+- 本轮方案：沿用 v0.1.11 的发版协议——①四处版本号同步（Cargo.toml/tauri.conf.json/package.json/package-lock.json + Cargo.lock 随 cargo build 更新），commit + push main；②ci.yml 出制品后下载 windows msi 用 `file` 命令提取 Revision Number = ProductCode；③同步 install.ps1；④打 tag v0.1.12 → release.yml 出 GitHub Release。
+- 实际结果：进行中——版本号四处同步（d711791）+ ROADMAP 三处更新 + install.ps1 ProductCode 同步（a909746）已推 main；ci.yml 7/7 全绿出 dmg + msi；windows msi Revision Number = {968DA9AA-C60A-4459-9A33-D3C52864DF87}；tag v0.1.12 已推；release.yml in progress。
+- 下一步：等 release.yml 全绿 → GitHub Release 验 dmg + msi 双资产 → 台账 Q33 收口。
+
+### Q33 | 第2次处理（v0.1.12 发版完成）
+- 问题或新增信息：上一节待收口——等 release.yml 全绿 + GitHub Release 验双资产。
+- 本轮方案：gh release view v0.1.12 验证 → 完成 Q33 收口。
+- 实际结果：已验证——release.yml 3 job 全绿（Build Windows msi 3m51s + Build macOS dmg 1m53s + Publish GitHub Release 11s）；GitHub Release v0.1.12 双资产就位（Elwright_0.1.12_aarch64.dmg sha256 7324d966... + Elwright_0.1.12_x64_en-US.msi sha256 39db589b...）。本地闸门全绿（cargo fmt + clippy 0 + test 84 集成 + eslint 0 + vitest 81 + coverage 95/76/100/95 + vite build + Playwright 10/10）；ci.yml 7/7（macOS dmg / Windows msi / Rust lint / Frontend 七步）；install.ps1 ProductCode {968DA9AA-C60A-4459-9A33-D3C52864DF87} 同步。
+- 下一步：v0.1.12 上线完成；真机点验项延续 PENDING 清单（长会话裁剪/补丁编辑全链路/模型档案切换/最近项目删除/v0.1.11 msi 升级安装）；下一项 V2 主干「人与人消息会话②：轻量身份/邀请与一对一消息传输」待用户定向立项。
