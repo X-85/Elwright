@@ -19,13 +19,14 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 ## 当前版本
 
-v0.1.11（2026-08-31，tag `v0.1.11`，GitHub Release 附 dmg + msi）。
+v0.1.12（2026-09-01，tag `v0.1.12`，GitHub Release 附 dmg + msi）。
 
 - v0.1.7：修复资源收藏 IPC 恒失败（Resource.id 缺 serde(default)）+ 真协议回归。
 - v0.1.8：代码浏览器阶段①②（只读查看 + 轻量符号跳转，PR #2）。
 - v0.1.9：代码浏览器阶段③第一批（收藏/书签/发送到 AI，PR #3）。
 - v0.1.10：设置中心后续（常规/外观/终端本地偏好，PR #4）+ 代码浏览器阶段③第二批（转为 Todo + 终端定位）+ AI 对话阶段③用户确认式能力协作（PR #6）+ AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。
 - v0.1.11：代码浏览器阶段④ 受控补丁编辑（PR #10）+ 设置中心 模型档案（PR #11 ADR + PR #12 实施）+ 工程质量第三档 ESLint + coverage（PR #13 ADR + PR #14 实施）+ 真机点验修复批次（Q21 README 开发者入口 / Q22 树不可见 + 预览栏压窄 + 错误 toast 静默 / Q23 树重复渲染 + 绿点原生全屏与四角分屏 / Q24 最近项目支持删除）。
+- v0.1.12：AI 对话阶段④余项长上下文（ADR-004 core 侧字符预算滑动窗口，默认 24000 字符、`contextBudgetChars` 配置链可覆盖；最新 user 必留，更早整条丢弃，超长中段截断；`fit_messages` 收口 chat_completion/stream）+ 能力渐进式发布后续成长体系透明化（ADR-001 解锁条件/跨阈值 toast/侧栏进度、weekly-report 升 tier2 + 3 次示例）+ 工作台第二阶段（ADR-001 常用能力收藏/最近使用去重置顶 8 上限 + 实用工具 JSON/Base64/时间戳三个纯本地转换器）+ i18n 基建（ADR-002 `lib/i18n.ts` 轻量 t() 双语字典 + preferences.language 切换即时生效 + 设置中心壳层试点迁移）。
 
 ## 开发预览环境约束（本机 Windows / GNU-only）
 
@@ -40,7 +41,7 @@ v0.1.11（2026-08-31，tag `v0.1.11`，GitHub Release 附 dmg + msi）。
 
 ## 进行中
 
-（无进行中——V2 主干重启后的第一项「AI 对话长上下文」（ADR-004）已实现并进 main，长会话裁剪真机点验随 PENDING 清单；下一项按顺序为「人与人消息会话②：轻量身份/邀请与一对一消息传输」，待用户定向后立项。归档说明：各任务目录随合并归档；真机点验项统一留档 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`。）
+（无进行中——V2 主干重启后第一项「AI 对话长上下文」（ADR-004）已实现并随 v0.1.12 发版，长会话裁剪真机点验随 PENDING 清单；下一项按顺序为「人与人消息会话②：轻量身份/邀请与一对一消息传输」，待用户定向后立项。归档说明：各任务目录随合并归档；真机点验项统一留档 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`。）
 
 ## V1（短期，做完即发版）
 
@@ -98,6 +99,8 @@ v0.1.11（2026-08-31，tag `v0.1.11`，GitHub Release 附 dmg + msi）。
 - **扩展工作台工具（实验方向）**：通用 Todo/笔记增强、更多转换工具、时序图/架构图/ER 图、SSH/服务器管理等仅限独立实验分支；不以“替代现有成熟软件”为目标，满足主干红线后才可另行立项。
 
 ## 已完成里程碑
+
+- 2026-09-01 v0.1.12 发版：携带 4 个未发版功能——AI 对话长上下文（ADR-004，core 侧字符预算滑动窗口 + `fit_messages` 收口 chat_completion/stream + `contextBudgetChars` 配置链；IPC 自起 mock LLM 验证裁剪；顺手修 `ew config set` 经 `set_flat_field` 抹掉 Q19 profiles 数据丢失隐患）+ 能力渐进式发布后续成长透明化（ADR-001 解锁条件/跨阈值 toast/侧栏进度；weekly-report 升 tier2 + 3 次示例）+ 工作台第二阶段（ADR-001 常用能力 + 实用工具三个纯本地转换器）+ i18n 基建（ADR-002 设置中心壳层试点 + 语言选择器启用；枚举标签/LlmSettings 为增量迁移遗留）。本地闸门全绿（cargo 84 + 集成 + clippy 0 警告 + fmt + eslint + vitest 81 + coverage 95/76/100/95 + vite build + Playwright 10/10），ci.yml 7/7，release.yml 全绿出 dmg + msi，install.ps1 ProductCode 从 CI msi 制品提取同步。
 
 - 2026-08-31 两个插队小项（用户定向）：工作台第二阶段（ADR-001）——「常用能力」（最近使用去重置顶上限 8 + 收藏置顶，点击跳转能力工具箱，本机存储、损坏回退）+「实用工具」（JSON 格式化/压缩、Base64 UTF-8 安全、时间戳⇄日期秒毫秒自动，中文报错带 cause），布局 2×2；i18n 基建（ADR-002）——`lib/i18n.ts` 轻量 t() 双语字典（键集完整性守卫）+ preferences.language（切换即时生效持久化）+ 设置中心壳层全量迁移与语言选择器启用（枚举标签/LlmSettings 为增量迁移遗留）。测试：vitest 81（+15：recents 4/convert 6/i18n 4 + 键集守卫）、eslint 0、build、Playwright 10/10（wb-count 选择器撞名已作用域化）；浏览器实测转换器与新区块渲染。
 
