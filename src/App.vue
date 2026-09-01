@@ -50,6 +50,7 @@ const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('ap
 // 一级视图：能力工具箱 ⇄ AI 对话（chat 阶段①）
 const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code'>('toolbox')
 import { initializePreferences, resolveStartupView, saveLastView, preferences } from './lib/preferences'
+import { growthSummary, newlyUnlocked } from './lib/growth'
 watch(() => preferences.value.startupView, () => {}) // 保持模块热路径引用（初始化在 onMounted）
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
@@ -152,6 +153,8 @@ const filtered = computed(() => {
 
 const lockedCount = computed(() => capabilities.value.filter((c) => !isCapabilityUnlocked(c)).length)
 const totalCapabilityUses = computed(() => Object.values(capabilityUses.value).reduce((sum, count) => sum + count, 0))
+// 成长提示（ADR-001）：距最近可解锁项的进度；无锁定项或均未开放条件时为 null
+const nearestGrowth = computed(() => growthSummary(capabilities.value, totalCapabilityUses.value).nearest)
 
 function isCapabilityUnlocked(cap: Capability): boolean {
   const tier = cap.releaseTier ?? 1
@@ -166,15 +169,20 @@ function toggleRevealAll() {
 }
 
 const selected = computed(
-  () => capabilities.value.find((c) => c.id === selectedId.value) ?? null,
+  () => capabilities.value.find((item) => item.id === selectedId.value) ?? null,
 )
 
 function select(id: string) {
   selectedId.value = selectedId.value === id ? '' : id
   const cap = capabilities.value.find((item) => item.id === id)
   if (cap && isCapabilityUnlocked(cap)) {
+    const prev = totalCapabilityUses.value
     capabilityUses.value[id] = (capabilityUses.value[id] ?? 0) + 1
     localStorage.setItem('elwright-capability-uses', JSON.stringify(capabilityUses.value))
+    // 成长提示（ADR-001）：跨过解锁门槛的瞬间给出反馈
+    for (const name of newlyUnlocked(capabilities.value, prev, totalCapabilityUses.value)) {
+      notify(`🎉 已解锁进阶能力「${name}」——在列表中即可使用`, true)
+    }
   }
 }
 
@@ -410,7 +418,11 @@ async function toggleFullscreen() {
             <input v-model="search" class="search" placeholder="搜索能力…" />
             <button class="import-btn" @click="importCapability()">＋ 导入能力</button>
             <button class="growth-toggle" :class="{ active: revealAllCapabilities }" @click="toggleRevealAll">{{ revealAllCapabilities ? '仅显示核心能力' : '查看全部能力' }}</button>
-            <p v-if="lockedCount" class="growth-hint">{{ lockedCount }} 项进阶能力待解锁；解锁规则和使用记录仅保存在本机。</p>
+            <p v-if="lockedCount && nearestGrowth" class="growth-hint">
+              距解锁「{{ nearestGrowth.name }}」还差 {{ nearestGrowth.remaining }} 次（累计已用
+              {{ totalCapabilityUses }}/{{ nearestGrowth.threshold }} 次）；规则与记录仅保存在本机。
+            </p>
+            <p v-else-if="lockedCount" class="growth-hint">{{ lockedCount }} 项进阶能力待解锁；解锁条件与使用记录仅保存在本机。</p>
             <p class="count">{{ filtered.length }} / {{ capabilities.length }} 项</p>
           </div>
         </template>
@@ -437,8 +449,8 @@ async function toggleFullscreen() {
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />
         <template v-else>
           <p v-if="loadError" class="error">加载失败：{{ loadError }}</p>
-          <CapabilityList v-else :capabilities="filtered" :selected-id="selectedId" :locked-ids="new Set(capabilities.filter(c => !isCapabilityUnlocked(c)).map(c => c.id))" @select="select" />
-          <CapabilityDetail v-if="selected" :cap="selected" :bridge="bridge" :locked="!isCapabilityUnlocked(selected)" @notify="notify" @deleted="onDeleted" @open-settings="openSettings('model')" />
+          <CapabilityList v-else :capabilities="filtered" :selected-id="selectedId" :locked-ids="new Set(capabilities.filter(c => !isCapabilityUnlocked(c)).map(c => c.id))" :total-uses="totalCapabilityUses" @select="select" />
+          <CapabilityDetail v-if="selected" :cap="selected" :bridge="bridge" :locked="!isCapabilityUnlocked(selected)" :total-uses="totalCapabilityUses" @notify="notify" @deleted="onDeleted" @open-settings="openSettings('model')" />
           <div v-else-if="!loadError" class="placeholder">← 选择一项能力查看详情</div>
         </template>
       </main>

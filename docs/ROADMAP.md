@@ -69,7 +69,7 @@ v0.1.11（2026-08-31，tag `v0.1.11`，GitHub Release 附 dmg + msi）。
 - **人与人消息会话**：分三阶段实现——~~①客户端本地消息会话~~（**已完成，2026-08-30 随 PR #1 进 main**）；②轻量身份/邀请与一对一消息传输；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
 - **设置中心后续阶段**：~~第一阶段（常规/外观/模型分组 + 三态主题）~~、~~常规启动视图/更新策略、外观密度/缩放、终端字体/字号/滚动历史~~（2026-08-31 已交付进 main）、~~模型档案（多套 LLM 配置切换）~~（**Q19 已交付**：profiles + activeProfile 与 flat 字段共存兼容；CLI `ew config profile` 子命令；5 IPC；前端 LlmSettings.vue 档案下拉 + 新建）；余下界面语言（待 i18n 基建），均以本地优先、少而明确为准入标准。
 - **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；~~今日记录~~（2026-08-25 调整：与 Todo 一并提前进第一阶段）、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。第一阶段（Todo + 今日记录，`feature-2026-08-workbench-phase1`）已并入 main（2026-08-30）。
-- **能力渐进式发布**：~~MVP（成熟度档位、默认核心视图、全部能力开关、本地使用计数）~~已随 PR #1 进 main；后续增加透明的解锁规则、成长提示；社区提案/审核/签名能力包另行排期。
+- **能力渐进式发布**：~~MVP（成熟度档位、默认核心视图、全部能力开关、本地使用计数）~~已随 PR #1 进 main；~~透明的解锁规则、成长提示~~（**2026-08-31 已交付**：ADR-001——解锁条件与进度三处可视化、跨阈值解锁 toast、侧栏最近解锁进度、weekly-report 升为进阶档位开箱示例）；社区提案/审核/签名能力包另行排期。
 - ~~**会话问题台账基准技能**~~ **已完成（2026-08-30 随 PR #1 进 main）**：内置 `session-ledger` 能力 + 离线 SOP；Codex Skill 负责可写工作区的自动维护。
 - **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
   - ~~**第一档（立即）**~~ **已完成（2026-08-23）**：CI clippy + rustfmt 闸门；vitest 覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数），随 v0.1.5 进包。
@@ -99,6 +99,7 @@ v0.1.11（2026-08-31，tag `v0.1.11`，GitHub Release 附 dmg + msi）。
 
 ## 已完成里程碑
 
+- 2026-08-31 能力渐进式发布后续（ADR-001 成长体系透明化）：`lib/growth.ts` 纯函数收口（isUnlocked/growthSummary/newlyUnlocked，6 vitest）；解锁条件与进度三处可视化（列表徽标 tooltip / 详情横幅 / 侧栏提示行）；跨阈值瞬间 toast「🎉 已解锁进阶能力」+ 侧栏最近解锁进度；内置 weekly-report 升为进阶档位开箱示例（tier 2 + 累计 3 次解锁）。浏览器预览四层实测全过（提示行 → 查看全部徽标 → 详情横幅进度 → 第 3 次使用触发解锁 toast 并进入核心视图）。闸门全绿（eslint / vitest 66 / build）。任务目录 enhancement-2026-08-capability-growth。
 - 2026-08-31 AI 对话阶段④余项「长上下文」（ADR-004）实现进 main：`core::chat_context::fit_messages` 字符预算滑动窗口（默认 24000，`contextBudgetChars` 配置链 / 环境变量可覆盖；最新消息必留、更早整条丢弃、超长中段截断），`assemble_chat_messages` 收口两个 chat 命令；`ew config` 显示预算 + `set` 新增键；顺手修 `ew config set` 按 flat 表回写抹掉 Q19 profiles 的数据丢失隐患。测试：chat_context 6 单测 + 新 IPC 测试（自起 mock LLM 服务捕获请求体验证裁剪），cargo 84 核心 + 集成全绿、clippy 0 警告、fmt、eslint、vitest 60、build。任务目录 feature-2026-08-chat-long-context。
 - 2026-08-31 v0.1.11 发版：携带代码浏览器阶段④（PR #10）+ 设置中心 模型档案（PR #11/12）+ 工程质量第三档（PR #13/14）+ 真机点验修复批次 Q21-Q24（README 开发者入口；代码浏览器树不可见/预览栏压窄/toast 静默三根因修复；树重复渲染扁平化任意深度；绿点点击全屏 + 四角四分位对齐 macOS 原生；最近项目逐条删除 + IPC 测试竞态锁与增量断言修复）。本地闸门全绿，ci.yml 7/7，release.yml 全绿出 dmg + msi，install.ps1 ProductCode 从 CI msi 制品提取同步（{7638490A-6BF2-4B6C-978A-9F67D7C1320A}）。同日 V2 主干重启立项：AI 对话阶段④余项长上下文（ADR-004 core 侧字符预算滑动窗口，待实施）。
 - 2026-08-31 真机点验修复批次（Q21-Q24，桌面 GUI 实测驱动）：Q21 README「快速开始」补真机启动桌面端命令（`tauri dev` 全链路）+ 当前状态/AGENTS 指针同步；Q22 代码浏览器三根因——treeCache 用 Map 致 v-for 遍历拿 `[key,value]` 对儿使 v-show 恒 false 整树不可见（改 Record）、`.code-browser` 漏 `grid-column: 1/-1` 被压进 300-380px 窄列、报错 toast 仅工具箱视图渲染致 IPC 失败全静默；Q23 Q22 修复后暴露的树重复渲染（外层 v-for 缓存 + 手工嵌套双份，改 visibleRows 扁平化任意深度）+ 绿点补回点击全屏切换 + 悬停菜单四角四分位对齐原生；Q24 最近项目支持逐条删除（core/IPC/bridge/前端全栈，收藏书签保留）+ 附带修 IPC 测试竞态锁与增量断言两个测试基建问题。系统目录选择器→打开项目全链路首次真机验证通过。本地闸门全绿（cargo 78+2、clippy 0 警告、fmt、eslint、vitest 60、build）。任务目录 ×4 在 docs/work/active/。

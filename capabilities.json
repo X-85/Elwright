@@ -37,7 +37,8 @@
       "prompt": "你是周报整理助手。把用户给的本周工作素材（流水账、commit、会议要点等）整理成结构化周报，分四节：本周完成 / 进行中（含卡点与预计时间）/ 下周计划 / 风险与求助。每条一行、动词开头、写结果不写过程；纯过程性事务（无决策产出的会议、例行对齐）不要列入。输出 Markdown。",
       "offline": false,
       "degradeDoc": "resources/docs/weekly-report-sop.md",
-      "releaseTier": 1
+      "releaseTier": 2,
+      "unlockAfterUses": 3
     },
     {
       "id": "session-ledger",

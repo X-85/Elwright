@@ -7,6 +7,8 @@ const props = defineProps<{
   cap: Capability
   bridge: Bridge
   locked?: boolean
+  /** 累计使用次数（ADR-001：解锁进度提示） */
+  totalUses?: number
 }>()
 
 const emit = defineEmits<{
@@ -124,7 +126,13 @@ function renderMd(text: string): string {
       </span>
     </header>
 
-    <p v-if="locked" class="degrade-banner">该能力尚未解锁。你可以在“查看全部能力”模式中了解它，达到本地解锁条件后即可使用。</p>
+    <p v-if="locked" class="degrade-banner">
+      <template v-if="cap.unlockAfterUses !== undefined">
+        该能力尚未解锁：累计使用任意能力 {{ cap.unlockAfterUses }} 次后自动解锁（当前
+        {{ totalUses ?? 0 }}/{{ cap.unlockAfterUses }}）。使用记录仅保存在本机。
+      </template>
+      <template v-else>该能力尚未解锁，暂未开放解锁条件。</template>
+    </p>
 
     <!-- 脚本型 -->
     <template v-if="cap.type === 'script'">
