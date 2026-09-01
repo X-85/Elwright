@@ -51,6 +51,7 @@ const settingsSection = ref<'general' | 'appearance' | 'model' | 'terminal'>('ap
 const activeView = ref<'toolbox' | 'workbench' | 'chat' | 'people' | 'workspace' | 'code'>('toolbox')
 import { initializePreferences, resolveStartupView, saveLastView, preferences } from './lib/preferences'
 import { growthSummary, newlyUnlocked } from './lib/growth'
+import { recordRecent } from './lib/capabilityRecents'
 watch(() => preferences.value.startupView, () => {}) // 保持模块热路径引用（初始化在 onMounted）
 const leftPanelVisible = ref(true)
 const rightPanelVisible = ref(false)
@@ -179,11 +180,19 @@ function select(id: string) {
     const prev = totalCapabilityUses.value
     capabilityUses.value[id] = (capabilityUses.value[id] ?? 0) + 1
     localStorage.setItem('elwright-capability-uses', JSON.stringify(capabilityUses.value))
+    // 工作台「最近使用」（ADR：工作台二期）——与使用计数同时机记录
+    recordRecent(id)
     // 成长提示（ADR-001）：跨过解锁门槛的瞬间给出反馈
     for (const name of newlyUnlocked(capabilities.value, prev, totalCapabilityUses.value)) {
       notify(`🎉 已解锁进阶能力「${name}」——在列表中即可使用`, true)
     }
   }
+}
+
+/** 工作台「常用能力」点击：跳到能力工具箱并打开详情。 */
+function openCapabilityFromWorkbench(id: string) {
+  activeView.value = 'toolbox'
+  selectedId.value = id
 }
 
 // 设置弹层关闭后刷新对话页的模型状态条（可能刚保存了配置）
@@ -442,7 +451,7 @@ async function toggleFullscreen() {
       </aside>
 
       <main class="content">
-        <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" @open-code="openCodeAt" />
+        <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" @open-code="openCodeAt" @open-capability="openCapabilityFromWorkbench" />
         <PeopleChatView v-else-if="activeView === 'people'" />
         <WorkspaceView v-else-if="activeView === 'workspace'" :bridge="bridge" :capabilities="capabilities" @notify="notify" />
         <CodeBrowserView v-else-if="activeView === 'code'" ref="codeBrowserRef" :bridge="bridge" @notify="notify" @send-to-ai="sendCodeToAi" @open-in-terminal="openCodeInTerminal" />

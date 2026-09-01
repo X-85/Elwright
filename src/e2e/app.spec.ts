@@ -76,7 +76,7 @@ test('工作台：Todo 添加/勾选/删除与今日记录自动保存（预览�
   // 勾选 → 划线样式 + 计数 1/1
   await item.locator('input[type="checkbox"]').check()
   await expect(item).toHaveClass(/done/)
-  await expect(page.locator('.wb-count')).toHaveText('1 / 1 完成')
+  await expect(page.locator('.wb-todo .wb-count')).toHaveText('1 / 1 完成')
 
   // 删除 → 消失 → 空态
   await item.locator('.todo-del').click()

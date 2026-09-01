@@ -48,3 +48,11 @@ core/workbench.rs：自由函数 + 进程内 TODO_LOCK（读-改-写串行化）
 - 工作数据默认不上传，不读取屏幕、剪贴板或系统活动。
 - 转换工具默认不依赖网络和 LLM。
 - 打开本地文件、执行能力或写入数据等动作必须有明确用户操作；模型输出不能直接作为命令执行。
+
+## 第二阶段（2026-08-31，ADR-001）
+
+- 常用能力：`lib/capabilityRecents.ts` 本地存储封装（收藏/最近使用、去重置顶、
+  上限淘汰）；App.vue `select()` 时 `recordRecent`；WorkbenchView 经
+  `open-capability` 事件跳转工具箱。
+- 实用工具：`lib/convert.ts` 纯函数（JSON / Base64 UTF-8 安全 / 时间戳秒毫秒自动），
+  中文报错带 `cause`；WorkbenchView 单区块多 tab 切换。

@@ -462,3 +462,15 @@
 - 本轮方案：ADR-001 定案并同轮实施（小任务合并两阶段）。①规则透明三处同文案：CapabilityList 待解锁徽标 tooltip / CapabilityDetail 锁定横幅 / App.vue 侧栏提示行，统一「累计使用任意能力 N 次后自动解锁（当前 T/N）」，缺 unlockAfterUses 的 tier>1 显示「暂未开放解锁条件」。②成长提示两时机：select() 跨阈值 notify「🎉 已解锁进阶能力「名」」；侧栏持续显示距最近可解锁项差距。③逻辑收口 lib/growth.ts 纯函数（isUnlocked/growthSummary/newlyUnlocked）+ 6 vitest。④示例策略：内置 weekly-report 升 tier 2 + unlockAfterUses 3（让成长闭环开箱可见；改变该示例默认可见性——已在 ADR/plan/最终汇报标注供否决）。拒绝：单能力计数（破坏 MVP 总量语义与本地数据）、远程/社区解锁（另行排期）、桌面系统通知。踩坑：IAB evaluate 函数字符串需 IIFE 立即执行（"() => ..." 会被当函数对象返回 {}）；shell 相对路径受上次 cd 影响（文档写路径用绝对/先回根）。
 - 实际结果：已验证——vitest 66/66（含 6 新）+ eslint 0 + build 成功；浏览器预览四层实测：核心视图 3/4 + 提示行「距解锁「周报生成」还差 3 次」→ 查看全部出现待解锁徽标 → 详情横幅「（当前 0/3）」+ 调用禁用 → 预置 2 次后第 3 次使用触发解锁 toast、提示行消失、周报进入核心视图；测试用 localStorage 已清理。文档回填 progressive-capabilities behavior/changelog/architecture/ADR + ROADMAP（条目+里程碑）+ 任务目录 plan/verification。
 - 下一步：随本提交进 main + CI 确认；weekly-report 示例策略等用户知悉；下一项 V2 主干「人与人消息会话②」待定向。
+
+### Q31 | 第1次处理（工作台第二阶段：常用能力 + 实用工具）
+- 问题或新增信息：用户定向「先处理可插队的小项：资源工作区顺延项和设置中心 i18n 基建」。核实后确认「资源工作区顺延项」实际指向工作台第二阶段（收藏/最近使用承接能力调用 + 少量高频研发转换工具，与工作台条目顺延项同源），与资源工作区本体（收藏夹/课题已交付）无关。
+- 本轮方案（ADR-001 工作台）：①常用能力——lib/capabilityRecents.ts 本机存储（收藏 string[] / 最近使用 {id,at}[] 去重置顶上限 8、损坏回退、静默降级），App.vue select() 同时机 recordRecent，WorkbenchView 区块按收藏置顶+时间倒序、点名称 emit open-capability 跳工具箱选中详情；②实用工具——lib/convert.ts 纯函数 JSON 格式化/压缩、Base64（TextEncoder UTF-8 安全）、时间戳⇄日期（秒毫秒 ≤1e11 自动、本地时区），中文报错；WorkbenchView 2×2 布局（grid-auto-rows + overflow-y）。
+- 实际结果：已验证——vitest 81/81（recents 4 + convert 6 新增）；eslint 0（preserve-caught-error 抓 catch 抛错缺 cause 已补 cause）；Playwright 10/10（.wb-count 与新区块撞名 strict violation，作用域化 .wb-todo .wb-count）；浏览器 IAB 实测四区块渲染、常用能力空态、JSON 格式化输出正确。文档：workbench behavior/architecture/changelog + ROADMAP 两处 + 任务目录 verification。
+- 下一步：随本提交进 main + CI；桌面端最近使用/收藏/跳转真机点验留任务目录。
+
+### Q32 | 第1次处理（i18n 基建：设置中心试点）
+- 问题或新增信息：同轮第二项——设置中心「界面语言」置灰的前置（ROADMAP：待 i18n 基建）。
+- 本轮方案（ADR-002 设置中心）：自写轻量 i18n（lib/i18n.ts：locale ref + zh-CN/en 平铺字典 + t() 双级回退 + dictKeysInSync 键集完整性守卫；拒绝 vue-i18n——无复数/格式需求）；preferences.language 字段（默认 zh-CN、mergePreferences 校验、updatePreferences 副作用 setLocale 即时生效）；设置中心壳层全量字符串走 t()（分区标题/说明/控件标签/主题三选项/语言选择器本体启用）。增量迁移遗留：枚举选项标签（启动视图/密度/字体名）、LlmSettings 内部文案、其余视图。
+- 实际结果：已验证——vitest i18n 4 用例（含键集完整性）+ 全量 81/81；eslint 0；build 成功；preferences 存量测试不回归。
+- 下一步：随本提交进 main + CI；English 模式下枚举标签仍中文为已知遗留；其余视图 i18n 增量迁移按需推进；下一项 V2 主干「人与人消息会话②」待定向。

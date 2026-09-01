@@ -1,4 +1,5 @@
 import { ref, watch } from 'vue'
+import { setLocale, type Locale } from './i18n'
 
 /**
  * 设置中心后续阶段的本地偏好（常规/外观/终端）。
@@ -25,6 +26,8 @@ export interface Preferences {
   terminalFontSize: number
   /** 终端滚动历史行数。 */
   terminalScrollback: number
+  /** 界面语言（ADR-002 i18n 基建；存量视图为增量迁移，设置中心壳层已接入）。 */
+  language: Locale
 }
 
 export const TERMINAL_FONT_OPTIONS: { value: string; label: string }[] = [
@@ -56,6 +59,7 @@ const DEFAULTS: Preferences = {
   terminalFontFamily: TERMINAL_FONT_OPTIONS[0].value,
   terminalFontSize: 13,
   terminalScrollback: 10000,
+  language: 'zh-CN',
 }
 
 const STORAGE_KEY = 'elwright.preferences'
@@ -81,6 +85,7 @@ export function mergePreferences(raw: unknown): Preferences {
   if (TERMINAL_SCROLLBACK_OPTIONS.includes(r.terminalScrollback as number)) {
     out.terminalScrollback = r.terminalScrollback as number
   }
+  if (r.language === 'zh-CN' || r.language === 'en') out.language = r.language
   return out
 }
 
@@ -94,8 +99,12 @@ function read(): Preferences {
 
 export const preferences = ref<Preferences>(read())
 
+// 语言偏好与 i18n 运行时同步（初始化 + 每次变更）
+setLocale(preferences.value.language)
+
 export function updatePreferences(patch: Partial<Preferences>) {
   preferences.value = { ...preferences.value, ...patch }
+  if (patch.language) setLocale(patch.language)
 }
 
 function applyPreferences(p: Preferences) {
