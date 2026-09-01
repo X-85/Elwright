@@ -1,0 +1,18 @@
+[package]
+name = "elwright-relay"
+version = "0.1.0"
+edition = "2021"
+description = "Elwright 消息中继参考实现 · 自托管 WebSocket（端到端加密，明文不落本机）"
+publish = false
+
+[dependencies]
+# 异步运行时 + WebSocket
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+# HTTP 升级器（axum/tungstenite 集成）
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.5"
+# 日志
+env_logger = "0.11"
+log = "0.4"

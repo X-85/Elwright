@@ -39,6 +39,9 @@ x25519-dalek = { version = "2", features = ["static_secrets"] }
 rand = "0.8"
 hex = "0.4"
 thiserror = "1"
+# 消息中继连通性探测（测试连接按钮 / ew config messaging test）
+tokio = { version = "1", features = ["rt", "time"] }
+tokio-tungstenite = "0.24"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -48,3 +51,7 @@ tauri-build = { version = "2", features = [] }
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 tempfile = "3"
+# 中继冒烟测试：起 relay 进程 + 两端 mock 客户端做 Noise 握手 + AEAD 收发
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time", "io-util"] }
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }

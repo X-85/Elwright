@@ -92,6 +92,8 @@ enum MessagingAction {
     Set { url: String },
     /// 清除消息中继 URL（恢复「未配置」状态）
     Clear,
+    /// 测试中继连通性（WS 升级即断开）；省略 URL 时用已保存配置
+    Test { url: Option<String> },
 }
 
 #[derive(Subcommand)]
@@ -599,6 +601,27 @@ fn messaging_command(action: MessagingAction) {
                 std::process::exit(1);
             }
             outln!("已清除消息中继 URL（恢复「未配置」）");
+        }
+        MessagingAction::Test { url } => {
+            let target = match url {
+                Some(u) => u,
+                None => llm::read_messaging_relay_url(),
+            };
+            if target.is_empty() {
+                errln!("错误: 未配置消息中继 URL（ew config messaging set <url>）");
+                std::process::exit(1);
+            }
+            outln!("探测 {} ...", target);
+            match elwright_core::core::messaging_client::probe_relay(
+                &target,
+                std::time::Duration::from_secs(5),
+            ) {
+                Ok(msg) => outln!("✓ {}", msg),
+                Err(e) => {
+                    errln!("✗ {}", e);
+                    std::process::exit(1);
+                }
+            }
         }
     }
 }

@@ -480,6 +480,23 @@ pub fn set_messaging_relay_url(url: String) -> Result<MessagingConfigView, Strin
     })
 }
 
+/// 中继连通性探测：完成 WS 升级即断开。url 缺省时用已保存配置。
+#[tauri::command]
+pub async fn test_messaging_relay(url: Option<String>) -> Result<String, String> {
+    let target = match url {
+        Some(u) if !u.is_empty() => u,
+        _ => llm::read_messaging_relay_url(),
+    };
+    if target.is_empty() {
+        return Err("未配置消息中继 URL".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::core::messaging_client::probe_relay(&target, std::time::Duration::from_secs(5))
+    })
+    .await
+    .map_err(|e| format!("连接测试任务异常: {}", e))?
+}
+
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----
 
 #[tauri::command]

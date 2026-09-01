@@ -24,35 +24,35 @@
 
 ## Step 2 — 本地身份 + 邀请
 
-- [ ] `src-tauri/src/core/identity.rs`
-  - [ ] `Identity::load_or_create(path)` 生成 ed25519 + X25519
-  - [ ] `id_base32()` 派生
-  - [ ] `Invite::create(identity, ttl)` → `(short_code, qr_payload, expires_at)`
-  - [ ] `Invite::accept(short_code, my_identity) -> PublicKey`
-  - [ ] 单测：ID 一致性、邀请校验签名/有效期
-- [ ] IPC：`identity_get`、`identity_create_invite`、`identity_accept_invite`
-- [ ] main.rs 注册 + mock runtime 用例
-- [ ] Bridge：5 方法
+- [x] `src-tauri/src/core/identity.rs`（commit 2342abe；12 单测）
+  - [x] `Identity::load_or_create(path)` 生成 ed25519 + X25519
+  - [x] `id_base32()` 派生（16 字符；step3 修复为 SHA-256 前 10 字节）
+  - [x] `create_invite(ttl)` → `(short_code, qr_payload, expires_at)`
+  - [x] `accept_invite(&InboundInvite)` 完整校验（长度/字符集/有效期/ed25519 签名/短码一致）
+  - [x] 单测：ID 一致性、邀请校验签名/有效期
+- [x] IPC：`identity_get`、`identity_create_invite`、`identity_accept_invite`（commit d4c9251 + 7 例 mock runtime）
+- [x] main.rs 注册
+- [ ] Bridge：5 方法（前端接线待做）
 - [ ] vitest：identity.test.ts / invite.test.ts
 
 ## Step 3 — 设置中心「消息中继」
 
-- [ ] `UserConfigFile::messaging_relay_url` 字段
-- [ ] `ew config messaging` 子命令
-- [ ] SettingsCenter.vue 新分组
-- [ ] 「测试连接」按钮（实测握手一次）
+- [x] `UserConfigFile::messaging_relay_url` 字段（commit d4c9251）
+- [x] `ew config messaging` 子命令（show/set/clear；test 在 step4 补齐）
+- [ ] SettingsCenter.vue 新分组（前端接线待做）
+- [x] 「测试连接」——核心探测 `messaging_client::probe_relay` + IPC `test_messaging_relay` + `ew config messaging test`（commit step4）
 - [ ] vitest：URL 校验
 - [ ] e2e：URL 输入 + 校验 + 保存
 
 ## Step 4 — 客户端 + 中继最小回路
 
-- [ ] `docs/features/messaging/relay/Cargo.toml`
-- [ ] `docs/features/messaging/relay/src/main.rs`（axum + tokio-tungstenite）
-- [ ] `docs/features/messaging/relay/Dockerfile`
-- [ ] `docs/features/messaging/relay/docker-compose.yml`
-- [ ] `docs/features/messaging/relay/README.md`
-- [ ] 客户端 `connect → handshake → send encrypted` 接通
-- [ ] IPC mock runtime：自起 relay + 两端 mock
+- [x] `docs/features/messaging/relay/Cargo.toml`
+- [x] `docs/features/messaging/relay/src/main.rs`（axum + tokio-tungstenite；房间路由 + 64 帧暂存 + 30s 空房清理；日志零载荷）
+- [x] `docs/features/messaging/relay/Dockerfile`（多阶段 + distroless）
+- [x] `docs/features/messaging/relay/docker-compose.yml`
+- [x] `docs/features/messaging/relay/README.md`
+- [x] 客户端 `connect → handshake → send encrypted` 接通（tests/messaging_relay_smoke.rs：initiator/responder 双端 Noise_XX 经真实 relay 进程双向 AEAD 收发 + 断言 relay stderr 无明文）
+- [x] 中继连通性探测 `core::messaging_client`（2 单测）+ IPC `test_messaging_relay` + CLI `test` 子命令
 
 ## Step 5 — 离线消息队列
 

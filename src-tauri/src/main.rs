@@ -102,7 +102,8 @@ fn main() {
             commands::identity_create_invite,
             commands::identity_accept_invite,
             commands::get_messaging_config,
-            commands::set_messaging_relay_url
+            commands::set_messaging_relay_url,
+            commands::test_messaging_relay
         ])
         .run(tauri::generate_context!())
         .expect("启动 Elwright 桌面应用失败");
