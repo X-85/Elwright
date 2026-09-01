@@ -2,6 +2,7 @@ pub mod chat_context;
 pub mod chat_store;
 pub mod code_browser;
 pub mod commands;
+pub mod contacts;
 pub mod degrade;
 pub mod executor;
 pub mod export;

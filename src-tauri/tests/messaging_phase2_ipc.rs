@@ -119,7 +119,7 @@ fn identity_get_returns_stable_id_across_calls() {
 }
 
 #[test]
-fn identity_create_invite_returns_v2_qr_and_short_code() {
+fn identity_create_invite_returns_v3_qr_and_short_code() {
     let (_user, _g) = setup("invite-create");
     let wv = build_wv();
     let out = call_ok(
@@ -130,15 +130,18 @@ fn identity_create_invite_returns_v2_qr_and_short_code() {
     let qr = out["qr_payload"].as_str().expect("qr_payload");
     let short = out["short_code"].as_str().expect("short_code");
     assert_eq!(short.len(), 6, "short_code 必须 6 字符");
+    // v3（ADR-003 §D1）：9 段，第 4 字段为对端 DH 公钥
     let parts: Vec<&str> = qr.split(':').collect();
-    assert_eq!(parts.len(), 8);
+    assert_eq!(parts.len(), 9);
     assert_eq!(parts[0], "elwright-invite");
-    assert_eq!(parts[1], "v2");
+    assert_eq!(parts[1], "v3");
+    assert_eq!(parts[3].len(), 64, "ed25519 公钥 hex");
+    assert_eq!(parts[4].len(), 64, "x25519 DH 公钥 hex");
     assert_eq!(
-        parts[4], short,
+        parts[5], short,
         "qr_payload 中的 short_code 字段必须与字段一致"
     );
-    let expires: i64 = parts[5].parse().expect("expires_at 可解析");
+    let expires: i64 = parts[6].parse().expect("expires_at 可解析");
     assert!(expires > 0);
 }
 
@@ -173,14 +176,17 @@ fn identity_accept_invite_round_trip_and_tamper() {
     );
     let contact = accepted["inviter_id"].as_str().expect("inviter_id 字段");
     assert!(!contact.is_empty());
-
-    // 篡改最后一段（签名）→ 应被拒
+    // v3 QR 自带 DH 公钥——联系人视图必须回填（不再占位空串）
+    let dh = accepted["dh_pub_hex"].as_str().expect("dh_pub_hex");
     let parts: Vec<&str> = qr.split(':').collect();
+    assert_eq!(dh, parts[4], "回填的 DH 公钥须与 QR 载荷一致");
+
+    // 篡改签名段 → 应被拒
     let mut tampered = parts.to_vec();
-    let mut sig_bytes = hex::decode(parts[7]).unwrap();
+    let mut sig_bytes = hex::decode(parts[8]).unwrap();
     sig_bytes[0] ^= 0xff;
     let bad_sig = hex::encode(sig_bytes);
-    tampered[7] = &bad_sig;
+    tampered[8] = &bad_sig;
     let bad_qr = tampered.join(":");
     let r = call(
         &wv,
@@ -199,7 +205,7 @@ fn identity_accept_invite_rejects_garbage_qr() {
         "identity_accept_invite",
         serde_json::json!({ "qrPayload": "elwright-invite:v2:id:pk:short:0:nonce:sig" }),
     );
-    assert!(r.is_err(), "格式非法应被拒");
+    assert!(r.is_err(), "v2 格式不再接受");
     let r = call(
         &wv,
         "identity_accept_invite",

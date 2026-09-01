@@ -431,35 +431,22 @@ pub fn identity_create_invite(ttl_secs: Option<i64>) -> Result<identity::Invite,
 }
 
 /// 解析并校验对端邀请 qr_payload（接收方使用）。校验通过后返回联系人视图。
-/// 当前实现只做格式/签名校验；**不**把联系人写入持久化存储（后续 Step 加）。
+/// 只做校验不落盘——落盘走 `contacts_add`（用户确认后再加）。
 #[tauri::command]
 pub fn identity_accept_invite(qr_payload: String) -> Result<ContactView, String> {
-    let parts: Vec<&str> = qr_payload.split(':').collect();
-    if parts.len() != 8 || parts[0] != "elwright-invite" || parts[1] != "v2" {
-        return Err("邀请格式非法（期望 8 段: elwright-invite:v2:...）".to_string());
-    }
-    let inbound = identity::InboundInvite {
-        inviter_id: parts[2].to_string(),
-        inviter_signing_pub_hex: parts[3].to_string(),
-        short_code: parts[4].to_string(),
-        expires_at: parts[5]
-            .parse()
-            .map_err(|_| "expires_at 解析失败".to_string())?,
-        nonce_hex: parts[6].to_string(),
-        signature_hex: parts[7].to_string(),
-    };
+    let inbound = identity::parse_invite_qr(&qr_payload)
+        .ok_or_else(|| "邀请格式非法（期望 9 段: elwright-invite:v3:...）".to_string())?;
     let dir = identity::default_user_identity_dir()
         .ok_or_else(|| "无法定位用户主目录（HOME/USERPROFILE 均缺失）".to_string())?;
     let me =
         identity::Identity::load_or_create(&dir).map_err(|e| format!("加载本地身份失败: {}", e))?;
     me.accept_invite(&inbound)
         .map_err(|e| format!("邀请校验失败: {}", e))?;
-    // 解析对端 DH 公钥：v2 QR 不含 DH 公钥，仅含签名公钥；
-    // 真实 Noise 握手后由对端 DH 公钥取代此处 placeholder。
+    // v3 QR 自带对端 DH 公钥（ADR-003 §D1），校验已含 id==derive(dh_pub) 硬绑定
     Ok(ContactView {
         inviter_id: inbound.inviter_id,
         signing_pub_hex: inbound.inviter_signing_pub_hex,
-        dh_pub_hex: String::new(),
+        dh_pub_hex: inbound.inviter_dh_pub_hex,
     })
 }
 

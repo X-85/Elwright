@@ -182,23 +182,28 @@ impl Identity {
         self.dh_public.to_bytes()
     }
 
-    /// 签发邀请：6 字符短码 + 二维码原文（含签名公钥 + 签名）+ 有效期秒数。
+    /// 签发邀请：6 字符短码 + 二维码原文 + 有效期秒数。
+    ///
+    /// v3（ADR-003 §D1）：QR 增载 X25519 DH 公钥——接收方能做
+    /// 「id == derive(dh_pub)」硬绑定校验，并在握手前保存对端 DH 公钥。
     pub fn create_invite(&self, ttl_secs: i64) -> Result<Invite, IdentityError> {
         let now = current_unix_secs();
         let expires_at = now + ttl_secs;
         let nonce: [u8; 8] = random_bytes();
-        // payload: id || expires_at || nonce
-        let mut payload = Vec::with_capacity(self.id_base32.len() + 8 + 8);
+        // payload: id || dh_pub || expires_at || nonce
+        let mut payload = Vec::with_capacity(self.id_base32.len() + 32 + 8 + 8);
         payload.extend_from_slice(self.id_base32.as_bytes());
+        payload.extend_from_slice(&self.dh_public_bytes());
         payload.extend_from_slice(&expires_at.to_be_bytes());
         payload.extend_from_slice(&nonce);
         let sig = self.signing_secret.sign(&payload);
         let sig_bytes = sig.to_bytes();
         let short_code = encode_base32(&sig_bytes[0..5], INVITE_CODE_LENGTH);
         let qr_payload = format!(
-            "elwright-invite:v2:{}:{}:{}:{}:{}:{}",
+            "elwright-invite:v3:{}:{}:{}:{}:{}:{}:{}",
             self.id_base32,
             hex::encode(self.signing_public.to_bytes()),
+            hex::encode(self.dh_public_bytes()),
             short_code,
             expires_at,
             hex::encode(nonce),
@@ -211,7 +216,7 @@ impl Identity {
         })
     }
 
-    /// 校验对端发来的邀请（含完整签名公钥 + 签名）。返回 Ok 即接受为联系人。
+    /// 校验对端发来的邀请。Ok 即通过全部校验（格式/有效期/签名/ID-DH 硬绑定）。
     pub fn accept_invite(&self, invite: &InboundInvite) -> Result<(), IdentityError> {
         if invite.short_code.len() != INVITE_CODE_LENGTH
             || !invite
@@ -239,10 +244,23 @@ impl Identity {
         if pk_bytes.len() != 32 {
             return Err(IdentityError::InviteInvalid);
         }
+        // ADR-003 §D1：DH 公钥必须存在，且 ID 必须由它派生（硬绑定，防伪造）
+        let dh_bytes =
+            hex::decode(&invite.inviter_dh_pub_hex).map_err(|_| IdentityError::InviteInvalid)?;
+        if dh_bytes.len() != 32 {
+            return Err(IdentityError::InviteInvalid);
+        }
+        let dh_arr: [u8; 32] = dh_bytes.as_slice().try_into().unwrap();
+        let dh_pub = x25519_dalek::PublicKey::from(dh_arr);
+        if derive_id_from_dh_public(&dh_pub) != invite.inviter_id {
+            return Err(IdentityError::InviteInvalid);
+        }
         let pk_arr: [u8; 32] = pk_bytes.as_slice().try_into().unwrap();
         let signing_pub = ed25519_dalek::VerifyingKey::from_bytes(&pk_arr)?;
-        let mut payload = Vec::with_capacity(invite.inviter_id.len() + 8 + 8);
+        // 签名内容与 create_invite 对齐：id || dh_pub || expires_at || nonce
+        let mut payload = Vec::with_capacity(invite.inviter_id.len() + 32 + 8 + 8);
         payload.extend_from_slice(invite.inviter_id.as_bytes());
+        payload.extend_from_slice(&dh_arr);
         payload.extend_from_slice(&invite.expires_at.to_be_bytes());
         payload.extend_from_slice(&nonce);
         let sig_arr: [u8; 64] = sig_bytes.as_slice().try_into().unwrap();
@@ -266,16 +284,35 @@ pub struct Invite {
     pub expires_at: i64,
 }
 
-/// 对端发来的邀请二维码原文（接收方解析后用 `verify` 校验签名）。
+/// 对端发来的邀请（v3，9 段；解析见 `parse_invite_qr`）。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InboundInvite {
     pub inviter_id: String,
     pub inviter_signing_pub_hex: String,
+    /// 对端 X25519 DH 公钥（hex）——握手前即知，用于联系人落盘与 remote_static 校验。
+    pub inviter_dh_pub_hex: String,
     pub short_code: String,
     pub expires_at: i64,
     pub nonce_hex: String,
-    /// ed25519 对 (inviter_id || expires_at || nonce) 的 64 字节签名（hex）。
+    /// ed25519 对 (inviter_id || dh_pub || expires_at || nonce) 的 64 字节签名（hex）。
     pub signature_hex: String,
+}
+
+/// 解析 v3 二维码原文为 [`InboundInvite`]（格式不对返回 None）。
+pub fn parse_invite_qr(qr_payload: &str) -> Option<InboundInvite> {
+    let parts: Vec<&str> = qr_payload.split(':').collect();
+    if parts.len() != 9 || parts[0] != "elwright-invite" || parts[1] != "v3" {
+        return None;
+    }
+    Some(InboundInvite {
+        inviter_id: parts[2].to_string(),
+        inviter_signing_pub_hex: parts[3].to_string(),
+        inviter_dh_pub_hex: parts[4].to_string(),
+        short_code: parts[5].to_string(),
+        expires_at: parts[6].parse().ok()?,
+        nonce_hex: parts[7].to_string(),
+        signature_hex: parts[8].to_string(),
+    })
 }
 
 /// 由 X25519 公钥派生 16 字符 base32 ID（Crockford）。取 SHA-256 前 10 字节（80 bit → 16 字符）。
@@ -435,16 +472,18 @@ mod tests {
         let id = Identity::generate().unwrap();
         let invite = id.create_invite(DEFAULT_INVITE_TTL_SECS).unwrap();
         let parts: Vec<&str> = invite.qr_payload.split(':').collect();
-        assert_eq!(parts.len(), 8);
+        // v3：elwright-invite:v3:{id}:{edpk}:{dhpk}:{short}:{expires}:{nonce}:{sig}
+        assert_eq!(parts.len(), 9);
         assert_eq!(parts[0], "elwright-invite");
-        assert_eq!(parts[1], "v2");
+        assert_eq!(parts[1], "v3");
         assert_eq!(parts[2], id.id_base32());
         assert_eq!(parts[3].len(), 64); // 32 字节 ed25519 pub hex
-        assert_eq!(parts[4], invite.short_code);
-        assert!(parts[5].parse::<i64>().is_ok());
-        // parts[6] = nonce hex (8 字节 → 16 字符), parts[7] = signature hex (64 字节 → 128 字符)
-        assert_eq!(parts[6].len(), 16);
-        assert_eq!(parts[7].len(), 128);
+        assert_eq!(parts[4].len(), 64); // 32 字节 x25519 pub hex（ADR-003 §D1）
+        assert_eq!(hex::decode(parts[4]).unwrap(), id.dh_public_bytes());
+        assert_eq!(parts[5], invite.short_code);
+        assert!(parts[6].parse::<i64>().is_ok());
+        assert_eq!(parts[7].len(), 16); // 8 字节 nonce
+        assert_eq!(parts[8].len(), 128); // 64 字节签名
     }
 
     #[test]
@@ -454,6 +493,7 @@ mod tests {
         let invite = InboundInvite {
             inviter_id: inviter.id_base32().to_string(),
             inviter_signing_pub_hex: hex::encode(inviter.signing_public_bytes()),
+            inviter_dh_pub_hex: hex::encode(inviter.dh_public_bytes()),
             short_code: "ABC".into(),
             expires_at: current_unix_secs() + 300,
             nonce_hex: "0011223344556677".into(),
@@ -472,6 +512,7 @@ mod tests {
         let invite = InboundInvite {
             inviter_id: inviter.id_base32().to_string(),
             inviter_signing_pub_hex: hex::encode(inviter.signing_public_bytes()),
+            inviter_dh_pub_hex: hex::encode(inviter.dh_public_bytes()),
             short_code: "ABCDEF".into(),
             expires_at: current_unix_secs() - 100,
             nonce_hex: "0011223344556677".into(),
@@ -488,19 +529,47 @@ mod tests {
         let me = Identity::generate().unwrap();
         let inviter = Identity::generate().unwrap();
         let created = inviter.create_invite(DEFAULT_INVITE_TTL_SECS).unwrap();
-        let parts: Vec<&str> = created.qr_payload.split(':').collect();
-        assert_eq!(parts.len(), 8);
-        assert_eq!(parts[0], "elwright-invite");
-        assert_eq!(parts[1], "v2");
-        let inbound = InboundInvite {
-            inviter_id: parts[2].to_string(),
-            inviter_signing_pub_hex: parts[3].to_string(),
-            short_code: parts[4].to_string(),
-            expires_at: parts[5].parse().unwrap(),
-            nonce_hex: parts[6].to_string(),
-            signature_hex: parts[7].to_string(),
-        };
+        let inbound = parse_invite_qr(&created.qr_payload).expect("v3 QR 应可解析");
+        assert_eq!(inbound.inviter_id, inviter.id_base32());
+        assert_eq!(
+            hex::decode(&inbound.inviter_dh_pub_hex).unwrap(),
+            inviter.dh_public_bytes()
+        );
         me.accept_invite(&inbound).expect("合法邀请应被接受");
+    }
+
+    #[test]
+    fn parse_invite_qr_rejects_v2_and_garbage() {
+        // v2（8 段）不再接受；乱串拒绝
+        assert!(parse_invite_qr("elwright-invite:v2:id:pk:short:0:nonce:sig").is_none());
+        assert!(parse_invite_qr("not-a-valid-qr").is_none());
+        assert!(parse_invite_qr("elwright-invite:v3:a:b:c:d:notanumber:e:f").is_none());
+    }
+
+    #[test]
+    fn accept_invite_rejects_dh_id_mismatch() {
+        // ADR-003 §D1：DH 公钥与 ID 不匹配（冒充他人 DH 公钥）必须拒绝
+        let me = Identity::generate().unwrap();
+        let inviter = Identity::generate().unwrap();
+        let impostor = Identity::generate().unwrap();
+        let created = inviter.create_invite(DEFAULT_INVITE_TTL_SECS).unwrap();
+        let parts: Vec<&str> = created.qr_payload.split(':').collect();
+        // 把 DH 公钥段换成 impostor 的（id 仍是 inviter）→ 硬绑定校验失败
+        let bad_qr = format!(
+            "elwright-invite:v3:{}:{}:{}:{}:{}:{}:{}",
+            parts[2],
+            parts[3],
+            hex::encode(impostor.dh_public_bytes()),
+            parts[5],
+            parts[6],
+            parts[7],
+            parts[8],
+        );
+        let inbound = parse_invite_qr(&bad_qr).unwrap();
+        assert!(matches!(
+            me.accept_invite(&inbound),
+            Err(IdentityError::InviteInvalid)
+        ));
     }
 
     #[test]
@@ -508,15 +577,7 @@ mod tests {
         let me = Identity::generate().unwrap();
         let inviter = Identity::generate().unwrap();
         let created = inviter.create_invite(DEFAULT_INVITE_TTL_SECS).unwrap();
-        let parts: Vec<&str> = created.qr_payload.split(':').collect();
-        let mut inbound = InboundInvite {
-            inviter_id: parts[2].to_string(),
-            inviter_signing_pub_hex: parts[3].to_string(),
-            short_code: parts[4].to_string(),
-            expires_at: parts[5].parse().unwrap(),
-            nonce_hex: parts[6].to_string(),
-            signature_hex: parts[7].to_string(),
-        };
+        let mut inbound = parse_invite_qr(&created.qr_payload).unwrap();
         // 篡改 short_code 一个字符（保持长度+Crockford）
         let first = inbound.short_code.chars().next().unwrap();
         let bad = if first == 'A' { 'B' } else { 'A' };
@@ -534,17 +595,10 @@ mod tests {
         let me = Identity::generate().unwrap();
         let inviter = Identity::generate().unwrap();
         let created = inviter.create_invite(DEFAULT_INVITE_TTL_SECS).unwrap();
-        let parts: Vec<&str> = created.qr_payload.split(':').collect();
-        let mut sig_bytes = hex::decode(parts[7]).unwrap();
+        let mut inbound = parse_invite_qr(&created.qr_payload).unwrap();
+        let mut sig_bytes = hex::decode(&inbound.signature_hex).unwrap();
         sig_bytes[0] ^= 0xff;
-        let inbound = InboundInvite {
-            inviter_id: parts[2].to_string(),
-            inviter_signing_pub_hex: parts[3].to_string(),
-            short_code: parts[4].to_string(),
-            expires_at: parts[5].parse().unwrap(),
-            nonce_hex: parts[6].to_string(),
-            signature_hex: hex::encode(sig_bytes),
-        };
+        inbound.signature_hex = hex::encode(sig_bytes);
         assert!(matches!(
             me.accept_invite(&inbound),
             Err(IdentityError::InviteBadSignature)
