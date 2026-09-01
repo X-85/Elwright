@@ -56,10 +56,11 @@
 
 ## Step 5 — 离线消息队列
 
-- [ ] sled / rusqlite 选定
-- [ ] 队列消息 secretstream 加密
-- [ ] 握手成功后从队列 pop
-- [ ] 单测：队列明文不入磁盘
+- [x] 存储选定：~~sled~~ → 零依赖 JSONL（偏差记入 ADR-002「实施偏差」段）
+- [x] `core::messaging_queue`：Outbox open/enqueue/list/remove/record_attempt（FIFO + 按对端过滤 + 损坏行容忍 + 原子重写）
+- [x] 队列消息加密：只存 `Transport::send` AEAD 密文（hex），明文不落盘（单测 `plaintext_never_hits_disk` 强制）
+- [ ] 握手成功后从队列 pop 投递——属完整客户端接线（PeopleChatView 适配器替换 + 前端接入），随前端联调落地；队列原语已就绪
+- [x] 单测：5 例（FIFO 往返 / 明文不入盘 / 损坏行 / attempts / 空载荷边界）
 
 ## Step 6 — 文档回填
 

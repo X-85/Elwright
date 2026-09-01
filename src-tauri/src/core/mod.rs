@@ -9,6 +9,7 @@ pub mod identity;
 pub mod invoke;
 pub mod llm;
 pub mod messaging_client;
+pub mod messaging_queue;
 pub mod messaging_transport;
 pub mod patch;
 pub mod registry;

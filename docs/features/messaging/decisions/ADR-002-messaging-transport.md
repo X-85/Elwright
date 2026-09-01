@@ -7,6 +7,7 @@
 - **阶段**：三阶段规划之②——「轻量身份/邀请与一对一消息传输」
 - **红线对齐**：[ROADMAP §主干红线与准入](../../../ROADMAP.md) — 数据本地优先、用户明确授权、不默认采集屏幕/终端/剪贴板
 - **实施偏差（Step 1 后追加）**：原计划用独立 libsodium `secretstream` 流加密（ADR §D4）；实施期调研发现 snow 0.9 TransportState 自带 ChaCha20-Poly1305 AEAD + nonce 单调管理 + `rekey_*` 接口，已覆盖 ADR §D4 的全部安全需求。去掉独立 secretstream 封装，少引 `dryoc` 与 `libsodium-sys` 两个依赖。详细帧协议见 [transport-protocol.md](../transport-protocol.md)。
+- **实施偏差（Step 5 后追加）**：离线队列原定 sled kv；实际用零依赖 JSONL（`core::messaging_queue`，`outbox.jsonl`）。理由：队列只存已加密的 AEAD 帧（自带完整性保护，无需 kv 引擎再兜底）、文件人类可检视、windows-gnu 工具链零编译负担，与「LLM 是增强不是地基」的极简底线一致。「明文不入磁盘」由单测 `plaintext_never_hits_disk` 强制。
 
 ---
 
