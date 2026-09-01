@@ -1208,7 +1208,7 @@ dependencies = [
 
 [[package]]
 name = "elwright"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "chacha20poly1305",
  "clap",

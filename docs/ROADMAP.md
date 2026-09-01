@@ -21,7 +21,9 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 ## 当前版本
 
-v0.1.12（2026-09-01，tag `v0.1.12`，GitHub Release 附 dmg + msi）。
+v0.1.13（2026-09-01，tag `v0.1.13`，GitHub Release 附 dmg + msi）。
+
+- v0.1.13：人与人消息会话②全量交付——传输层核心（ADR-002：Noise_XX 协议层 / 身份与邀请 / 中继配置与探测 / axum 参考中继 + 真实中继端到端冒烟 / 离线密文队列）+ UI 接线（ADR-003：邀请 v3 DH 硬绑定 / sync_peer 收发与防中间人校验 / 设置中心消息中继分组 / PeopleChatView 邀请互加·联系人绑定·发送状态机·收件轮询·离线补投）+ i18n 第一批（启动视图枚举 + LlmSettings 全量双语 + en 字典补缺）。
 
 - v0.1.7：修复资源收藏 IPC 恒失败（Resource.id 缺 serde(default)）+ 真协议回归。
 - v0.1.8：代码浏览器阶段①②（只读查看 + 轻量符号跳转，PR #2）。
