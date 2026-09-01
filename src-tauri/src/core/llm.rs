@@ -118,22 +118,34 @@ impl UserConfigFile {
     /// 设置 flat 字段（CLI `ew config set` 用）。整文件经 UserConfigFile
     /// 读写以保留 profiles/activeProfile——此前按纯 flat 表回写会把档案抹掉。
     pub fn set_flat_field(&mut self, key: &str, value: &str) -> Result<(), String> {
+        let invalid_key = |other: &str| {
+            format!(
+                "不支持的 key: {other}（可选 base_url / model / api_key / context_budget_chars）"
+            )
+        };
         match key {
-            "base_url" => self.base_url = value.to_string(),
-            "model" => self.model = value.to_string(),
-            "api_key" => self.api_key = value.to_string(),
+            "base_url" => {
+                self.base_url = value.to_string();
+                Ok(())
+            }
+            "model" => {
+                self.model = value.to_string();
+                Ok(())
+            }
+            "api_key" => {
+                self.api_key = value.to_string();
+                Ok(())
+            }
             "context_budget_chars" => {
                 let n: usize = value
                     .trim()
                     .parse()
                     .map_err(|_| format!("'{}' 不是合法的字符数（正整数）", value))?;
                 self.context_budget_chars = Some(n);
+                Ok(())
             }
-            other => return Err(format!(
-                "不支持的 key: {other}（可选 base_url / model / api_key / context_budget_chars）"
-            )),
+            other => Err(invalid_key(other)),
         }
-        Ok(())
     }
 }
 
