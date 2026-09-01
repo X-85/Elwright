@@ -504,3 +504,9 @@
 - 本轮方案：双管齐下——①ci.yml rust 矩阵 job 在 cargo test 前加「Build relay (messaging smoke fixture)」步（working-directory 直指 docs/features/messaging/relay，产物路径即测试探测路径），三平台 CI 从此真实跑端到端中继冒烟；②测试对二进制缺失改优雅跳过（提示构建命令），本地开发鲁棒性兜底，纯协议层回环由 complete_handshake_direct_loop_works 持续覆盖。
 - 实际结果：已验证——run 33476022859 CI 7/7 全绿（Rust lint 1m44s + 三平台 Rust core 2m51s~4m58s + Frontend 57s + dmg 1m45s + msi 5m29s）。新依赖 snow/x25519-dalek/tokio/tokio-tungstenite 在 ubuntu/macOS/windows-MSVC 全部编译通过（commit 94d3e0f）。附注：CI 用 MSVC，公司 windows-gnu 工具链编译验证仍是 PENDING 项（snow 纯 Rust 实现预计无碍）。
 - 下一步：同第 2 次处理——UI 接线切片待定向；任务目录不自行归档。
+
+### Q35 | 第1次处理（消息会话② UI 接线切片开工）
+- 问题或新增信息：用户定向「先做消息会话② UI 接线切片，把消息功能做成真正可用的闭环，然后直接做 i18n 增量迁移」。
+- 本轮方案：接线切片按 ADR-003（本轮新写，沿用「先 ADR 再实施」惯例，用户已定向批准开工）收口四个设计决定：①邀请 v3——QR 增载对端 X25519 DH 公钥并校验 id==derive(dh_pub)（补 v2 只带签名公钥、DH 绑定缺失的洞）；②成对房间 + 按 ID 排序确定性角色（小 ID=initiator）；③收发路径——sync_peer 阻塞式「连接→握手→验 remote_static==联系人 DH 公钥→flush 发件箱→收至超时→落 inbox」，后台 listener 线程轮询联系人，前端 poll inbox 合并进 phase1 localStorage 会话；④离线队列改存「本地静态密钥（chacha20poly1305+hkdf）加密的明文」——原设计存会话密文在重连后无法解密（会话密钥不持久），flush 时用新会话重加密。新增依赖 chacha20poly1305/hkdf/hmac（纯 Rust 小件）。
+- 实际结果：进行中。
+- 下一步：ADR-003 落盘 → identity v3 + contacts → 队列 v2 + client 收发 + inbox + IPC → 前端 bridge/SettingsCenter/PeopleChatView → vitest/e2e → 文档回填；随后 Q36 i18n 增量迁移。
