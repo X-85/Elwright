@@ -42,6 +42,10 @@ thiserror = "1"
 # 消息中继连通性探测（测试连接按钮 / ew config messaging test）
 tokio = { version = "1", features = ["rt", "time"] }
 tokio-tungstenite = "0.24"
+# sync_peer 的 WS split/sink/stream
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
+# 本地静态密钥加密（发件箱/收件箱落盘，ADR-003 §D4）——RustCrypto 纯 Rust
+chacha20poly1305 = "0.10"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

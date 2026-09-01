@@ -39,6 +39,30 @@ pub fn default_user_identity_dir() -> Option<PathBuf> {
     user_root().map(|r| r.join("identity"))
 }
 
+/// 本地静态密钥文件名（ADR-003 §D4：发件箱/收件箱落盘加密用）。
+const LOCAL_KEY_FILE: &str = "messaging.localkey";
+
+/// 加载（或首次生成）本地静态密钥。
+pub fn load_or_create_local_key(identity_dir: &Path) -> Result<[u8; 32], IdentityError> {
+    let path = identity_dir.join(LOCAL_KEY_FILE);
+    if let Ok(bytes) = std::fs::read(&path) {
+        if bytes.len() == 32 {
+            let mut key = [0u8; 32];
+            key.copy_from_slice(&bytes);
+            return Ok(key);
+        }
+    }
+    let key: [u8; 32] = random_bytes();
+    std::fs::create_dir_all(identity_dir).map_err(|e| IdentityError::DirCreate(e.to_string()))?;
+    std::fs::write(&path, key).map_err(|e| IdentityError::KeyFileWrite(e.to_string()))?;
+    Ok(key)
+}
+
+/// 12 字节随机 nonce（local_crypto 用）。
+pub fn random_nonce12() -> [u8; 12] {
+    random_bytes()
+}
+
 /// 16 字符 ID 派生长度（base32 字符数）。
 pub const ID_LENGTH: usize = 16;
 
@@ -158,7 +182,7 @@ impl Identity {
         })
     }
 
-    fn persist(&self, identity_dir: &Path) -> Result<(), IdentityError> {
+    pub fn persist(&self, identity_dir: &Path) -> Result<(), IdentityError> {
         let signing_bytes = self.signing_secret.to_bytes();
         let dh_bytes = self.dh_secret.to_bytes();
         std::fs::write(identity_dir.join(SIGNING_KEY_FILE), signing_bytes)
@@ -180,6 +204,11 @@ impl Identity {
 
     pub fn dh_public_bytes(&self) -> [u8; 32] {
         self.dh_public.to_bytes()
+    }
+
+    /// X25519 私钥字节（sync_peer 建 Noise 握手用；不出 IPC 边界）。
+    pub fn dh_secret_bytes(&self) -> [u8; 32] {
+        self.dh_secret.to_bytes()
     }
 
     /// 签发邀请：6 字符短码 + 二维码原文 + 有效期秒数。

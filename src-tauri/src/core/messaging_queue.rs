@@ -1,20 +1,19 @@
-//! Messaging offline queue（phase 2 step 5）。
+//! Messaging offline queue（ADR-003 §D4 重构）。
 //!
-//! 存储格式：`<dir>/outbox.jsonl`，一行一条 JSON。**只存密文**
-//! （hex 编码的 `messaging_transport::Transport::send` AEAD 帧输出）与
-//! 路由元数据——明文不落盘，由单测强制。
+//! 存储格式：`<dir>/outbox.jsonl`，一行一条 JSON。**只存密文**——
+//! 但与 step 5 版本不同：不再是会话密文（会话密钥不跨连接持久，重连后无法解密），
+//! 而是「本地静态密钥加密的明文」（见 [`crate::core::local_crypto`]）。
+//! flush 时解出明文，用当次握手的新会话 `Transport::send()` 重加密投递。
 //!
-//! 用法：发送失败/对端离线时 `enqueue`；完整客户端连接成功后按 FIFO
-//! `list` → 经中继重发 → `remove`。投递循环本身属完整客户端接线
-//! （PeopleChatView 适配器替换，随前端接入落地），本模块只负责可靠的
-//! 加密暂存。
+//! 用法：发送一律先 `enqueue` 再触发 `sync_peer`（统一代码路径，离线安全）；
+//! 投递成功 `remove`，失败 `record_attempt` 供退避/排查。
 //!
-//! 与 plan 的偏差：原定 sled kv，实际零依赖 JSONL——理由见 ADR-002
-//! 「实施偏差」段（密文已是自带完整性保护的 AEAD 帧，无需 kv 引擎；
-//! 文件人类可检视；windows-gnu 工具链零负担）。
+//! 「明文不入盘」由单测强制（读原始文件字节断言）。
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+use crate::core::local_crypto;
 
 #[derive(Debug, thiserror::Error)]
 pub enum QueueError {
@@ -26,13 +25,15 @@ pub enum QueueError {
     FileWrite(String),
     #[error("消息序列化失败：{0}")]
     Serialize(String),
-    #[error("密文不能为空")]
+    #[error("消息内容不能为空")]
     EmptyPayload,
     #[error("未找到队列条目：id={0}")]
     NotFound(u64),
+    #[error("队列条目解密失败（本地密钥不符或内容被篡改）：id={0}")]
+    DecryptFailed(u64),
 }
 
-/// 一条待投递消息。
+/// 一条待投递消息（落盘形态，payload 为本地密钥密文 hex）。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct QueuedMessage {
     pub id: u64,
@@ -40,9 +41,9 @@ pub struct QueuedMessage {
     pub peer_id: String,
     /// 入队时间（unix 秒；FIFO 排序键）
     pub created_at: i64,
-    /// AEAD 密文（`Transport::send` 输出）的 hex 编码
+    /// `local_crypto::encrypt(key, aad=peer_id, plaintext)` 输出
     pub payload_hex: String,
-    /// 已尝试投递次数（失败重试时递增，供退避策略参考）
+    /// 已尝试投递次数（失败重试时递增）
     pub attempts: u32,
 }
 
@@ -60,9 +61,14 @@ impl Outbox {
         })
     }
 
-    /// 入队一条密文。返回完整条目。
-    pub fn enqueue(&self, peer_id: &str, ciphertext: &[u8]) -> Result<QueuedMessage, QueueError> {
-        if ciphertext.is_empty() {
+    /// 入队一条明文消息（内部加密落盘）。AAD 绑定 peer_id。
+    pub fn enqueue(
+        &self,
+        local_key: &[u8; 32],
+        peer_id: &str,
+        plaintext: &[u8],
+    ) -> Result<QueuedMessage, QueueError> {
+        if plaintext.is_empty() {
             return Err(QueueError::EmptyPayload);
         }
         let existing = self.list(None)?;
@@ -71,7 +77,7 @@ impl Outbox {
             id,
             peer_id: peer_id.to_string(),
             created_at: current_unix_secs(),
-            payload_hex: hex::encode(ciphertext),
+            payload_hex: local_crypto::encrypt(local_key, peer_id, plaintext),
             attempts: 0,
         };
         let line = serde_json::to_string(&msg).map_err(|e| QueueError::Serialize(e.to_string()))?;
@@ -106,6 +112,16 @@ impl Outbox {
             .collect();
         out.sort_by_key(|m| (m.created_at, m.id));
         Ok(out)
+    }
+
+    /// 解出某条目的明文（flush 投递前调用；AAD 绑定校验含归属方）。
+    pub fn decrypt_payload(
+        &self,
+        local_key: &[u8; 32],
+        entry: &QueuedMessage,
+    ) -> Result<Vec<u8>, QueueError> {
+        local_crypto::decrypt(local_key, &entry.peer_id, &entry.payload_hex)
+            .map_err(|_| QueueError::DecryptFailed(entry.id))
     }
 
     /// 投递成功后移除。文件按剩余条目原子重写。
@@ -166,7 +182,6 @@ fn current_unix_secs() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::messaging_transport::complete_handshake;
     use tempfile::tempdir;
 
     fn open_tmp_outbox(tag: &str) -> (tempfile::TempDir, Outbox) {
@@ -175,51 +190,38 @@ mod tests {
         (dir, outbox)
     }
 
-    /// 产生一对真实 Transport（复用协议层测试辅助），返回 (alice, bob)。
-    fn transports() -> (
-        crate::core::messaging_transport::Transport,
-        crate::core::messaging_transport::Transport,
-    ) {
-        complete_handshake([3u8; 32], [4u8; 32]).unwrap()
-    }
-
     #[test]
     fn enqueue_list_remove_roundtrip_fifo() {
+        let key = [9u8; 32];
         let (_d, outbox) = open_tmp_outbox("rt");
-        let m1 = outbox.enqueue("PEER_AAAAAAAA", b"c1").unwrap();
-        let m2 = outbox.enqueue("PEER_BBBBBBBB", b"c2").unwrap();
-        let m3 = outbox.enqueue("PEER_AAAAAAAA", b"c3").unwrap();
+        let m1 = outbox.enqueue(&key, "PEER_AAAAAAAA", b"c1").unwrap();
+        let m2 = outbox.enqueue(&key, "PEER_BBBBBBBB", b"c2").unwrap();
+        let m3 = outbox.enqueue(&key, "PEER_AAAAAAAA", b"c3").unwrap();
         assert_eq!((m1.id, m2.id, m3.id), (1, 2, 3));
 
-        // 全量 FIFO
         let all = outbox.list(None).unwrap();
         let ids: Vec<u64> = all.iter().map(|m| m.id).collect();
         assert_eq!(ids, vec![1, 2, 3]);
-        // 按对端过滤
         let only_a = outbox.list(Some("PEER_AAAAAAAA")).unwrap();
         assert_eq!(only_a.len(), 2);
-        assert!(only_a.iter().all(|m| m.peer_id == "PEER_AAAAAAAA"));
-        // payload hex 回读
-        assert_eq!(hex::decode(&only_a[0].payload_hex).unwrap(), b"c1");
+        // 解密回明文（AAD 绑定 peer_id）
+        assert_eq!(outbox.decrypt_payload(&key, &only_a[0]).unwrap(), b"c1");
+        assert_eq!(only_a[0].attempts, 0);
 
-        // remove 后消失；未删的仍在
         outbox.remove(m2.id).unwrap();
         let all = outbox.list(None).unwrap();
         let ids: Vec<u64> = all.iter().map(|m| m.id).collect();
         assert_eq!(ids, vec![1, 3]);
-        // 重复 remove → NotFound
         assert!(matches!(outbox.remove(m2.id), Err(QueueError::NotFound(2))));
     }
 
     #[test]
     fn plaintext_never_hits_disk() {
-        // 验证清单「队列明文不入磁盘」：入队的是 AEAD 密文，原始文件字节不含明文
-        let (mut alice, _bob) = transports();
+        // 验证清单「队列明文不入磁盘」：落盘的是本地密钥密文，原始文件字节不含明文
+        let key = [11u8; 32];
         let secret = b"queue plaintext must never appear in outbox file";
-        let ciphertext = alice.send(secret).unwrap();
-
         let (_d, outbox) = open_tmp_outbox("noplain");
-        outbox.enqueue("PEER_CCCCCCCC", &ciphertext).unwrap();
+        outbox.enqueue(&key, "PEER_CCCCCCCC", secret).unwrap();
 
         let raw = std::fs::read(&outbox.path).unwrap();
         let raw_str = String::from_utf8_lossy(&raw);
@@ -228,16 +230,28 @@ mod tests {
             "outbox 文件不得含明文片段：\n{}",
             raw_str
         );
-        // 密文 hex 在文件里可解回——但只能由持有 session key 的对端完成
+        // 且不是旧版会话密文形态——必须能被本地密钥解出
         let stored = outbox.list(None).unwrap()[0].clone();
-        assert_eq!(hex::decode(&stored.payload_hex).unwrap(), ciphertext);
+        assert_eq!(outbox.decrypt_payload(&key, &stored).unwrap(), secret);
+    }
+
+    #[test]
+    fn wrong_key_cannot_decrypt_entries() {
+        let key = [12u8; 32];
+        let (_d, outbox) = open_tmp_outbox("wrongkey");
+        let m = outbox.enqueue(&key, "PEER_DDDDDDDD", b"secret").unwrap();
+        let other_key = [13u8; 32];
+        assert!(matches!(
+            outbox.decrypt_payload(&other_key, &m),
+            Err(QueueError::DecryptFailed(1))
+        ));
     }
 
     #[test]
     fn corrupted_line_skipped_and_valid_entries_survive() {
+        let key = [14u8; 32];
         let (_d, outbox) = open_tmp_outbox("corrupt");
-        outbox.enqueue("PEER_DDDDDDDD", b"good-1").unwrap();
-        // 追加一行垃圾（模拟崩溃中间态）
+        outbox.enqueue(&key, "PEER_EEEEEEEE", b"good-1").unwrap();
         {
             let mut f = std::fs::OpenOptions::new()
                 .append(true)
@@ -245,13 +259,11 @@ mod tests {
                 .unwrap();
             writeln!(f, "{{broken json").unwrap();
         }
-        outbox.enqueue("PEER_DDDDDDDD", b"good-2").unwrap();
+        outbox.enqueue(&key, "PEER_EEEEEEEE", b"good-2").unwrap();
 
         let all = outbox.list(None).unwrap();
         assert_eq!(all.len(), 2, "损坏行应被跳过");
-        assert_eq!(hex::decode(&all[0].payload_hex).unwrap(), b"good-1");
 
-        // remove 触发重写后，损坏行被自然清除
         outbox.remove(all[1].id).unwrap();
         let raw = std::fs::read_to_string(&outbox.path).unwrap();
         assert!(!raw.contains("broken"), "重写后损坏行应被清除");
@@ -259,8 +271,9 @@ mod tests {
 
     #[test]
     fn record_attempt_increments_counter() {
+        let key = [15u8; 32];
         let (_d, outbox) = open_tmp_outbox("attempts");
-        let m = outbox.enqueue("PEER_EEEEEEEE", b"retry-me").unwrap();
+        let m = outbox.enqueue(&key, "PEER_FFFFFFFF", b"retry-me").unwrap();
         assert_eq!(m.attempts, 0);
         outbox.record_attempt(m.id).unwrap();
         outbox.record_attempt(m.id).unwrap();
@@ -270,12 +283,12 @@ mod tests {
 
     #[test]
     fn empty_payload_rejected_and_missing_file_is_empty_list() {
+        let key = [16u8; 32];
         let (_d, outbox) = open_tmp_outbox("edge");
         assert!(matches!(
-            outbox.enqueue("PEER_FFFFFFFF", b""),
+            outbox.enqueue(&key, "PEER_GGGGGGGG", b""),
             Err(QueueError::EmptyPayload)
         ));
-        // 文件尚不存在时 list 返回空而非报错
         assert!(outbox.list(None).unwrap().is_empty());
     }
 }

@@ -276,3 +276,121 @@ fn complete_handshake_direct_loop_works() {
     let plain = at.recv(&back).unwrap();
     assert_eq!(plain, b"pong");
 }
+
+// ---------- 双身份全链路（ADR-003 接线闭环）：v3 邀请互加 → 发件箱 flush → 收件箱 ----------
+
+use elwright_core::core::contacts::{self, Contact};
+use elwright_core::core::identity::{self, Identity};
+use elwright_core::core::messaging_client::{pair_room, role_for, sync_peer, SyncParams};
+use elwright_core::core::messaging_inbox::Inbox;
+use elwright_core::core::messaging_queue::Outbox;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn two_identities_full_loop_via_relay() {
+    if find_relay_binary().is_none() {
+        eprintln!("跳过：elwright-relay 二进制不存在");
+        return;
+    }
+    let port = pick_free_port();
+    let mut relay = spawn_relay(port);
+    let relay_url = format!("ws://127.0.0.1:{}/ws", port);
+
+    // 两个独立身份（各自临时目录）
+    let dir_a = tempfile::tempdir().unwrap();
+    let dir_b = tempfile::tempdir().unwrap();
+    let id_a = Identity::generate().unwrap();
+    let id_b = Identity::generate().unwrap();
+    id_a.persist(dir_a.path()).unwrap();
+    id_b.persist(dir_b.path()).unwrap();
+    let key_a = identity::load_or_create_local_key(dir_a.path()).unwrap();
+    let key_b = identity::load_or_create_local_key(dir_b.path()).unwrap();
+
+    // v3 邀请互加（练习签名 + ID-DH 硬绑定 + 联系人落盘）
+    let invite_b = id_b.create_invite(300).unwrap();
+    let inbound_b = identity::parse_invite_qr(&invite_b.qr_payload).unwrap();
+    let contact_in_a = Contact {
+        peer_id: inbound_b.inviter_id.clone(),
+        signing_pub_hex: inbound_b.inviter_signing_pub_hex.clone(),
+        dh_pub_hex: inbound_b.inviter_dh_pub_hex.clone(),
+        alias: String::new(),
+        added_at: 0,
+    };
+    contacts::add(dir_a.path(), contact_in_a.clone()).unwrap();
+
+    let invite_a = id_a.create_invite(300).unwrap();
+    let inbound_a = identity::parse_invite_qr(&invite_a.qr_payload).unwrap();
+    let contact_in_b = Contact {
+        peer_id: inbound_a.inviter_id.clone(),
+        signing_pub_hex: inbound_a.inviter_signing_pub_hex.clone(),
+        dh_pub_hex: inbound_a.inviter_dh_pub_hex.clone(),
+        alias: String::new(),
+        added_at: 0,
+    };
+    contacts::add(dir_b.path(), contact_in_b.clone()).unwrap();
+
+    // A 的发件箱：两条待发消息（离线暂存场景）
+    let outbox_a = Outbox::open(&dir_a.path().join("messaging")).unwrap();
+    let inbox_a = Inbox::open(&dir_a.path().join("messaging")).unwrap();
+    let _ = &inbox_a; // 保留外部句柄语义；闭包内已自开句柄
+    outbox_a
+        .enqueue(&key_a, &contact_in_a.peer_id, b"msg-1-for-b")
+        .unwrap();
+    outbox_a
+        .enqueue(
+            &key_a,
+            &contact_in_a.peer_id,
+            "第二条：中文消息 ✓".as_bytes(),
+        )
+        .unwrap();
+
+    let inbox_b = Inbox::open(&dir_b.path().join("messaging")).unwrap();
+
+    // 双端并发 sync（角色由 ID 决定；两端同时上线也要能完成握手）
+    let relay_a = relay_url.clone();
+    let relay_b = relay_url.clone();
+    let a_id = id_a.clone();
+    let b_id = id_b.clone();
+    let ca = contact_in_a.clone();
+    let cb = contact_in_b.clone();
+    // TempDir 不能被 move 进闭包（任务结束会连带删目录）——只搬路径
+    let path_a = dir_a.path().to_path_buf();
+    let path_b = dir_b.path().to_path_buf();
+    let t_a = tokio::task::spawn_blocking(move || {
+        // 容器只是路径包装——闭包内开自己的句柄，外部句柄留给断言
+        let outbox = Outbox::open(&path_a.join("messaging")).unwrap();
+        let inbox = Inbox::open(&path_a.join("messaging")).unwrap();
+        let mut params = SyncParams::new(&relay_a, &a_id, &ca, &key_a, &inbox);
+        params.outbox = Some(&outbox);
+        sync_peer(&params)
+    });
+    let t_b = tokio::task::spawn_blocking(move || {
+        let inbox = Inbox::open(&path_b.join("messaging")).unwrap();
+        let params = SyncParams::new(&relay_b, &b_id, &cb, &key_b, &inbox);
+        sync_peer(&params)
+    });
+    let report_a = t_a.await.unwrap().expect("A sync 应成功");
+    let _report_b = t_b.await.unwrap().expect("B sync 应成功");
+
+    // A 的发件箱被 flush 清空
+    assert_eq!(
+        outbox_a.list(Some(&contact_in_a.peer_id)).unwrap().len(),
+        0,
+        "A 发件箱应全部投递"
+    );
+    assert_eq!(report_a.flushed, 2);
+
+    // B 的收件箱收到两条（顺序 = FIFO）
+    let items = inbox_b.poll(&key_b, 0).unwrap();
+    assert_eq!(items.len(), 2, "B 应收到两条消息");
+    assert_eq!(items[0].peer_id, id_a.id_base32());
+    assert_eq!(items[0].text, "msg-1-for-b");
+    assert_eq!(items[1].text, "第二条：中文消息 ✓");
+
+    // 角色/房间纯函数自检
+    let (x, y) = (id_a.id_base32(), id_b.id_base32());
+    assert_eq!(pair_room(x, y), pair_room(y, x));
+    assert_ne!(role_for(x, y), role_for(y, x));
+
+    let _ = relay.kill();
+    let _ = relay.wait_with_output();
+}

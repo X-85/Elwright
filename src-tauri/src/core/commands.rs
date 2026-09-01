@@ -23,7 +23,8 @@ use super::chat_store;
 use super::code_browser;
 use super::workbench;
 use super::{
-    executor, export, identity, invoke, llm, patch, registry, terminal, version, workspace,
+    contacts, executor, export, identity, invoke, llm, messaging_inbox, messaging_queue, patch,
+    registry, terminal, version, workspace,
 };
 
 /// 桌面壳全局状态：setup 期填充，经 `.manage()` 注入，命令层只读。
@@ -482,6 +483,143 @@ pub async fn test_messaging_relay(url: Option<String>) -> Result<String, String>
     })
     .await
     .map_err(|e| format!("连接测试任务异常: {}", e))?
+}
+
+// ---- Messaging 接线切片 A2（ADR-003）：联系人 / 收发 / 收件箱 / listener ----
+
+fn load_identity_and_key() -> Result<(PathBuf, identity::Identity, [u8; 32]), String> {
+    let user_root = identity::user_root()
+        .ok_or_else(|| "无法定位用户主目录（HOME/USERPROFILE 均缺失）".to_string())?;
+    let id_dir = identity::default_user_identity_dir()
+        .ok_or_else(|| "无法定位用户主目录（HOME/USERPROFILE 均缺失）".to_string())?;
+    let me = identity::Identity::load_or_create(&id_dir)
+        .map_err(|e| format!("加载本地身份失败: {}", e))?;
+    let key = identity::load_or_create_local_key(&id_dir)
+        .map_err(|e| format!("加载本地密钥失败: {}", e))?;
+    Ok((user_root, me, key))
+}
+
+#[tauri::command]
+pub fn contacts_list() -> Result<Vec<contacts::Contact>, String> {
+    let user_root = identity::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    contacts::list(&user_root).map_err(|e| e.to_string())
+}
+
+/// 解析 v3 邀请并校验，通过后落盘为联系人。
+#[tauri::command]
+pub fn contacts_add(qr_payload: String, alias: String) -> Result<contacts::Contact, String> {
+    let inbound = identity::parse_invite_qr(&qr_payload)
+        .ok_or_else(|| "邀请格式非法（期望 elwright-invite:v3:...）".to_string())?;
+    let (user_root, me, _) = load_identity_and_key()?;
+    me.accept_invite(&inbound)
+        .map_err(|e| format!("邀请校验失败: {}", e))?;
+    let contact = contacts::Contact {
+        peer_id: inbound.inviter_id,
+        signing_pub_hex: inbound.inviter_signing_pub_hex,
+        dh_pub_hex: inbound.inviter_dh_pub_hex,
+        alias,
+        added_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0),
+    };
+    contacts::add(&user_root, contact.clone()).map_err(|e| e.to_string())?;
+    Ok(contact)
+}
+
+#[tauri::command]
+pub fn contacts_remove(peer_id: String) -> Result<(), String> {
+    let user_root = identity::user_root().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    contacts::remove(&user_root, &peer_id).map_err(|e| e.to_string())
+}
+
+/// 发送结果：sent = 已当场投递；queued = 已离线暂存（对端上线后 listener 补投）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SendStatus {
+    pub status: String,
+    pub flushed: usize,
+    pub detail: String,
+}
+
+/// 发送文本：先入发件箱（统一路径，离线安全），再尝试当场 sync 投递。
+#[tauri::command]
+pub async fn messaging_send(peer_id: String, text: String) -> Result<SendStatus, String> {
+    if text.trim().is_empty() {
+        return Err("消息内容不能为空".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let (user_root, me, key) = load_identity_and_key()?;
+        let contact = contacts::get(&user_root, &peer_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("联系人不存在: {}", peer_id))?;
+        let msg_dir = user_root.join("messaging");
+        let outbox = messaging_queue::Outbox::open(&msg_dir).map_err(|e| e.to_string())?;
+        let inbox = messaging_inbox::Inbox::open(&msg_dir).map_err(|e| e.to_string())?;
+        outbox
+            .enqueue(&key, &peer_id, text.as_bytes())
+            .map_err(|e| e.to_string())?;
+
+        let relay = llm::read_messaging_relay_url();
+        if relay.is_empty() {
+            return Ok(SendStatus {
+                status: "queued".into(),
+                flushed: 0,
+                detail: "未配置消息中继，消息已离线暂存".into(),
+            });
+        }
+        let _guard = crate::core::messaging_client::acquire_sync_lock();
+        let mut params =
+            crate::core::messaging_client::SyncParams::new(&relay, &me, &contact, &key, &inbox);
+        params.outbox = Some(&outbox);
+        match crate::core::messaging_client::sync_peer(&params) {
+            Ok(report) if report.flushed >= 1 => Ok(SendStatus {
+                status: "sent".into(),
+                flushed: report.flushed,
+                detail: String::new(),
+            }),
+            Ok(report) => Ok(SendStatus {
+                status: "queued".into(),
+                flushed: report.flushed,
+                detail: format!("对端暂未收到（received={}），已留待补投", report.received),
+            }),
+            Err(e) => Ok(SendStatus {
+                status: "queued".into(),
+                flushed: 0,
+                detail: format!("投递失败已暂存：{}", e),
+            }),
+        }
+    })
+    .await
+    .map_err(|e| format!("发送任务异常: {}", e))?
+}
+
+/// 收件箱轮询视图。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct InboxPoll {
+    pub entries: Vec<messaging_inbox::InboxItem>,
+    pub max_id: u64,
+}
+
+#[tauri::command]
+pub async fn messaging_poll_inbox(since_id: u64) -> Result<InboxPoll, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (_, _, key) = load_identity_and_key()?;
+        let msg_dir = identity::user_root()
+            .ok_or_else(|| "无法定位用户主目录".to_string())?
+            .join("messaging");
+        let inbox = messaging_inbox::Inbox::open(&msg_dir).map_err(|e| e.to_string())?;
+        let entries = inbox.poll(&key, since_id).map_err(|e| e.to_string())?;
+        let max_id = inbox.max_id().map_err(|e| e.to_string())?;
+        Ok(InboxPoll { entries, max_id })
+    })
+    .await
+    .map_err(|e| format!("收件轮询任务异常: {}", e))?
+}
+
+/// 启动后台收件/补投 listener（幂等）。App 启动即调用；未配置中继时空转。
+#[tauri::command]
+pub fn messaging_start_listener() -> Result<bool, String> {
+    Ok(crate::core::messaging_client::ensure_listener_started())
 }
 
 // ---- LLM 模型设置（读合并视图 / 写用户层 / 连接测试）----

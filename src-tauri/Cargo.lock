@@ -1210,6 +1210,7 @@ dependencies = [
 name = "elwright"
 version = "0.1.12"
 dependencies = [
+ "chacha20poly1305",
  "clap",
  "crossbeam-channel",
  "ed25519-dalek",
