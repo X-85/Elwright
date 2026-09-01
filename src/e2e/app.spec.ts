@@ -63,6 +63,20 @@ test('降级守卫：AI 对话页显示预览模式提示', async ({ page }) => 
   await expect(note).toContainText('【预览模式】')
 })
 
+
+test('降级守卫：消息页在浏览器预览不渲染邀请/添加按钮且本地会话可用', async ({ page }) => {
+  await page.click('button[aria-label="消息会话"]')
+  // 传输类按钮仅桌面渲染（getIdentity 失败 → desktop=false）
+  await expect(page.locator('button[aria-label="邀请对方添加我"]')).toHaveCount(0)
+  await expect(page.locator('button[aria-label="通过邀请添加联系人"]')).toHaveCount(0)
+  // 本地会话创建仍可用
+  await page.click('button[aria-label="新建会话"]')
+  await page.fill('#peer-name', '李明')
+  await page.click('button[type="submit"]')
+  await expect(page.locator('.people-chat-head h3')).toHaveText('李明')
+  await expect(page.locator('.local-status')).toContainText('本地会话')
+})
+
 test('工作台：Todo 添加/勾选/删除与今日记录自动保存（预览模式模拟存储）', async ({ page }) => {
   await page.click('button[aria-label="工作台"]')
 

@@ -6,6 +6,7 @@
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Contact {
     /// 对端 16 字符 base32 ID
     pub peer_id: String,

@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bot, CircleHelp, Palette, SlidersHorizontal, TerminalSquare } from 'lucide-vue-next'
+import { Bot, CircleHelp, Palette, Radio, SlidersHorizontal, TerminalSquare } from 'lucide-vue-next'
 import LlmSettings from './LlmSettings.vue'
+import MessagingSettings from './MessagingSettings.vue'
 import type { Bridge } from '../lib/bridge'
 import { setThemePreference, themePreference, type ThemePreference } from '../lib/theme'
 import { preferences, updatePreferences, TERMINAL_FONT_OPTIONS, TERMINAL_FONT_SIZE_OPTIONS, TERMINAL_SCROLLBACK_OPTIONS, UI_SCALE_OPTIONS, STARTUP_VIEW_OPTIONS } from '../lib/preferences'
 import { t, LOCALE_OPTIONS, type Locale } from '../lib/i18n'
 
-const props = defineProps<{ bridge: Bridge; initialSection?: 'general' | 'appearance' | 'model' | 'terminal' }>()
+const props = defineProps<{ bridge: Bridge; initialSection?: 'general' | 'appearance' | 'model' | 'terminal' | 'messaging' }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
-const activeSection = ref<'general' | 'appearance' | 'model' | 'terminal'>(props.initialSection ?? 'appearance')
+const activeSection = ref<'general' | 'appearance' | 'model' | 'terminal' | 'messaging'>(props.initialSection ?? 'appearance')
 
 const sections = [
   { id: 'general', label: 'settings.section.general', icon: SlidersHorizontal },
   { id: 'appearance', label: 'settings.section.appearance', icon: Palette },
   { id: 'model', label: 'settings.section.model', icon: Bot },
+  { id: 'messaging', label: 'settings.section.messaging', icon: Radio },
   { id: 'terminal', label: 'settings.section.terminal', icon: TerminalSquare },
 ] as const
 
@@ -111,6 +113,12 @@ function chooseLanguage(value: Locale) {
             <h3>{{ t('settings.section.model') }}</h3>
             <p class="settings-muted">{{ t('settings.model.desc') }}</p>
             <LlmSettings :bridge="bridge" embedded @saved="emit('saved')" />
+          </template>
+
+          <template v-else-if="activeSection === 'messaging'">
+            <h3>{{ t('settings.section.messaging') }}</h3>
+            <p class="settings-muted">{{ t('settings.messaging.desc') }}</p>
+            <MessagingSettings :bridge="bridge" />
           </template>
 
           <template v-else>

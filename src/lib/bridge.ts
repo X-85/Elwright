@@ -108,6 +108,56 @@ export interface TodoItem {
 
 /** 工作工具栏 · 今日记录日期（YYYY-MM-DD）列表 */
 export type NoteDate = string
+
+/** 消息传输 · 本地身份视图（不含密钥） */
+export interface LocalIdentity {
+  idBase32: string
+  signingPubHex: string
+  dhPubHex: string
+  identityDir: string
+}
+
+/** 消息传输 · v3 邀请 */
+export interface InviteInfo {
+  shortCode: string
+  qrPayload: string
+  expiresAt: number
+}
+
+/** 消息传输 · 联系人 */
+export interface Contact {
+  peerId: string
+  signingPubHex: string
+  dhPubHex: string
+  alias: string
+  addedAt: number
+}
+
+/** 消息传输 · 中继配置视图 */
+export interface MessagingConfig {
+  relayUrl: string
+}
+
+/** 消息传输 · 发送状态（queued = 已离线暂存待补投） */
+export interface SendStatus {
+  status: 'sent' | 'queued'
+  flushed: number
+  detail: string
+}
+
+/** 消息传输 · 收件箱条目（已解密） */
+export interface InboxItem {
+  id: number
+  peerId: string
+  text: string
+  receivedAt: number
+}
+
+export interface InboxPoll {
+  entries: InboxItem[]
+  maxId: number
+}
+
 export interface WorkspaceFolder {
   id: string
   name: string
@@ -337,6 +387,31 @@ export interface Bridge {
   openTerminal(options?: { cwd?: string; shell?: string }): Promise<TerminalSession>
   /** 用户主目录（新终端默认 cwd）。浏览器预览返回 null。 */
   homeDir(): Promise<string | null>
+  // ---- 消息传输（phase 2，仅桌面；浏览器预览端明确降级，不发起网络）----
+  /** 本地身份（首次访问自动生成）；null = 主目录不可定位。 */
+  getIdentity(): Promise<LocalIdentity | null>
+  /** 生成 v3 邀请（短码 + 二维码原文）。ttl 缺省 300 秒。 */
+  createInvite(ttlSecs?: number): Promise<InviteInfo>
+  /** 校验对端 v3 邀请原文，返回联系人视图（不落盘，落盘走 addContact）。 */
+  acceptInvite(qrPayload: string): Promise<{ inviterId: string; signingPubHex: string; dhPubHex: string }>
+  /** 读消息中继 URL（空串 = 未配置）。 */
+  getMessagingConfig(): Promise<MessagingConfig>
+  /** 保存消息中继 URL（空串清除；非法值拒绝）。 */
+  setMessagingRelayUrl(url: string): Promise<MessagingConfig>
+  /** 探测中继连通性（WS 升级即断开，5 秒超时）。url 缺省用已保存配置。 */
+  testMessagingRelay(url?: string): Promise<string>
+  /** 联系人列表（按 ID 排序）。 */
+  listContacts(): Promise<Contact[]>
+  /** 校验 v3 邀请原文并落盘为联系人。 */
+  addContact(qrPayload: string, alias: string): Promise<Contact>
+  /** 删除联系人。 */
+  removeContact(peerId: string): Promise<void>
+  /** 发送文本：先入离线发件箱再当场投递；status=queued 表示已暂存待补投。 */
+  sendMessage(peerId: string, text: string): Promise<SendStatus>
+  /** 增量拉取收件箱（sinceId 之后）。 */
+  pollInbox(sinceId: number): Promise<InboxPoll>
+  /** 启动后台收件/补投 listener（幂等）。 */
+  startMessagingListener(): Promise<boolean>
 }
 
 const browserBridge: Bridge = {
@@ -734,6 +809,44 @@ const browserBridge: Bridge = {
   async homeDir() {
     // 浏览器预览无终端面板，不会走到这里；返回 null 保持接口完备
     return null
+  },
+
+  // ---- 消息传输（phase 2）：预览模式统一明确降级——不读本地身份、不发起网络 ----
+  async getIdentity() {
+    throw new Error('【预览模式】消息传输仅桌面端可用（浏览器不读写本地身份）。')
+  },
+  async createInvite() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async acceptInvite() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async getMessagingConfig() {
+    throw new Error('【预览模式】消息中继配置仅桌面端可读写。')
+  },
+  async setMessagingRelayUrl() {
+    throw new Error('【预览模式】消息中继配置仅桌面端可读写。')
+  },
+  async testMessagingRelay() {
+    throw new Error('【预览模式】中继连通性测试仅桌面端可用。')
+  },
+  async listContacts() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async addContact() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async removeContact() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async sendMessage() {
+    throw new Error('【预览模式】消息发送仅桌面端可用（浏览器不发起网络连接）。')
+  },
+  async pollInbox() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async startMessagingListener() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
   },
 }
 
@@ -1166,6 +1279,47 @@ const tauriBridge: Bridge = {
   async homeDir() {
     const { homeDir } = await import('@tauri-apps/api/path')
     return homeDir()
+  },
+
+  // ---- 消息传输（phase 2）----
+  async getIdentity() {
+    return tauriInvoke<LocalIdentity | null>('identity_get', {})
+  },
+  async createInvite(ttlSecs?: number) {
+    return tauriInvoke<InviteInfo>('identity_create_invite', { ttlSecs: ttlSecs ?? null })
+  },
+  async acceptInvite(qrPayload: string) {
+    return tauriInvoke<{ inviterId: string; signingPubHex: string; dhPubHex: string }>(
+      'identity_accept_invite',
+      { qrPayload },
+    )
+  },
+  async getMessagingConfig() {
+    return tauriInvoke<MessagingConfig>('get_messaging_config', {})
+  },
+  async setMessagingRelayUrl(url: string) {
+    return tauriInvoke<MessagingConfig>('set_messaging_relay_url', { url })
+  },
+  async testMessagingRelay(url?: string) {
+    return tauriInvoke<string>('test_messaging_relay', { url: url ?? null })
+  },
+  async listContacts() {
+    return tauriInvoke<Contact[]>('contacts_list', {})
+  },
+  async addContact(qrPayload: string, alias: string) {
+    return tauriInvoke<Contact>('contacts_add', { qrPayload, alias })
+  },
+  async removeContact(peerId: string) {
+    await tauriInvoke<void>('contacts_remove', { peerId })
+  },
+  async sendMessage(peerId: string, text: string) {
+    return tauriInvoke<SendStatus>('messaging_send', { peerId, text })
+  },
+  async pollInbox(sinceId: number) {
+    return tauriInvoke<InboxPoll>('messaging_poll_inbox', { sinceId })
+  },
+  async startMessagingListener() {
+    return tauriInvoke<boolean>('messaging_start_listener', {})
   },
 }
 

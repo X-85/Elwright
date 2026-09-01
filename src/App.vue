@@ -452,7 +452,7 @@ async function toggleFullscreen() {
 
       <main class="content">
         <WorkbenchView v-if="activeView === 'workbench'" :bridge="bridge" @open-code="openCodeAt" @open-capability="openCapabilityFromWorkbench" />
-        <PeopleChatView v-else-if="activeView === 'people'" />
+        <PeopleChatView v-else-if="activeView === 'people'" :bridge="bridge" />
         <WorkspaceView v-else-if="activeView === 'workspace'" :bridge="bridge" :capabilities="capabilities" @notify="notify" />
         <CodeBrowserView v-else-if="activeView === 'code'" ref="codeBrowserRef" :bridge="bridge" @notify="notify" @send-to-ai="sendCodeToAi" @open-in-terminal="openCodeInTerminal" />
         <ChatView v-else-if="activeView === 'chat'" ref="chatViewRef" :bridge="bridge" @open-settings="openSettings('model')" />

@@ -107,15 +107,15 @@ fn identity_get_returns_stable_id_across_calls() {
     let (_user, _g) = setup("id-stable");
     let wv = build_wv();
     let first = call_ok(&wv, "identity_get", serde_json::json!({}));
-    let id1 = first["id_base32"].as_str().expect("id_base32 字段");
+    let id1 = first["idBase32"].as_str().expect("id_base32 字段");
     assert_eq!(id1.len(), 16);
     let second = call_ok(&wv, "identity_get", serde_json::json!({}));
-    let id2 = second["id_base32"].as_str().expect("id_base32 字段");
+    let id2 = second["idBase32"].as_str().expect("id_base32 字段");
     assert_eq!(id1, id2, "同一身份应稳定");
     // 公钥 hex 都是 64 字符（32 字节）
-    assert_eq!(first["signing_pub_hex"].as_str().unwrap().len(), 64);
-    assert_eq!(first["dh_pub_hex"].as_str().unwrap().len(), 64);
-    assert_eq!(first["signing_pub_hex"], second["signing_pub_hex"]);
+    assert_eq!(first["signingPubHex"].as_str().unwrap().len(), 64);
+    assert_eq!(first["dhPubHex"].as_str().unwrap().len(), 64);
+    assert_eq!(first["signingPubHex"], second["signingPubHex"]);
 }
 
 #[test]
@@ -127,8 +127,8 @@ fn identity_create_invite_returns_v3_qr_and_short_code() {
         "identity_create_invite",
         serde_json::json!({ "ttlSecs": 300 }),
     );
-    let qr = out["qr_payload"].as_str().expect("qr_payload");
-    let short = out["short_code"].as_str().expect("short_code");
+    let qr = out["qrPayload"].as_str().expect("qr_payload");
+    let short = out["shortCode"].as_str().expect("short_code");
     assert_eq!(short.len(), 6, "short_code 必须 6 字符");
     // v3（ADR-003 §D1）：9 段，第 4 字段为对端 DH 公钥
     let parts: Vec<&str> = qr.split(':').collect();
@@ -167,17 +167,17 @@ fn identity_accept_invite_round_trip_and_tamper() {
         "identity_create_invite",
         serde_json::json!({ "ttlSecs": 300 }),
     );
-    let qr = invite["qr_payload"].as_str().unwrap();
+    let qr = invite["qrPayload"].as_str().unwrap();
     // 直接用生成的 QR 接受（同一身份校验自己的合法签名）→ 应成功
     let accepted = call_ok(
         &wv,
         "identity_accept_invite",
         serde_json::json!({ "qrPayload": qr }),
     );
-    let contact = accepted["inviter_id"].as_str().expect("inviter_id 字段");
+    let contact = accepted["inviterId"].as_str().expect("inviter_id 字段");
     assert!(!contact.is_empty());
     // v3 QR 自带 DH 公钥——联系人视图必须回填（不再占位空串）
-    let dh = accepted["dh_pub_hex"].as_str().expect("dh_pub_hex");
+    let dh = accepted["dhPubHex"].as_str().expect("dh_pub_hex");
     let parts: Vec<&str> = qr.split(':').collect();
     assert_eq!(dh, parts[4], "回填的 DH 公钥须与 QR 载荷一致");
 
@@ -219,7 +219,7 @@ fn messaging_config_round_trip() {
     let (_user, _g) = setup("msg-config-rt");
     let wv = build_wv();
     let initial = call_ok(&wv, "get_messaging_config", serde_json::json!({}));
-    assert_eq!(initial["relay_url"].as_str().unwrap(), "");
+    assert_eq!(initial["relayUrl"].as_str().unwrap(), "");
 
     // 写合法值
     let after = call_ok(
@@ -228,12 +228,12 @@ fn messaging_config_round_trip() {
         serde_json::json!({ "url": "wss://relay.example.com:9443" }),
     );
     assert_eq!(
-        after["relay_url"].as_str().unwrap(),
+        after["relayUrl"].as_str().unwrap(),
         "wss://relay.example.com:9443"
     );
     let read_back = call_ok(&wv, "get_messaging_config", serde_json::json!({}));
     assert_eq!(
-        read_back["relay_url"].as_str().unwrap(),
+        read_back["relayUrl"].as_str().unwrap(),
         "wss://relay.example.com:9443"
     );
 
@@ -243,7 +243,7 @@ fn messaging_config_round_trip() {
         "set_messaging_relay_url",
         serde_json::json!({ "url": "" }),
     );
-    assert_eq!(cleared["relay_url"].as_str().unwrap(), "");
+    assert_eq!(cleared["relayUrl"].as_str().unwrap(), "");
 }
 
 #[test]

@@ -378,6 +378,7 @@ pub fn note_list() -> Result<Vec<String>, String> {
 
 /// 本地身份的对外视图（不下发密钥）。
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IdentityView {
     pub id_base32: String,
     pub signing_pub_hex: String,
@@ -387,6 +388,7 @@ pub struct IdentityView {
 
 /// 联系人条目（accept_invite 成功后的对外形态）。
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ContactView {
     pub inviter_id: String,
     pub signing_pub_hex: String,
@@ -395,6 +397,7 @@ pub struct ContactView {
 
 /// 消息中继配置的对外视图。
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessagingConfigView {
     pub relay_url: String,
 }
@@ -535,6 +538,7 @@ pub fn contacts_remove(peer_id: String) -> Result<(), String> {
 
 /// 发送结果：sent = 已当场投递；queued = 已离线暂存（对端上线后 listener 补投）。
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SendStatus {
     pub status: String,
     pub flushed: usize,
@@ -595,6 +599,7 @@ pub async fn messaging_send(peer_id: String, text: String) -> Result<SendStatus,
 
 /// 收件箱轮询视图。
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InboxPoll {
     pub entries: Vec<messaging_inbox::InboxItem>,
     pub max_id: u64,

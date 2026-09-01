@@ -307,6 +307,7 @@ impl Identity {
 
 /// 邀请：含短码、二维码原文、有效期。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Invite {
     pub short_code: String,
     pub qr_payload: String,

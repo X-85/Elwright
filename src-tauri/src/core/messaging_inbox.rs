@@ -36,6 +36,7 @@ pub struct InboxEntry {
 
 /// 前端视图形态（已解密）。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InboxItem {
     pub id: u64,
     pub peer_id: String,
