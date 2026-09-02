@@ -220,6 +220,10 @@ const jumpCandidates = computed(() => {
   return symbolHits.value.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 50)
 })
 
+const jumpPlaceholder = computed(() =>
+  jumping.value ? '正在扫描项目符号…（大项目首次需数秒）' : '跳转符号（类 / 接口 / 方法）…',
+)
+
 async function doJump() {
   await ensureSymbols()
 }
@@ -387,7 +391,7 @@ defineExpose({ openProject, openAbsolute })
         </ul>
 
         <div class="cb-jump">
-          <input v-model="jumpQuery" class="cb-search-input" placeholder="跳转符号（类 / 接口 / 方法）…" @focus="doJump" @input="doJump" />
+          <input v-model="jumpQuery" class="cb-search-input" :placeholder="jumpPlaceholder" @focus="doJump" @input="doJump" />
           <ul v-if="jumpCandidates.length" class="cb-hits">
             <li v-for="(s, i) in jumpCandidates" :key="s.path + s.line + '-' + i">
               <button class="cb-hit" :title="s.declaration" @click="openRel(s.path, s.line)">
@@ -395,6 +399,7 @@ defineExpose({ openProject, openAbsolute })
               </button>
             </li>
           </ul>
+          <p v-else-if="jumping" class="cb-muted cb-jump-empty">正在扫描项目符号…</p>
           <p v-else-if="jumpQuery && symbolsScanned" class="cb-muted cb-jump-empty">无匹配符号；可用内容搜索兜底。</p>
         </div>
 

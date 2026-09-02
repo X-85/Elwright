@@ -17,8 +17,16 @@ use std::path::{Component, Path, PathBuf};
 pub const MAX_FILE_BYTES: u64 = 512 * 1024;
 /// 目录树单层条目上限。
 pub const MAX_TREE_ENTRIES: usize = 2000;
-/// 目录树最大深度。
+/// 目录树最大深度（惰性逐层加载，每层单独请求，此值仅防 JSON 序列化失控）。
 pub const MAX_TREE_DEPTH: usize = 8;
+/// search / scan_symbols 递归遍历的最大目录深度。
+///
+/// Java 项目路径 `src/main/java/com/example/...` 每层包名消耗一层深度：
+/// 旧值 8 层会把 9 层以上深包（`src/main/java/com/a/b/c/d/e/Foo.java` 刚好
+/// 触界）整棵子树静默跳过，符号索引/搜索结果为空（真机点验 B5）。
+/// 24 层 = src/main/java + 20 层包名，远超常见项目；配合
+/// MAX_SYMBOL_FILES / MAX_SEARCH_RESULTS 兜底，不会失控。
+pub const MAX_WALK_DEPTH: usize = 24;
 /// 内容搜索的单文件上限（1 MB）。
 pub const MAX_SEARCH_FILE_BYTES: u64 = 1024 * 1024;
 /// 搜索结果条数上限。
@@ -542,7 +550,7 @@ fn truncate_decl(line: &str) -> String {
 // ---- 目录遍历（带深度 / 跳过目录 / 上限）----
 
 fn walk_files(dir: &Path, prefix: &str, depth: usize, f: &mut dyn FnMut(&Path, &str)) {
-    if depth > MAX_TREE_DEPTH {
+    if depth > MAX_WALK_DEPTH {
         return;
     }
     let Ok(read) = fs::read_dir(dir) else { return };
@@ -877,6 +885,26 @@ mod tests {
             .find(|h| h.name == "getById" && h.declaration.contains("public User getById"))
             .unwrap();
         assert_eq!(get_by_id.kind, "method");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn scan_symbols_covers_deep_packages() {
+        // 真机点验 B5：src/main/java/com/example/... 深包路径不能被
+        // MAX_WALK_DEPTH 截断（旧值 8 层时第 9 层起整棵子树静默漏掉）。
+        let root = temp_project();
+        let deep = root.join("src/main/java/com/example/company/product/module/service/impl");
+        fs::create_dir_all(&deep).unwrap();
+        fs::write(
+            deep.join("UserServiceImpl.java"),
+            "public class UserServiceImpl {}\n",
+        )
+        .unwrap();
+        let hits = scan_symbols(&root).unwrap();
+        assert!(
+            hits.iter().any(|h| h.name == "UserServiceImpl"),
+            "深层包符号应被索引到，实际: {hits:?}"
+        );
         fs::remove_dir_all(&root).ok();
     }
 
