@@ -12,6 +12,9 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://localhost:5273',
+    // 本机（公司网关封 Chrome for Testing CDN）下载不了 Playwright 自带浏览器，
+    // 改用系统 Chrome 通道；CI 与家里 mac 无此限制，channel 缺省时行为不变。
+    ...(process.env.PLAYWRIGHT_USE_SYSTEM_CHROME ? { channel: 'chrome' as const } : {}),
   },
   webServer: {
     command: 'npm run dev -- --port 5273 --strictPort',
