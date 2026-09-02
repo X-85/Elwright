@@ -2,6 +2,11 @@
 //! （见该文件头注释的下沉原因）；这里只做 Builder 装配：
 //! 资源根解析、终端注册表、AppCtx 注入与窗口关闭清理。
 
+// release 构建走 Windows GUI 子系统：不分配控制台（真机点验 P1——缺失时
+// 后端进程弹可见控制台窗口，一关整个应用跟着退出）。debug 构建保留控制台，
+// 本地看日志。
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::sync::Arc;
 
 use elwright_core::core::commands::{self, AppCtx};
