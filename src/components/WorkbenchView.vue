@@ -386,7 +386,10 @@ onMounted(() => {
 .workbench {
   display: grid;
   grid-template-columns: minmax(260px, 5fr) minmax(320px, 7fr);
-  grid-auto-rows: minmax(230px, auto);
+  /* 2×2 固定四宫格（changelog：布局 2×2）。行高下限 260px 且不随内容
+     收缩（minmax 的 auto 上限曾让矮窗口下行格子被推出视口/挤压成 0 高，
+     今日记录「被遮挡」——真机点验 C2）。超出视口的部分由容器滚动。 */
+  grid-auto-rows: minmax(260px, auto);
   gap: 16px;
   height: 100%;
   min-height: 0;
@@ -397,6 +400,8 @@ onMounted(() => {
 .wb-panel {
   display: flex;
   flex-direction: column;
+  /* 格子自身不再被内容撑爆出格子：内部各自滚动，行高由 grid 决定 */
+  overflow: hidden;
   min-height: 0;
   border: 1px solid var(--border, #ddd);
   border-radius: 8px;
@@ -516,6 +521,8 @@ onMounted(() => {
   font-family: inherit;
   line-height: 1.6;
   min-height: 0;
+  /* 格子 overflow:hidden 后 textarea 必须自己吃掉溢出，否则长文不可见 */
+  overflow-y: auto;
 }
 .wb-note-preview {
   flex: 1;
