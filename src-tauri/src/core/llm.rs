@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+pub use crate::core::chat_context::DEFAULT_BUDGET_CHARS;
+
 /// LLM client configuration.
 ///
 /// Thin self-written client against any OpenAI-compatible endpoint
@@ -14,6 +16,9 @@ pub struct LlmConfig {
     pub api_key: String,
     #[serde(default)]
     pub model: String,
+    /// 对话上下文字符预算（ADR-004）；None = 用 chat_context::DEFAULT_BUDGET_CHARS。
+    #[serde(default)]
+    pub context_budget_chars: Option<usize>,
 }
 
 /// 用户级配置文件路径（`~/.elwright/config.json`；Windows 用 USERPROFILE）。
@@ -42,6 +47,158 @@ fn read_config_file(path: &Path) -> Option<LlmConfig> {
         .ok()
 }
 
+/// 单个命名模型档案（多套 LLM 配置切换用）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LlmProfile {
+    pub name: String,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub model: String,
+}
+
+/// 用户级配置文件的扩展形态：flat 字段 + profiles/activeProfile 兼容共存。
+/// 旧文件只有 flat 字段也能解析（profiles/active 默认为空）。
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct UserConfigFile {
+    #[serde(default)]
+    base_url: String,
+    #[serde(default)]
+    api_key: String,
+    #[serde(default)]
+    model: String,
+    #[serde(default)]
+    context_budget_chars: Option<usize>,
+    #[serde(default)]
+    messaging_relay_url: String,
+    #[serde(default)]
+    profiles: std::collections::BTreeMap<String, LlmProfile>,
+    #[serde(default)]
+    active_profile: Option<String>,
+}
+
+impl UserConfigFile {
+    fn to_flat_config(&self) -> LlmConfig {
+        // 优先级：activeProfile 命中 → 用 profile；否则回退 flat
+        let active = self
+            .active_profile
+            .as_ref()
+            .and_then(|n| self.profiles.get(n));
+        let mut cfg = match active {
+            Some(p) => LlmConfig {
+                base_url: if p.base_url.is_empty() {
+                    self.base_url.clone()
+                } else {
+                    p.base_url.clone()
+                },
+                api_key: if p.api_key.is_empty() {
+                    self.api_key.clone()
+                } else {
+                    p.api_key.clone()
+                },
+                model: if p.model.is_empty() {
+                    self.model.clone()
+                } else {
+                    p.model.clone()
+                },
+                context_budget_chars: None,
+            },
+            None => LlmConfig {
+                base_url: self.base_url.clone(),
+                api_key: self.api_key.clone(),
+                model: self.model.clone(),
+                context_budget_chars: None,
+            },
+        };
+        // 预算不参与 profile 命中（ADR-004：profile 级覆盖后置），恒取 flat
+        cfg.context_budget_chars = self.context_budget_chars;
+        cfg
+    }
+
+    /// 设置 flat 字段（CLI `ew config set` 用）。整文件经 UserConfigFile
+    /// 读写以保留 profiles/activeProfile——此前按纯 flat 表回写会把档案抹掉。
+    pub fn set_flat_field(&mut self, key: &str, value: &str) -> Result<(), String> {
+        let invalid_key = |other: &str| {
+            format!(
+                "不支持的 key: {other}（可选 base_url / model / api_key / context_budget_chars）"
+            )
+        };
+        match key {
+            "base_url" => {
+                self.base_url = value.to_string();
+                Ok(())
+            }
+            "model" => {
+                self.model = value.to_string();
+                Ok(())
+            }
+            "api_key" => {
+                self.api_key = value.to_string();
+                Ok(())
+            }
+            "context_budget_chars" => {
+                let n: usize = value
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("'{}' 不是合法的字符数（正整数）", value))?;
+                self.context_budget_chars = Some(n);
+                Ok(())
+            }
+            other => Err(invalid_key(other)),
+        }
+    }
+}
+
+/// 解析用户配置文件（含 profiles / activeProfile）；旧 flat 字段继续兼容。
+fn read_user_config_file(path: &Path) -> Option<UserConfigFile> {
+    let text = std::fs::read_to_string(path).ok()?;
+    match serde_json::from_str(&text) {
+        Ok(cfg) => Some(cfg),
+        Err(e) => {
+            eprintln!(
+                "警告: 用户配置 {} 解析失败: {}（已忽略）",
+                path.display(),
+                e
+            );
+            None
+        }
+    }
+}
+
+/// 校验 profile 名：仅小写字母/数字/-/_，长度 1..=32。
+pub fn is_valid_profile_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 32
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+}
+
+/// 校验 + 归一化为小写；非法名返回 Err。
+pub fn normalize_profile_name(name: &str) -> Result<String, String> {
+    let lower = name.to_ascii_lowercase();
+    if is_valid_profile_name(&lower) {
+        Ok(lower)
+    } else {
+        Err(format!(
+            "档案名 '{}' 非法：仅允许小写字母/数字/-/_，长度 1-32",
+            name
+        ))
+    }
+}
+
+/// 从指定路径读取 profiles（按 name 排序）；包含 active_profile（若已设置）。
+pub fn read_profiles(user_root: &Path) -> (Vec<LlmProfile>, Option<String>) {
+    let path = user_root.join("config.json");
+    let Some(cfg) = read_user_config_file(&path) else {
+        return (Vec::new(), None);
+    };
+    let profiles: Vec<LlmProfile> = cfg.profiles.into_values().collect();
+    (profiles, cfg.active_profile)
+}
+
 /// 字段级合并的配置来源（高 → 低）。
 pub struct ConfigLayers {
     pub env: LlmConfig,
@@ -56,10 +213,15 @@ impl ConfigLayers {
             base_url: std::env::var("ELWRIGHT_LLM_BASE_URL").unwrap_or_default(),
             api_key: std::env::var("ELWRIGHT_LLM_API_KEY").unwrap_or_default(),
             model: std::env::var("ELWRIGHT_LLM_MODEL").unwrap_or_default(),
+            context_budget_chars: std::env::var("ELWRIGHT_LLM_CONTEXT_BUDGET_CHARS")
+                .ok()
+                .and_then(|v| v.trim().parse().ok()),
         };
         let project_path = root.join("config.local.json");
         let project = read_config_file(&project_path).map(|c| (project_path, c));
-        let user = user_config_path().and_then(|p| read_config_file(&p).map(|c| (p, c)));
+        // 用户层：走 UserConfigFile（兼容 flat + profiles/activeProfile）
+        let user = user_config_path()
+            .and_then(|p| read_user_config_file(&p).map(|uc| (p, uc.to_flat_config())));
         Self {
             env,
             project,
@@ -100,6 +262,9 @@ impl ConfigLayers {
             if cfg.model.is_empty() && !layer.model.is_empty() {
                 cfg.model = layer.model.clone();
                 source[2] = label.to_string();
+            }
+            if cfg.context_budget_chars.is_none() && layer.context_budget_chars.is_some() {
+                cfg.context_budget_chars = layer.context_budget_chars;
             }
         }
         (cfg, source)
@@ -211,6 +376,204 @@ pub fn set_user_config(base_url: &str, api_key: &str, model: &str) -> Result<(),
     Ok(())
 }
 
+/// 原子写入用户配置文件（写 .tmp 再 rename），避免崩溃中间态。
+fn write_user_config_file(path: &Path, value: &UserConfigFile) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建目录 {} 失败: {}", parent.display(), e))?;
+    }
+    let text = serde_json::to_string_pretty(value).map_err(|e| format!("序列化配置失败: {}", e))?;
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, text + "\n").map_err(|e| format!("写入 {} 失败: {}", tmp.display(), e))?;
+    std::fs::rename(&tmp, path).map_err(|e| {
+        format!(
+            "原子改名 {} → {} 失败: {}",
+            tmp.display(),
+            path.display(),
+            e
+        )
+    })?;
+    Ok(())
+}
+
+fn load_user_config_file_for_write() -> Result<(PathBuf, UserConfigFile), String> {
+    let path = user_config_path().ok_or("无法定位用户主目录")?;
+    let cfg = read_user_config_file(&path).unwrap_or_default();
+    Ok((path, cfg))
+}
+
+// ---- 消息中继 URL ----
+//
+// 仅写用户层 `~/.elwright/config.json` 的 `messaging_relay_url` 字段；
+// 暂不开放环境变量/项目层覆盖（中继是部署选择，由用户主动配）。
+// 校验规则：`ws://` 或 `wss://` 开头，host 非空，无 path/query/fragment。
+
+/// 读当前消息中继 URL（来自用户层）。空串 = 未配置。
+pub fn read_messaging_relay_url() -> String {
+    user_config_path()
+        .and_then(|p| read_user_config_file(&p))
+        .map(|c| c.messaging_relay_url)
+        .unwrap_or_default()
+}
+
+/// 校验消息中继 URL 格式。空串视为清除（合法）。
+pub fn validate_relay_url(url: &str) -> Result<(), String> {
+    if url.is_empty() {
+        return Ok(());
+    }
+    if url.len() > 512 {
+        return Err(format!("URL 过长（>{} 字符）", 512));
+    }
+    let (scheme, rest) = url
+        .split_once("://")
+        .ok_or_else(|| "URL 必须以 ws:// 或 wss:// 开头".to_string())?;
+    if scheme != "ws" && scheme != "wss" {
+        return Err(format!("协议必须是 ws:// 或 wss://，收到 '{}'", scheme));
+    }
+    let after_scheme = rest;
+    // 取 host：遇到 /、?、#、终止即停
+    let host_end = after_scheme
+        .find(['/', '?', '#'])
+        .unwrap_or(after_scheme.len());
+    let host = &after_scheme[..host_end];
+    if host.is_empty() {
+        return Err("URL 缺少主机名".to_string());
+    }
+    // host 不能含空白或控制字符；端口号形如 :1234——若含 ':'，最后一段必须可解析为 u16，
+    // 否则视为非法端口（避免把 "host:abc" 当作合法）。
+    let host_only = match host.rsplit_once(':') {
+        Some((h, p)) => {
+            if p.is_empty() {
+                return Err("端口号不能为空".to_string());
+            }
+            if p.parse::<u16>().is_err() {
+                return Err(format!("端口号非法: '{}'", p));
+            }
+            h
+        }
+        None => host,
+    };
+    if host_only.is_empty() {
+        return Err("URL 缺少主机名".to_string());
+    }
+    if host_only.contains(char::is_whitespace) {
+        return Err("主机名不能含空白字符".to_string());
+    }
+    Ok(())
+}
+
+/// 设置消息中继 URL（保留文件里其他键，包括 profiles/activeProfile）。
+/// 空串 = 清除该字段（落盘时不写）。空串以外的非法值会被 `validate_relay_url` 拒绝。
+pub fn set_messaging_relay_url(url: &str) -> Result<(), String> {
+    validate_relay_url(url)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    if url.is_empty() {
+        cfg.messaging_relay_url.clear();
+    } else {
+        cfg.messaging_relay_url = url.to_string();
+    }
+    write_user_config_file(&path, &cfg)
+}
+
+/// 保存（或覆盖）指定 name 的 profile，校验 name 合法。
+pub fn save_profile(profile: LlmProfile) -> Result<(), String> {
+    let name = normalize_profile_name(&profile.name)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    let mut p = profile;
+    p.name = name.clone();
+    cfg.profiles.insert(name, p);
+    write_user_config_file(&path, &cfg)
+}
+
+/// 删除指定 name 的 profile；若该 name 当前激活，清空 active_profile 并回退 flat。
+pub fn delete_profile(name: &str) -> Result<(), String> {
+    let name = normalize_profile_name(name)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    if cfg.profiles.remove(&name).is_none() {
+        return Err(format!("档案 '{}' 不存在", name));
+    }
+    if cfg.active_profile.as_deref() == Some(name.as_str()) {
+        cfg.active_profile = None;
+    }
+    write_user_config_file(&path, &cfg)
+}
+
+/// 设置激活 profile；name 必须存在。返回 Ok(())。
+pub fn set_active_profile(name: &str) -> Result<(), String> {
+    let name = normalize_profile_name(name)?;
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    if !cfg.profiles.contains_key(&name) {
+        return Err(format!("档案 '{}' 不存在，请先 `save` 或 `add`", name));
+    }
+    cfg.active_profile = Some(name);
+    write_user_config_file(&path, &cfg)
+}
+
+/// 重命名 profile（仅修改 profiles map 的 key，不改 active_profile 语义）。
+pub fn rename_profile(old: &str, new: &str) -> Result<(), String> {
+    let old = normalize_profile_name(old)?;
+    let new = normalize_profile_name(new)?;
+    if old == new {
+        return Ok(());
+    }
+    let (path, mut cfg) = load_user_config_file_for_write()?;
+    let mut entry = cfg
+        .profiles
+        .remove(&old)
+        .ok_or_else(|| format!("档案 '{}' 不存在", old))?;
+    if cfg.profiles.contains_key(&new) {
+        return Err(format!("档案 '{}' 已存在", new));
+    }
+    entry.name = new.clone();
+    cfg.profiles.insert(new.clone(), entry);
+    if cfg.active_profile.as_deref() == Some(old.as_str()) {
+        cfg.active_profile = Some(new);
+    }
+    write_user_config_file(&path, &cfg)
+}
+
+/// 列出全部 profile 元信息（name + 是否当前激活 + 来源标签）。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProfileMeta {
+    pub name: String,
+    pub active: bool,
+    /// "user"（来自用户文件）或 "flat"（当前由 flat 字段生效，无 active_profile）。
+    pub source: &'static str,
+}
+
+pub fn list_profiles() -> Vec<ProfileMeta> {
+    let (profiles, active) = match user_config_path() {
+        Some(p) => read_profiles(p.parent().unwrap_or(&p)),
+        None => (Vec::new(), None),
+    };
+    profiles
+        .into_iter()
+        .map(|p| {
+            let active = active.as_deref() == Some(p.name.as_str());
+            ProfileMeta {
+                name: p.name,
+                active,
+                source: "user",
+            }
+        })
+        .collect()
+}
+
+/// 当前激活的 profile 名；None 表示走 flat 字段。
+pub fn active_profile_name() -> Option<String> {
+    user_config_path().and_then(|p| read_profiles(p.parent().unwrap_or(&p)).1)
+}
+
+/// 获取指定 name 的 profile；不存在返回 None。
+pub fn get_profile(name: &str) -> Option<LlmProfile> {
+    let Ok(name) = normalize_profile_name(name) else {
+        return None;
+    };
+    let path = user_config_path()?;
+    let cfg = read_user_config_file(&path)?;
+    cfg.profiles.get(&name).cloned()
+}
+
 /// 连接测试：向 base_url 发一条 1 token 上限的最小请求。
 /// 走完整鉴权与响应解析，能真实反映 invoke 是否可用。
 pub fn test_connection(base_url: &str, api_key: &str, model: &str) -> Result<String, String> {
@@ -279,6 +642,7 @@ impl LlmClient {
                 base_url,
                 api_key,
                 model,
+                context_budget_chars: None,
             },
         })
     }
@@ -352,6 +716,96 @@ impl LlmClient {
     }
 }
 
+impl LlmClient {
+    /// 流式对话（ADR-003）：blocking Read 逐块读 SSE，经 on_delta 推增量；
+    /// is_cancelled 每块检查一次，命中即中断（drop 连接）并返回 cancelled。
+    /// 解析失败的 data 行跳过（供应商兼容容错）；全程无有效输出且未取消时
+    /// 由调用方回退非流式。
+    pub fn chat_messages_streaming(
+        &self,
+        messages: &[ChatMessage],
+        request_id: u64,
+        is_cancelled: impl Fn(u64) -> bool,
+        mut on_delta: impl FnMut(&str),
+    ) -> Result<ChatStreamOutcome, String> {
+        let url = chat_url(&self.config.base_url);
+        let body = serde_json::json!({
+            "model": self.config.model,
+            "messages": messages,
+            "stream": true,
+        });
+
+        // 流式整体耗时不可预估：不用 60s 总超时，改为 15s 连接 + 600s 兜底
+        let http = reqwest::blocking::Client::builder()
+            .connect_timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(600))
+            .build()
+            .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+        let mut req = http.post(&url).json(&body);
+        if !self.config.api_key.is_empty() {
+            req = req.bearer_auth(&self.config.api_key);
+        }
+
+        let resp = req
+            .send()
+            .map_err(|e| format!("请求 {} 失败: {}", url, e))?;
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().map_err(|e| format!("读取响应失败: {}", e))?;
+            return Err(format!(
+                "LLM 返回 {}: {}",
+                status.as_u16(),
+                truncate(&text, 500)
+            ));
+        }
+
+        let mut full = String::new();
+        let reader = std::io::BufReader::new(resp);
+        use std::io::BufRead;
+        for line in reader.lines() {
+            if is_cancelled(request_id) {
+                return Ok(ChatStreamOutcome {
+                    text: full,
+                    cancelled: true,
+                });
+            }
+            let line = match line {
+                Ok(l) => l,
+                Err(e) => return Err(format!("读取流失败: {}", e)),
+            };
+            if let Some(piece) = parse_sse_delta(&line) {
+                full.push_str(&piece);
+                on_delta(&piece);
+            }
+        }
+        Ok(ChatStreamOutcome {
+            text: full,
+            cancelled: false,
+        })
+    }
+}
+
+/// 流式对话结果：text 为累计全文，cancelled 标记用户取消。
+#[derive(Debug, Clone)]
+pub struct ChatStreamOutcome {
+    pub text: String,
+    pub cancelled: bool,
+}
+
+/// 解析一行 SSE；返回本行携带的增量文本（无则 None）。
+/// 容错：注释行 / 非 data: 行 / 空 data / [DONE] / 非 JSON 一律返回 None。
+fn parse_sse_delta(line: &str) -> Option<String> {
+    let data = line.strip_prefix("data:")?.trim();
+    if data.is_empty() || data == "[DONE]" {
+        return None;
+    }
+    let v: serde_json::Value = serde_json::from_str(data).ok()?;
+    v["choices"][0]["delta"]["content"]
+        .as_str()
+        .map(|s| s.to_string())
+}
+
 fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
@@ -366,10 +820,8 @@ mod tests {
     use super::{chat_url, mask_key, set_user_config, ConfigLayers, LlmConfig};
     use std::fs;
     use std::path::PathBuf;
-    use std::sync::Mutex;
 
-    // set_user_config/user_config_path 读进程级环境变量，测试间需串行
-    static USER_ROOT_LOCK: Mutex<()> = Mutex::new(());
+    use crate::core::test_env::env_serialization_guard;
 
     fn temp_user_root(tag: &str) -> PathBuf {
         let dir =
@@ -405,7 +857,7 @@ mod tests {
 
     #[test]
     fn merges_fieldwise_with_priority() {
-        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         // 清掉可能存在的环境变量，保证优先级测试不受宿主环境影响
         for k in [
             "ELWRIGHT_LLM_BASE_URL",
@@ -432,6 +884,7 @@ mod tests {
                     base_url: "http://project:1/v1".into(),
                     api_key: String::new(),
                     model: "proj-model".into(),
+                    context_budget_chars: None,
                 },
             )),
             user: None,
@@ -439,6 +892,7 @@ mod tests {
                 base_url: "http://default:2/v1".into(),
                 api_key: "reg-key".into(),
                 model: "reg-model".into(),
+                context_budget_chars: None,
             }),
         };
         // 项目文件覆盖 base_url/model，api_key 字段级回退到注册表默认
@@ -468,7 +922,7 @@ mod tests {
 
     #[test]
     fn set_user_config_merges_and_clears_fieldwise() {
-        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let root = temp_user_root("merge");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
 
@@ -494,7 +948,7 @@ mod tests {
 
     #[test]
     fn set_user_config_preserves_unknown_keys() {
-        let _guard = USER_ROOT_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let root = temp_user_root("preserve");
         std::env::set_var("ELWRIGHT_USER_ROOT", &root);
         fs::write(
@@ -579,6 +1033,7 @@ mod tests {
                 base_url,
                 api_key: "sk-test".into(),
                 model: "mock-model".into(),
+                context_budget_chars: None,
             },
         };
         let reply = client
@@ -615,6 +1070,7 @@ mod tests {
                 base_url,
                 api_key: String::new(),
                 model: "m".into(),
+                context_budget_chars: None,
             },
         };
         let reply = client.chat("tpl", "input").unwrap();
@@ -624,5 +1080,284 @@ mod tests {
         assert!(request.contains("\"role\":\"user\",\"content\":\"input\""));
         // 无 api_key 时不带 Authorization 头
         assert!(!request.contains("Authorization"));
+    }
+}
+
+#[cfg(test)]
+mod sse_tests {
+    use super::parse_sse_delta;
+
+    #[test]
+    fn parses_data_line_with_content() {
+        let line = r#"data: {"choices":[{"delta":{"content":"你好"}}]}"#;
+        assert_eq!(parse_sse_delta(line).as_deref(), Some("你好"));
+    }
+
+    #[test]
+    fn done_marker_and_empty_return_none() {
+        assert_eq!(parse_sse_delta("data: [DONE]"), None);
+        assert_eq!(parse_sse_delta("data:"), None);
+        assert_eq!(parse_sse_delta(""), None);
+    }
+
+    #[test]
+    fn comments_and_non_json_are_ignored() {
+        assert_eq!(parse_sse_delta(": keep-alive"), None);
+        assert_eq!(parse_sse_delta("data: not-json"), None);
+    }
+
+    #[test]
+    fn non_data_lines_are_ignored() {
+        assert_eq!(parse_sse_delta("event: message"), None);
+    }
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::{is_valid_profile_name, normalize_profile_name, LlmProfile, UserConfigFile};
+    use crate::core::llm::ConfigLayers;
+    use crate::core::llm::{
+        active_profile_name, delete_profile, get_profile, list_profiles, read_messaging_relay_url,
+        rename_profile, save_profile, set_active_profile, set_messaging_relay_url, set_user_config,
+        validate_relay_url,
+    };
+    use crate::core::test_env::env_serialization_guard;
+    use std::fs;
+
+    #[test]
+    fn profile_name_normalization_rules() {
+        assert!(is_valid_profile_name("default"));
+        assert!(is_valid_profile_name("local-ollama"));
+        assert!(is_valid_profile_name("work_2"));
+        assert!(!is_valid_profile_name(""));
+        assert!(!is_valid_profile_name("Default")); // 大写非法
+        assert!(!is_valid_profile_name("has space"));
+        assert!(!is_valid_profile_name(&"a".repeat(33)));
+        assert_eq!(normalize_profile_name("Work").unwrap(), "work");
+        assert!(normalize_profile_name("BAD!").is_err());
+    }
+
+    #[test]
+    fn user_config_file_back_compat_with_flat_only() {
+        // 旧 flat 文件（无 profiles 字段）仍能解析 → to_flat_config 等价于旧 LlmConfig
+        let json = r#"{"base_url":"http://u/v1","api_key":"k","model":"m"}"#;
+        let cfg: UserConfigFile = serde_json::from_str(json).unwrap();
+        let flat = cfg.to_flat_config();
+        assert_eq!(flat.base_url, "http://u/v1");
+        assert_eq!(flat.api_key, "k");
+        assert_eq!(flat.model, "m");
+    }
+
+    #[test]
+    fn profile_active_overrides_flat_when_set() {
+        // activeProfile 命中 → 用 profile 字段；未命中 → 回退 flat
+        let json = r#"{
+            "base_url": "http://flat/v1",
+            "api_key": "flat-k",
+            "model": "flat-m",
+            "profiles": {
+                "work": {"name":"work","base_url":"http://w/v1","api_key":"w-k","model":"w-m"}
+            },
+            "active_profile": "work"
+        }"#;
+        let cfg: UserConfigFile = serde_json::from_str(json).unwrap();
+        let flat = cfg.to_flat_config();
+        assert_eq!(flat.base_url, "http://w/v1");
+        assert_eq!(flat.api_key, "w-k");
+        assert_eq!(flat.model, "w-m");
+
+        // active_profile 不存在 → 回退 flat
+        let json2 = r#"{
+            "base_url": "http://flat/v1",
+            "api_key": "flat-k",
+            "model": "flat-m",
+            "profiles": {"work":{"name":"work","base_url":"http://w/v1","api_key":"w-k","model":"w-m"}},
+            "active_profile": "nonexistent"
+        }"#;
+        let cfg2: UserConfigFile = serde_json::from_str(json2).unwrap();
+        let flat2 = cfg2.to_flat_config();
+        assert_eq!(flat2.base_url, "http://flat/v1");
+        assert_eq!(flat2.api_key, "flat-k");
+
+        // 无 active_profile → 回退 flat
+        let json3 = r#"{
+            "base_url": "http://flat/v1",
+            "profiles": {"work":{"name":"work","base_url":"http://w/v1","api_key":"w-k","model":"w-m"}}
+        }"#;
+        let cfg3: UserConfigFile = serde_json::from_str(json3).unwrap();
+        let flat3 = cfg3.to_flat_config();
+        assert_eq!(flat3.base_url, "http://flat/v1");
+    }
+
+    #[test]
+    fn profile_save_delete_set_active_roundtrip() {
+        let _guard = env_serialization_guard();
+        // 用 ELWRIGHT_USER_ROOT 隔离
+        let dir = std::env::temp_dir().join(format!("elwright-profile-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        // save profile
+        let p = LlmProfile {
+            name: "work".into(),
+            base_url: "http://w/v1".into(),
+            api_key: "w-k".into(),
+            model: "w-m".into(),
+        };
+        save_profile(p).unwrap();
+        assert_eq!(list_profiles().len(), 1);
+        assert!(active_profile_name().is_none());
+
+        // set active
+        set_active_profile("work").unwrap();
+        assert_eq!(active_profile_name().as_deref(), Some("work"));
+        let metas = list_profiles();
+        assert_eq!(metas[0].name, "work");
+        assert!(metas[0].active);
+
+        // 通过 ConfigLayers::collect 走生效配置
+        let layers = ConfigLayers::collect(&dir, None);
+        let (cfg, _) = layers.merged();
+        assert_eq!(cfg.base_url, "http://w/v1");
+        assert_eq!(cfg.api_key, "w-k");
+        assert_eq!(cfg.model, "w-m");
+
+        // set active 不存在的 name → Err
+        assert!(set_active_profile("ghost").is_err());
+
+        // delete active → 自动清空 active_profile 并回退 flat
+        delete_profile("work").unwrap();
+        assert!(active_profile_name().is_none());
+        assert_eq!(list_profiles().len(), 0);
+
+        // delete 不存在 → Err
+        assert!(delete_profile("ghost").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn profile_rename_preserves_active() {
+        let _guard = env_serialization_guard();
+        let dir = std::env::temp_dir().join(format!("elwright-rename-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        save_profile(LlmProfile {
+            name: "old".into(),
+            base_url: "http://o/v1".into(),
+            api_key: "k".into(),
+            model: "m".into(),
+        })
+        .unwrap();
+        set_active_profile("old").unwrap();
+        rename_profile("old", "new").unwrap();
+        assert_eq!(active_profile_name().as_deref(), Some("new"));
+        assert!(get_profile("old").is_none());
+        assert_eq!(get_profile("new").unwrap().name, "new");
+
+        // rename 已存在目标 → Err
+        save_profile(LlmProfile {
+            name: "third".into(),
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        })
+        .unwrap();
+        assert!(rename_profile("new", "third").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    // ---- messaging_relay_url ----
+
+    #[test]
+    fn validate_relay_url_accepts_valid_forms() {
+        assert!(validate_relay_url("").is_ok());
+        assert!(validate_relay_url("ws://127.0.0.1:9000").is_ok());
+        assert!(validate_relay_url("wss://relay.example.com").is_ok());
+        assert!(validate_relay_url("wss://relay.example.com:9443").is_ok());
+        // 路径/query/fragment 同样允许（校验只看 host 是否存在）
+        assert!(validate_relay_url("ws://localhost:9000/path").is_ok());
+    }
+
+    #[test]
+    fn validate_relay_url_rejects_invalid_forms() {
+        assert!(validate_relay_url("http://example.com").is_err());
+        assert!(validate_relay_url("ws://").is_err()); // 无 host
+        assert!(validate_relay_url("ws://").is_err());
+        assert!(validate_relay_url("wss://host with space").is_err());
+        assert!(validate_relay_url("not a url").is_err());
+        assert!(validate_relay_url("ws://host:not_a_port").is_err());
+        // 超长
+        let too_long = format!("wss://{}", "a".repeat(600));
+        assert!(validate_relay_url(&too_long).is_err());
+    }
+
+    #[test]
+    fn messaging_relay_url_round_trip() {
+        let _g = env_serialization_guard();
+        let dir = std::env::temp_dir().join(format!(
+            "elwright-test-messaging-relay-rt-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        // 初始为空
+        assert_eq!(read_messaging_relay_url(), "");
+        // 写入
+        set_messaging_relay_url("wss://relay.example.com:9443").unwrap();
+        assert_eq!(read_messaging_relay_url(), "wss://relay.example.com:9443");
+        // 清除（空串 = 清字段）
+        set_messaging_relay_url("").unwrap();
+        assert_eq!(read_messaging_relay_url(), "");
+        // 非法值拒绝
+        assert!(set_messaging_relay_url("http://x").is_err());
+        assert!(set_messaging_relay_url("ws://").is_err());
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn messaging_relay_url_preserves_other_fields() {
+        let _g = env_serialization_guard();
+        let dir = std::env::temp_dir().join(format!(
+            "elwright-test-messaging-relay-preserve-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("ELWRIGHT_USER_ROOT", &dir);
+
+        // 先写 base_url + profile，再写 relay
+        set_user_config("https://api.example.com", "k", "gpt-x").unwrap();
+        save_profile(LlmProfile {
+            name: "work".into(),
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        })
+        .unwrap();
+        set_messaging_relay_url("ws://127.0.0.1:9000").unwrap();
+
+        // 重读确认三个字段都在
+        let cfg: UserConfigFile =
+            serde_json::from_str(&fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+        assert_eq!(cfg.base_url, "https://api.example.com");
+        assert_eq!(cfg.model, "gpt-x");
+        assert_eq!(cfg.messaging_relay_url, "ws://127.0.0.1:9000");
+        assert!(cfg.profiles.contains_key("work"));
+
+        std::env::remove_var("ELWRIGHT_USER_ROOT");
+        fs::remove_dir_all(&dir).ok();
     }
 }

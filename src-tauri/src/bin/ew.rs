@@ -72,6 +72,52 @@ enum ConfigAction {
         #[arg(long)]
         local: bool,
     },
+    /// 多套命名档案的 CRUD + 切换
+    Profile {
+        #[command(subcommand)]
+        action: ProfileAction,
+    },
+    /// 消息中继 URL：show / set <url> / clear
+    Messaging {
+        #[command(subcommand)]
+        action: MessagingAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum MessagingAction {
+    /// 显示当前消息中继 URL
+    Show,
+    /// 设置消息中继 URL（ws:// 或 wss://）
+    Set { url: String },
+    /// 清除消息中继 URL（恢复「未配置」状态）
+    Clear,
+    /// 测试中继连通性（WS 升级即断开）；省略 URL 时用已保存配置
+    Test { url: Option<String> },
+}
+
+#[derive(Subcommand)]
+enum ProfileAction {
+    /// 列出全部档案（* 标记当前激活）
+    List,
+    /// 显示档案字段；省略 name 显示当前激活或 flat
+    Show { name: Option<String> },
+    /// 切换激活档案（不存在则报错）
+    Use { name: String },
+    /// 新建/覆盖档案（带 4 字段：--base-url --api-key --model；name 为位置参数）
+    Add {
+        name: String,
+        #[arg(long)]
+        base_url: String,
+        #[arg(long, allow_hyphen_values = true)]
+        api_key: String,
+        #[arg(long)]
+        model: String,
+    },
+    /// 删除档案
+    Remove { name: String },
+    /// 重命名档案
+    Rename { old: String, new: String },
 }
 
 fn main() {
@@ -285,6 +331,10 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
                     "****".to_string()
                 }
             };
+            // 显示当前激活 profile（若有）
+            if let Some(active) = llm::active_profile_name() {
+                outln!("当前激活档案：{}", active);
+            }
             outln!("当前生效的 LLM 配置：");
             outln!(
                 "  base_url : {}",
@@ -306,13 +356,16 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
             outln!("    来源   : {}", source[2]);
             outln!("  api_key  : {}", mask(&cfg.api_key));
             outln!("    来源   : {}", source[1]);
-            outln!("\n设置：ew config set base_url <值>   清除：ew config clear");
+            outln!(
+                "  context  : {} 字符（对话上下文预算，ADR-004）",
+                cfg.context_budget_chars
+                    .unwrap_or(llm::DEFAULT_BUDGET_CHARS)
+            );
+            outln!(
+                "\n设置：ew config set <base_url|model|api_key|context_budget_chars> <值>   档案：ew config profile list|use|show|add|remove|rename"
+            );
         }
         Some(ConfigAction::Set { key, value, local }) => {
-            if !matches!(key.as_str(), "base_url" | "model" | "api_key") {
-                errln!("错误: key 只能是 base_url / model / api_key");
-                std::process::exit(1);
-            }
             let path = if local {
                 reg.root.join("config.local.json")
             } else {
@@ -324,12 +377,16 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
                     }
                 }
             };
-            let mut cfg: std::collections::BTreeMap<String, String> =
-                std::fs::read_to_string(&path)
-                    .ok()
-                    .and_then(|t| serde_json::from_str(&t).ok())
-                    .unwrap_or_default();
-            cfg.insert(key.clone(), value);
+            // 经 UserConfigFile 读写以保留 profiles/activeProfile（此前按纯 flat
+            // 表回写，配置里带档案时会被整体抹掉）
+            let mut cfg: llm::UserConfigFile = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|t| serde_json::from_str(&t).ok())
+                .unwrap_or_default();
+            if let Err(e) = cfg.set_flat_field(&key, &value) {
+                errln!("错误: {}", e);
+                std::process::exit(1);
+            }
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
@@ -357,6 +414,213 @@ fn config_command(reg: &registry::Registry, action: Option<ConfigAction>) {
             match std::fs::remove_file(&path) {
                 Ok(_) => outln!("已删除 {}", path.display()),
                 Err(_) => outln!("（无配置文件可删: {}）", path.display()),
+            }
+        }
+        Some(ConfigAction::Profile { action }) => profile_command(action),
+        Some(ConfigAction::Messaging { action }) => messaging_command(action),
+    }
+}
+
+fn profile_command(action: ProfileAction) {
+    use elwright_core::core::llm;
+    let mask = |k: &str| -> String {
+        if k.is_empty() {
+            "（未设置）".to_string()
+        } else if k.len() > 8 {
+            format!("{}****", &k[..4])
+        } else {
+            "****".to_string()
+        }
+    };
+    let run = |r: Result<(), String>| match r {
+        Ok(_) => 0,
+        Err(e) => {
+            errln!("错误: {}", e);
+            1
+        }
+    };
+    match action {
+        ProfileAction::List => {
+            let metas = llm::list_profiles();
+            if metas.is_empty() {
+                outln!("（暂无档案；新增：ew config profile add <name> --base-url ... --api-key ... --model ...）");
+                return;
+            }
+            outln!("档案列表（* = 当前激活）：");
+            for m in &metas {
+                let marker = if m.active { "*" } else { " " };
+                outln!("  {} {}", marker, m.name);
+            }
+        }
+        ProfileAction::Show { name } => {
+            let resolved = match name {
+                Some(n) => llm::get_profile(&n),
+                None => match llm::active_profile_name() {
+                    Some(active) => llm::get_profile(&active),
+                    None => {
+                        // 显示 flat 字段
+                        outln!("（当前无激活档案；显示 flat 字段）");
+                        let path = match llm::user_config_path() {
+                            Some(p) => p,
+                            None => {
+                                errln!("错误: 无法定位用户主目录");
+                                std::process::exit(1);
+                            }
+                        };
+                        let cfg: llm::LlmConfig = std::fs::read_to_string(&path)
+                            .ok()
+                            .and_then(|t| serde_json::from_str(&t).ok())
+                            .unwrap_or_default();
+                        outln!(
+                            "  base_url : {}",
+                            if cfg.base_url.is_empty() {
+                                "（未设置）".into()
+                            } else {
+                                cfg.base_url
+                            }
+                        );
+                        outln!(
+                            "  model    : {}",
+                            if cfg.model.is_empty() {
+                                "（未设置）".into()
+                            } else {
+                                cfg.model
+                            }
+                        );
+                        outln!("  api_key  : {}", mask(&cfg.api_key));
+                        return;
+                    }
+                },
+            };
+            match resolved {
+                Some(p) => {
+                    outln!("档案 '{}'：", p.name);
+                    outln!(
+                        "  base_url : {}",
+                        if p.base_url.is_empty() {
+                            "（未设置）".into()
+                        } else {
+                            p.base_url
+                        }
+                    );
+                    outln!(
+                        "  model    : {}",
+                        if p.model.is_empty() {
+                            "（未设置）".into()
+                        } else {
+                            p.model
+                        }
+                    );
+                    outln!("  api_key  : {}", mask(&p.api_key));
+                }
+                None => {
+                    errln!("错误: 档案不存在");
+                    std::process::exit(1);
+                }
+            }
+        }
+        ProfileAction::Use { name } => {
+            let code = run(llm::set_active_profile(&name));
+            if code != 0 {
+                std::process::exit(code);
+            }
+            outln!(
+                "已切换激活档案：{}",
+                llm::normalize_profile_name(&name).unwrap_or(name)
+            );
+        }
+        ProfileAction::Add {
+            name,
+            base_url,
+            api_key,
+            model,
+        } => {
+            let p = llm::LlmProfile {
+                name: name.clone(),
+                base_url,
+                api_key,
+                model,
+            };
+            let code = run(llm::save_profile(p));
+            if code != 0 {
+                std::process::exit(code);
+            }
+            outln!(
+                "已保存档案：{}",
+                llm::normalize_profile_name(&name).unwrap_or(name)
+            );
+        }
+        ProfileAction::Remove { name } => {
+            let code = run(llm::delete_profile(&name));
+            if code != 0 {
+                std::process::exit(code);
+            }
+            outln!(
+                "已删除档案：{}",
+                llm::normalize_profile_name(&name).unwrap_or(name)
+            );
+        }
+        ProfileAction::Rename { old, new } => {
+            let code = run(llm::rename_profile(&old, &new));
+            if code != 0 {
+                std::process::exit(code);
+            }
+            outln!(
+                "已重命名：{} -> {}",
+                llm::normalize_profile_name(&old).unwrap_or(old),
+                llm::normalize_profile_name(&new).unwrap_or(new)
+            );
+        }
+    }
+}
+
+fn messaging_command(action: MessagingAction) {
+    use elwright_core::core::llm;
+    match action {
+        MessagingAction::Show => {
+            let url = llm::read_messaging_relay_url();
+            outln!(
+                "消息中继 URL：{}",
+                if url.is_empty() {
+                    "（未配置）".to_string()
+                } else {
+                    url
+                }
+            );
+        }
+        MessagingAction::Set { url } => {
+            if let Err(e) = llm::set_messaging_relay_url(&url) {
+                errln!("错误: {}", e);
+                std::process::exit(1);
+            }
+            outln!("已设置消息中继 URL：{}", url);
+        }
+        MessagingAction::Clear => {
+            if let Err(e) = llm::set_messaging_relay_url("") {
+                errln!("错误: {}", e);
+                std::process::exit(1);
+            }
+            outln!("已清除消息中继 URL（恢复「未配置」）");
+        }
+        MessagingAction::Test { url } => {
+            let target = match url {
+                Some(u) => u,
+                None => llm::read_messaging_relay_url(),
+            };
+            if target.is_empty() {
+                errln!("错误: 未配置消息中继 URL（ew config messaging set <url>）");
+                std::process::exit(1);
+            }
+            outln!("探测 {} ...", target);
+            match elwright_core::core::messaging_client::probe_relay(
+                &target,
+                std::time::Duration::from_secs(5),
+            ) {
+                Ok(msg) => outln!("✓ {}", msg),
+                Err(e) => {
+                    errln!("✗ {}", e);
+                    std::process::exit(1);
+                }
             }
         }
     }

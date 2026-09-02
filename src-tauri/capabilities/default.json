@@ -3,5 +3,18 @@
   "identifier": "default",
   "description": "主窗口能力：核心默认 + opener（检查更新后打开下载页）+ dialog（导入导出文件选择）",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default", "dialog:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-current-monitor",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    "opener:default",
+    "dialog:default"
+  ]
 }

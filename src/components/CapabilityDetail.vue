@@ -6,6 +6,9 @@ import type { Bridge, Capability, InvokeResult, RunResult, ViewResult } from '..
 const props = defineProps<{
   cap: Capability
   bridge: Bridge
+  locked?: boolean
+  /** 累计使用次数（ADR-001：解锁进度提示） */
+  totalUses?: number
 }>()
 
 const emit = defineEmits<{
@@ -47,7 +50,7 @@ async function onDelete() {
 // 知识型选中即加载文档；其余类型在操作后展示结果
 watch(
   () => props.cap.id,
-  async (id) => {
+  async (_id) => {
     runResult.value = null
     invokeResult.value = null
     view.value = null
@@ -59,6 +62,7 @@ watch(
 )
 
 async function onRun() {
+  if (props.locked) return
   busy.value = true
   try {
     runResult.value = await props.bridge.runScript(
@@ -71,6 +75,7 @@ async function onRun() {
 }
 
 async function onInvoke() {
+  if (props.locked) return
   busy.value = true
   try {
     invokeResult.value = await props.bridge.invokeSkill(props.cap, invokePrompt.value.trim())
@@ -121,16 +126,24 @@ function renderMd(text: string): string {
       </span>
     </header>
 
+    <p v-if="locked" class="degrade-banner">
+      <template v-if="cap.unlockAfterUses !== undefined">
+        该能力尚未解锁：累计使用任意能力 {{ cap.unlockAfterUses }} 次后自动解锁（当前
+        {{ totalUses ?? 0 }}/{{ cap.unlockAfterUses }}）。使用记录仅保存在本机。
+      </template>
+      <template v-else>该能力尚未解锁，暂未开放解锁条件。</template>
+    </p>
+
     <!-- 脚本型 -->
     <template v-if="cap.type === 'script'">
       <p class="meta">入口：<code>{{ cap.entry ?? '（未配置）' }}</code></p>
       <div class="action-row">
         <input v-model="runArgs" class="search" placeholder="脚本参数（空格分隔）…" />
-        <button class="primary" :disabled="busy" @click="onRun">▶ 运行</button>
+        <button class="primary" :disabled="busy || locked" @click="onRun">▶ 运行</button>
         <button
           v-if="bridge.kind === 'tauri' && cap.entry"
           class="terminal-btn"
-          :disabled="busy"
+          :disabled="busy || locked"
           :title="`在集成终端中执行：${cap.entry}${runArgs.trim() ? ' ' + runArgs.trim() : ''}`"
           @click="onRunInTerminal"
         >⌨ 在终端中运行</button>
@@ -154,7 +167,7 @@ function renderMd(text: string): string {
       </p>
       <div class="action-row">
         <input v-model="invokePrompt" class="search" placeholder="附加输入（可选）…" />
-        <button class="primary" :disabled="busy" @click="onInvoke">⚡ 调用</button>
+        <button class="primary" :disabled="busy || locked" @click="onInvoke">⚡ 调用</button>
       </div>
       <div v-if="invokeResult">
         <p v-if="invokeResult.note" class="degrade-banner">

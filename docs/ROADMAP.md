@@ -8,6 +8,8 @@
 > 立项 → 在 `docs/work/active/` 建任务目录，并在本文「进行中」登记一行；
 > 上线确认 → 人执行归档（active→archive），条目从「进行中」移除，里程碑入「已完成」。
 > 新想法不写代码时，直接在对应版块（V1/V2/远期）记一行，注明来源日期。
+>
+> 工具类明细另见 [`docs/TOOL-ROADMAP.md`](TOOL-ROADMAP.md)；本文仍是全局排期和优先级的唯一入口。
 
 ## 主干红线与准入
 
@@ -19,7 +21,16 @@ Elwright 主干只做能够强化以下闭环的功能：**沉淀能力 → 调�
 
 ## 当前版本
 
-v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复（无回显 / 第二 tab 不能输入）+ 终端八项交互优化（ZCode 风格）+ 设置中心第一阶段（三态主题）+ AI 会话图标与新建按钮图标化 + 工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest））
+v0.1.13（2026-09-01，tag `v0.1.13`，GitHub Release 附 dmg + msi）。
+
+- v0.1.13：人与人消息会话②全量交付——传输层核心（ADR-002：Noise_XX 协议层 / 身份与邀请 / 中继配置与探测 / axum 参考中继 + 真实中继端到端冒烟 / 离线密文队列）+ UI 接线（ADR-003：邀请 v3 DH 硬绑定 / sync_peer 收发与防中间人校验 / 设置中心消息中继分组 / PeopleChatView 邀请互加·联系人绑定·发送状态机·收件轮询·离线补投）+ i18n 第一批（启动视图枚举 + LlmSettings 全量双语 + en 字典补缺）。
+
+- v0.1.7：修复资源收藏 IPC 恒失败（Resource.id 缺 serde(default)）+ 真协议回归。
+- v0.1.8：代码浏览器阶段①②（只读查看 + 轻量符号跳转，PR #2）。
+- v0.1.9：代码浏览器阶段③第一批（收藏/书签/发送到 AI，PR #3）。
+- v0.1.10：设置中心后续（常规/外观/终端本地偏好，PR #4）+ 代码浏览器阶段③第二批（转为 Todo + 终端定位）+ AI 对话阶段③用户确认式能力协作（PR #6）+ AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。
+- v0.1.11：代码浏览器阶段④ 受控补丁编辑（PR #10）+ 设置中心 模型档案（PR #11 ADR + PR #12 实施）+ 工程质量第三档 ESLint + coverage（PR #13 ADR + PR #14 实施）+ 真机点验修复批次（Q21 README 开发者入口 / Q22 树不可见 + 预览栏压窄 + 错误 toast 静默 / Q23 树重复渲染 + 绿点原生全屏与四角分屏 / Q24 最近项目支持删除）。
+- v0.1.12：AI 对话阶段④余项长上下文（ADR-004 core 侧字符预算滑动窗口，默认 24000 字符、`contextBudgetChars` 配置链可覆盖；最新 user 必留，更早整条丢弃，超长中段截断；`fit_messages` 收口 chat_completion/stream）+ 能力渐进式发布后续成长体系透明化（ADR-001 解锁条件/跨阈值 toast/侧栏进度、weekly-report 升 tier2 + 3 次示例）+ 工作台第二阶段（ADR-001 常用能力收藏/最近使用去重置顶 8 上限 + 实用工具 JSON/Base64/时间戳三个纯本地转换器）+ i18n 基建（ADR-002 `lib/i18n.ts` 轻量 t() 双语字典 + preferences.language 切换即时生效 + 设置中心壳层试点迁移）。
 
 ## 开发预览环境约束（本机 Windows / GNU-only）
 
@@ -34,9 +45,8 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 
 ## 进行中
 
-- **设置中心第一阶段**（`feature-2026-08-settings-center-phase1`）：统一设置入口，交付常规/外观/模型设置分组与系统、浅色、深色主题偏好；终端主题同步和更多常规配置留后续阶段。
-- **人与人消息会话第一阶段**（`feature-2026-08-messaging-phase1`）：消息会话客户端基础，支持本地文字/图片/表情和会话状态；跨设备消息传输与实时协作空间后置。
 - **CLI `ew` 打入 msi 并写入 PATH（`packaging-2026-08-ew-cli-bundle`）**：让 Windows 安装包同时包含 `ew.exe`（与桌面 `Elwright.exe` 同目录）并把安装目录写入系统 PATH，实现「装完 msi 直接敲 `ew`」的 claude 式体验（见下方 FAQ 第 7 章「Windows 上下载与安装」）。实现：桌面 app 与 `ew` 同属一个 cargo workspace，CI `cargo build --release` 已产出 `target/release/ew.exe`；外部二进制走 `tauri.windows.conf.json` 的 `bundle.externalBin`（指向 `binaries/ew-<triple>.exe`，CI 增加拷贝步骤），PATH 走 wix fragment（`<Environment Name="PATH">` 写入安装目录）。**先做 Windows**；macOS dmg 暂不含 `ew`（桌面 app 不受影响）。验证：开 PR → `ci.yml` 的 msi job 真打一遍 msi 制品。
+- **工具路线图整理（2026-09-01，规划完成，待确认后归档）**：新增工具明细文档，登记 Markdown 文档预览/编辑与 JSON 转义/反转义；不含功能实现。任务目录 `docs/work/active/feature-2026-09-roadmap-tools/`。
 
 ## V1（短期，做完即发版）
 
@@ -45,7 +55,7 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 3. 两个 bugfix 任务目录（ew-broken-pipe、missing-skill-sops）补 STATUS.md ~~——已完成（归档时补建，已入 archive）~~。
 4. ~~发 v0.1.2 + v0.1.3 hotfix~~ **已完成（2026-08-23）**：v0.1.2 集成桌面壳内集成终端（PTY + xterm.js）；v0.1.3 hotfix 修「检查更新」按钮 IPC 序列化 bug（`UpdateInfo` 字段命名），见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`。
 5. ~~发 v0.1.4（含 AI 对话 阶段①②）~~ **已完成（2026-08-23）**：`feat/chat` 合并 → `main`（commit `20d4199`）；首次 `release.yml` run #5 因 dmg upload 与并行 CI 的 macos job 冲突失败，删 tag 重打后 run #6 全绿，dmg+msi 已上 GitHub Release。`bugfix-2026-08-check-update-no-prompt` 与 `enhancement-2026-08-script-tools-docs` 一并归档到 `docs/work/archive/`。
-6. **发 v0.1.5（终端 bugfix + 体验批次 + 工程质量第一档）**：`bugfix/2026-08-app-shell-feedback` 合并 → `main`（本条为发版清单项）。
+6. ~~发 v0.1.5~~ **已完成（2026-08-24）**：终端 bugfix + 体验批次 + 工程质量第一档进包。V1 全部收口（当前已到 v0.1.9）。
 
 ~~剩余资源导入（公司机原版 10 脚本 + 4 知识文档）~~ **2026-08-22 作废**：内置注册表改为纯示例（3 条），个人能力不再进仓库，全部走用户叠加层导入。需要时可从公司机原版用 `ew export`/`ew import` 迁移。
 
@@ -59,18 +69,23 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 
 ### 主干优先
 
-- **AI 对话**：分四阶段实现——①多轮对话页面与基础状态；②本地会话管理；③用户确认式能力协作；④流式输出、取消、长上下文和跨平台完善。模型不配置或不可达时保持明确降级提示，能力执行继续复用现有 core。
-- **人与人消息会话**：分三阶段实现——①客户端本地消息会话；②轻量身份/邀请与一对一消息传输；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
-- **设置中心后续阶段**：终端主题、字体和字号同步；常规中的启动视图、更新策略与语言；模型档案等配置，均以本地优先、少而明确为准入标准。
-- **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；今日记录、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。
+- ~~**资源管理与课题工作区**~~ **第一阶段已完成（2026-08-30 随 PR #1 进 main）**：三层收藏夹、网页/文档/能力/笔记资源、图标化软件快捷方式、资源聚合课题与 LLM/离线报告草稿已交付；收藏/最近使用与更多转换工具顺延（**2026-08-31 已并入工作台第二阶段交付**，见工作台条目）。
+- **AI 对话**：分四阶段实现——①多轮对话页面与基础状态；②本地会话管理；③用户确认式能力协作；④流式输出、取消、长上下文和跨平台完善（~~流式输出与取消~~ ADR-003 已落地；~~长上下文~~ ADR-004 core 侧字符预算滑动窗口已落地；跨平台完善以 PENDING 清单逐项走 bugfix 目录）。模型不配置或不可达时保持明确降级提示，能力执行继续复用现有 core。
+- **代码浏览器**：作为研发代码上下文入口，排在 AI 对话阶段③之后；分阶段交付：①本地项目只读查看与轻量符号跳转（接口→实现、JavaBean 类型→类定义）；②项目关系索引与 Todo/书签/流程图联动；③再评估 Java Language Server 和受控补丁编辑。默认不启动高内存后台索引服务。
+- **人与人消息会话**：分三阶段实现——~~①客户端本地消息会话~~（**已完成，2026-08-30 随 PR #1 进 main**）；~~②轻量身份/邀请与一对一消息传输~~（**已完成 2026-09-01**——传输层核心（ADR-002）+ UI 接线（ADR-003）：自托管 WS 中继 + Noise_XX 静态身份 + 邀请 v3 互加 + 端到端加密互发 + 离线补投；真机点验留 PENDING；任务目录 `feature-2026-09-messaging-phase2`）；③从消息会话升级实时协作空间。第一阶段不建设通用社交能力。
+- **设置中心后续阶段**：~~第一阶段（常规/外观/模型分组 + 三态主题）~~、~~常规启动视图/更新策略、外观密度/缩放、终端字体/字号/滚动历史~~（2026-08-31 已交付进 main）、~~模型档案（多套 LLM 配置切换）~~（**Q19 已交付**：profiles + activeProfile 与 flat 字段共存兼容；CLI `ew config profile` 子命令；5 IPC；前端 LlmSettings.vue 档案下拉 + 新建）；~~界面语言~~（**2026-08-31 已交付**：i18n 基建 `lib/i18n.ts` + language 偏好 + 设置中心壳层试点，枚举标签与 LlmSettings 文案为增量迁移遗留，ADR-002），均以本地优先、少而明确为准入标准。
+- **工作工具栏（Workbench）**：先实现能承接能力调用的收藏/最近使用、Todo、书签和少量高频研发转换工具；~~今日记录~~（2026-08-25 调整：与 Todo 一并提前进第一阶段）、更多通用转换工具和桌宠联动后置。内置工具优先本地运行，复杂扩展继续使用能力注册表。第一阶段（Todo + 今日记录，`feature-2026-08-workbench-phase1`）已并入 main（2026-08-30）；~~第二阶段（收藏/最近使用 + 高频转换工具）~~ **已交付（2026-08-31，ADR-001）**：常用能力（最近使用+收藏、点击跳转工具箱）与实用工具（JSON/Base64/时间戳三个纯本地转换器）。
+- **工具路线图与编辑器扩展**（2026-09-01）：工具明细拆分至 [`docs/TOOL-ROADMAP.md`](TOOL-ROADMAP.md)。新增两项 V2 计划：P1 Markdown 文档预览与编辑（区别于今日记录的 Markdown 预览）以及 P1 JSON 字符串转义/反转义；JSON 格式化与压缩已在工作台完成。复杂格式转换继续优先走能力注册表，不默认塞入工作台。
+- **能力渐进式发布**：~~MVP（成熟度档位、默认核心视图、全部能力开关、本地使用计数）~~已随 PR #1 进 main；~~透明的解锁规则、成长提示~~（**2026-08-31 已交付**：ADR-001——解锁条件与进度三处可视化、跨阈值解锁 toast、侧栏最近解锁进度、weekly-report 升为进阶档位开箱示例）；社区提案/审核/签名能力包另行排期。
+- ~~**会话问题台账基准技能**~~ **已完成（2026-08-30 随 PR #1 进 main）**：内置 `session-ledger` 能力 + 离线 SOP；Codex Skill 负责可写工作区的自动维护。
 - **工程质量治理**（2026-08-23 立项，起因：终端两 bug 均落在保障空白区——IPC 接缝与前端组件，见 `docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。三档：
-  - **第一档（立即）**：CI 加 clippy + rustfmt 检查；前端引入 vitest，先覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数）。
-  - **第二档（下个发版周期）**：tauri-driver 或 Playwright e2e 冒烟（打开终端 → 敲命令 → 断言输出，抓集成断线类 bug）；验证清单加「自动化覆盖/需手测」标记，防止未执行的验证被标通过。
-  - **第三档（按需）**：eslint（风格已统一，低优先）；覆盖率门槛（等测试有存量）。
+  - ~~**第一档（立即）**~~ **已完成（2026-08-23）**：CI clippy + rustfmt 闸门；vitest 覆盖纯逻辑模块（safeMarkdown / theme / bridge 纯函数），随 v0.1.5 进包。
+  - **第二档（已完成 2026-08-24，`enhancement-2026-08-quality-tier2-e2e`）**：分层 e2e 冒烟——IPC 层用 tauri mock runtime 真协议测试（`src-tauri/tests/terminal_ipc.rs`，macOS/Linux 走真 PTY 全链路，Windows+CI 跳真 PTY 用例），浏览器层用 Playwright chromium（`src/e2e/`，接缝 + 降级守卫）；验证清单 `【自动化】/【手测】` 标记约定已写入 AI_CODE_AGENT_MAINTENANCE.md §6。tauri-driver 弃选（Windows CI 无 WinAppDriver），取舍见 `docs/features/engineering-quality/decisions/ADR-001-e2e-layering.md`。已并入 main（`6f84109`）。
+  - **第三档（已完成 2026-08-31，[ADR-002-eslint-and-coverage](docs/features/engineering-quality/decisions/ADR-002-eslint-and-coverage.md)，PR #13 ADR + PR #14 实施）**：ESLint 10 flat config（`typescript-eslint` + `eslint-plugin-vue`，规则 `no-unused-vars` + `vue/no-unused-components` + `vue/no-unused-vars` + `no-explicit-any` warn，TS/Vue 下 `no-undef` 关闭）；vitest coverage v8 provider（`lib/**/*.ts` 排除 `bridge.ts` facade + test 文件，thresholds lines/functions/statements 70% / branches 60%）；CI frontend job 新增 `npm run lint` 与 `npm run test:coverage` 两步；TypeScript 7.0.2 → 6.0.3（typescript-eslint 8.68 显式拒绝 TS 7）；实测覆盖率 95/76/100/95。弃选：prettier（独立 ADR）、`.vue` 纳入门槛（Playwright e2e 兜底）、istanbul/c8（v8 provider 更轻）、husky/lint-staged（团队规模扩大后再议）。
 
 ### 后置验证
 
-- **脑图 MVP**：本地脑图、节点编辑以及与 Todo/能力的关联。AI 草稿、复杂知识整理和桌宠入口须在主干闭环稳定后验证，不做多人协作、云同步或通用白板。
+- **脑图 MVP**：**已完成（2026-09-01，[ADR-001](docs/features/mindmap/decisions/ADR-001-mindmap-mvp.md)）**——大纲式树形脑图（多图/键盘流编辑/折叠/Todo 双向关联），core 5 单测 + vitest 5 + e2e 降级守卫全绿；AI 草稿按路线图后置。本地脑图、节点编辑以及与 Todo/能力的关联。AI 草稿、复杂知识整理和桌宠入口须在主干闭环稳定后验证，不做多人协作、云同步或通用白板。
 - **工程图 MVP**：流程图可视化编辑、Mermaid 生成/导出、与 Todo/能力的关联，优先覆盖部署和故障排查流程。时序图、复杂源码双向同步、AI 日志分析和终端/服务器关联须在 MVP 被验证有通用价值后另行排期。
 
 ### 暂不进入主干
@@ -79,7 +94,6 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - **扩展工作台工具**：今日记录、泛化转换工具、复杂笔记和效率组件先不排主干。
 - **批量导出**：多能力打一个包，`elwright-skill` schema 升级（数组形态或 manifest）。
 - **二进制资源打包**：导出格式支持二进制（zip/base64）——jar-decompile 等含二进制工具链的能力需要。
-- **隐藏内置能力**：注册表加 flag 或用户配置层记录隐藏项，列表可精简。
 - **注册表目录自动扫描**：架构方案 §9.2 明确留作后续增强，静态 JSON 仍是 v1 底线。
 - **Linux 支持**：架构方案 §11 列为后续。
 
@@ -91,6 +105,35 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - **扩展工作台工具（实验方向）**：通用 Todo/笔记增强、更多转换工具、时序图/架构图/ER 图、SSH/服务器管理等仅限独立实验分支；不以“替代现有成熟软件”为目标，满足主干红线后才可另行立项。
 
 ## 已完成里程碑
+
+- 2026-09-01 脑图 MVP（ADR-001，后置验证解锁后首个立项）：大纲式树形思维导图——扁平数组 + parent 指针、数组序即 DFS 序（子树连续）不变量，增删/缩进/外提/整块交换/折叠；`~/.elwright/mindmaps/` 一图一文件原子存（Rust core，与 chats 同模式）；与工作台 Todo 双向关联（节点转 Todo 打标记防重复、未完成 Todo 导入挂树）；前端 lib/mindmap.ts 镜像纯函数（vitest 同套断言）；键盘流（Enter 兄弟 / Tab 缩进 / ⌘↑↓ 移动）+ 400ms 防抖自动保存；浏览器预览降级守卫。选型：脑图先行，工程图 MVP（画布 + Mermaid）顺延独立批次。门禁：135 lib + vitest 86 + e2e 12 全绿。
+
+- 2026-09-01 人与人消息会话②全量交付（传输层核心 ADR-002 + UI 接线 ADR-003）：在传输层核心之上完成端到端可用闭环——邀请 v3（QR 增载对端 DH 公钥 + `ID==派生(DH)` 硬绑定防伪造）；设置中心「消息中继」分组（URL/保存/测试连接，双语）；PeopleChatView 邀请互加、联系人绑定、发送状态机（已送达/离线暂存·上线补投/失败如实展示）、3 秒收件轮询合并、预览模式统一降级；sync_peer 收发（成对房间按 ID 定角色 + 握手校验 remote_static 防中间人）+ 后台 listener + 离线队列本地密钥加密重设计（修「会话密文重连后不可解」缺陷，chacha20poly1305 落盘）。双身份全链路 e2e 经真实 relay 通过；门禁 130 lib + IPC 7 + 中继冒烟 3 + eslint/vitest 81/e2e 11 全绿。真机双账户点验留 PENDING。
+
+- 2026-09-01 人与人消息会话②传输层核心（ADR-002，6 步切片全绿）：协议层 `core::messaging_transport`（snow Noise_XX_25519 + AEAD 帧 + 控制帧，12 单测）；本地身份与邀请 `core::identity`（ed25519+X25519、16 字符 Crockford ID、6 字符短码 + v2 签名 QR，13 单测，修 8→16 字符派生 bug）；中继配置与探测（`messaging_relay_url` 字段级保留写入、`validate_relay_url`、6 IPC、`ew config messaging show/set/clear/test`）；中继参考实现 `docs/features/messaging/relay/`（axum 纯密文转发 + 64 帧暂存 + Docker）与真实 relay 子进程端到端冒烟（双端 Noise_XX 握手 + 双向 AEAD + **断言中继日志零明文**）；离线队列 `core::messaging_queue`（outbox.jsonl 只存密文，明文不入盘有单测强制；~~sled~~→零依赖 JSONL 偏差入 ADR-002）。门禁：120 lib 单测 + 7 IPC 冒烟 + 2 中继冒烟全绿，clippy -D warnings 0，fmt 干净。遗留：UI 接线切片（PeopleChatView 适配器替换、队列补投、前端 e2e、真机双账户点验）。任务目录 feature-2026-09-messaging-phase2（不自行归档）。
+
+- 2026-09-01 v0.1.12 发版：携带 4 个未发版功能——AI 对话长上下文（ADR-004，core 侧字符预算滑动窗口 + `fit_messages` 收口 chat_completion/stream + `contextBudgetChars` 配置链；IPC 自起 mock LLM 验证裁剪；顺手修 `ew config set` 经 `set_flat_field` 抹掉 Q19 profiles 数据丢失隐患）+ 能力渐进式发布后续成长透明化（ADR-001 解锁条件/跨阈值 toast/侧栏进度；weekly-report 升 tier2 + 3 次示例）+ 工作台第二阶段（ADR-001 常用能力 + 实用工具三个纯本地转换器）+ i18n 基建（ADR-002 设置中心壳层试点 + 语言选择器启用；枚举标签/LlmSettings 为增量迁移遗留）。本地闸门全绿（cargo 84 + 集成 + clippy 0 警告 + fmt + eslint + vitest 81 + coverage 95/76/100/95 + vite build + Playwright 10/10），ci.yml 7/7，release.yml 全绿出 dmg + msi，install.ps1 ProductCode 从 CI msi 制品提取同步。
+
+- 2026-08-31 两个插队小项（用户定向）：工作台第二阶段（ADR-001）——「常用能力」（最近使用去重置顶上限 8 + 收藏置顶，点击跳转能力工具箱，本机存储、损坏回退）+「实用工具」（JSON 格式化/压缩、Base64 UTF-8 安全、时间戳⇄日期秒毫秒自动，中文报错带 cause），布局 2×2；i18n 基建（ADR-002）——`lib/i18n.ts` 轻量 t() 双语字典（键集完整性守卫）+ preferences.language（切换即时生效持久化）+ 设置中心壳层全量迁移与语言选择器启用（枚举标签/LlmSettings 为增量迁移遗留）。测试：vitest 81（+15：recents 4/convert 6/i18n 4 + 键集守卫）、eslint 0、build、Playwright 10/10（wb-count 选择器撞名已作用域化）；浏览器实测转换器与新区块渲染。
+
+- 2026-08-31 能力渐进式发布后续（ADR-001 成长体系透明化）：`lib/growth.ts` 纯函数收口（isUnlocked/growthSummary/newlyUnlocked，6 vitest）；解锁条件与进度三处可视化（列表徽标 tooltip / 详情横幅 / 侧栏提示行）；跨阈值瞬间 toast「🎉 已解锁进阶能力」+ 侧栏最近解锁进度；内置 weekly-report 升为进阶档位开箱示例（tier 2 + 累计 3 次解锁）。浏览器预览四层实测全过（提示行 → 查看全部徽标 → 详情横幅进度 → 第 3 次使用触发解锁 toast 并进入核心视图）。闸门全绿（eslint / vitest 66 / build）。任务目录 enhancement-2026-08-capability-growth。
+- 2026-08-31 AI 对话阶段④余项「长上下文」（ADR-004）实现进 main：`core::chat_context::fit_messages` 字符预算滑动窗口（默认 24000，`contextBudgetChars` 配置链 / 环境变量可覆盖；最新消息必留、更早整条丢弃、超长中段截断），`assemble_chat_messages` 收口两个 chat 命令；`ew config` 显示预算 + `set` 新增键；顺手修 `ew config set` 按 flat 表回写抹掉 Q19 profiles 的数据丢失隐患。测试：chat_context 6 单测 + 新 IPC 测试（自起 mock LLM 服务捕获请求体验证裁剪），cargo 84 核心 + 集成全绿、clippy 0 警告、fmt、eslint、vitest 60、build。任务目录 feature-2026-08-chat-long-context。
+- 2026-08-31 v0.1.11 发版：携带代码浏览器阶段④（PR #10）+ 设置中心 模型档案（PR #11/12）+ 工程质量第三档（PR #13/14）+ 真机点验修复批次 Q21-Q24（README 开发者入口；代码浏览器树不可见/预览栏压窄/toast 静默三根因修复；树重复渲染扁平化任意深度；绿点点击全屏 + 四角四分位对齐 macOS 原生；最近项目逐条删除 + IPC 测试竞态锁与增量断言修复）。本地闸门全绿，ci.yml 7/7，release.yml 全绿出 dmg + msi，install.ps1 ProductCode 从 CI msi 制品提取同步（{7638490A-6BF2-4B6C-978A-9F67D7C1320A}）。同日 V2 主干重启立项：AI 对话阶段④余项长上下文（ADR-004 core 侧字符预算滑动窗口，待实施）。
+- 2026-08-31 真机点验修复批次（Q21-Q24，桌面 GUI 实测驱动）：Q21 README「快速开始」补真机启动桌面端命令（`tauri dev` 全链路）+ 当前状态/AGENTS 指针同步；Q22 代码浏览器三根因——treeCache 用 Map 致 v-for 遍历拿 `[key,value]` 对儿使 v-show 恒 false 整树不可见（改 Record）、`.code-browser` 漏 `grid-column: 1/-1` 被压进 300-380px 窄列、报错 toast 仅工具箱视图渲染致 IPC 失败全静默；Q23 Q22 修复后暴露的树重复渲染（外层 v-for 缓存 + 手工嵌套双份，改 visibleRows 扁平化任意深度）+ 绿点补回点击全屏切换 + 悬停菜单四角四分位对齐原生；Q24 最近项目支持逐条删除（core/IPC/bridge/前端全栈，收藏书签保留）+ 附带修 IPC 测试竞态锁与增量断言两个测试基建问题。系统目录选择器→打开项目全链路首次真机验证通过。本地闸门全绿（cargo 78+2、clippy 0 警告、fmt、eslint、vitest 60、build）。任务目录 ×4 在 docs/work/active/。
+- 2026-08-31 v0.1.10 发版：携带 4 个未发版功能——设置中心后续（PR #4）、代码浏览器阶段③第二批（续 PR #3）、AI 对话阶段③用户确认式能力协作（PR #6）、AI 对话阶段④流式输出与请求级取消（PR #8，ADR-003 落地）。本地五道闸全绿（cargo 62+1+6+4+1 + strict clippy 0 警告 + fmt + vitest 43 + build），CI release.yml 一次全绿（macOS dmg 2m18s + Windows msi 3m24s + Publish 11s）。
+- 2026-08-31 代码浏览器阶段③两批（PR #3 + 续）：第一批收藏文件/代码书签/发送到 AI（确认面板 + 对话预填）；第二批转为 Todo（位置标记跳回工作台）+ 终端定位（终端新 tab 打开文件目录）。期间 CI 揪出 save_recent 全新环境目录缺失问题。已随 v0.1.9 / v0.1.10 全部发版。
+- 2026-08-31 设置中心后续（PR #4）：常规（启动视图/自动检查更新；语言置灰待 i18n）、外观（密度/缩放）、终端（字体/字号/滚动历史，主题保持联动）；lib/preferences.ts 逐字段校验。模型档案留后续批次。
+- 2026-08-31 代码浏览器阶段④（PR #10，ADR-001 落地）：受控补丁编辑——core::patch（parse/apply/sensitive/sha256/preview/apply/revert + 快照持久化，10 单测）、IPC 4 + mock runtime 3 例（env_lock 串行化）、前端 lib/patch.ts + PatchPreviewDialog 三栏 + ChatView diff 围栏识别入口 + Bridge 4 方法 + patch.test.ts 4 例；路径黑名单（.env/.pem/.key/.ssh/.aws/node_modules/target/.git）；上下文不匹配 → 整文件 warnings 跳过不写盘不入快照。本地五道闸全绿（cargo 87 + strict clippy + fmt + vitest 47 + build），CI 7/7 一次过。
+- 2026-08-31 设置中心 模型档案（PR #11 ADR + PR #12 实施）：profiles + activeProfile 与既有 flat 字段共存兼容；core::llm 5 单测 + CLI `ew config profile list|use|show|add|remove|rename` 6 子命令 + 5 IPC + main.rs 注册 + mock runtime 5 例 + Bridge 5 方法 + LlmSettings.vue 档案下拉/新建/清单删除 + vitest 4 例。本地五道闸全绿（cargo 97 + strict clippy + fmt + vitest 51 + build），CI 7/7 全绿。
+- 2026-08-31 工程质量第三档（PR #13 ADR + PR #14 实施）：ESLint 10 flat config（`typescript-eslint` + `eslint-plugin-vue`，规则 `no-unused-vars` + `vue/no-unused-components` + `vue/no-unused-vars` + `no-explicit-any` warn，TS/Vue 下 `no-undef` 关闭）；vitest coverage v8 provider（`lib/**/*.ts` 排除 `bridge.ts` facade + test 文件，thresholds lines/functions/statements 70% / branches 60%）；CI frontend job 新增 `npm run lint` 与 `npm run test:coverage` 两步；TypeScript 7.0.2 → 6.0.3（typescript-eslint 8.68 显式拒绝 TS 7）；vitest 测试 51 → 60（新增 9 例覆盖 preferences 副作用）；实测覆盖率 95/76/100/95。本地六道闸全绿（eslint + vitest + coverage + vite build + cargo fmt + clippy + test），CI 7/7 全绿。
+- 2026-08-31 v0.1.8 发版：携带代码浏览器阶段①②。
+
+- 2026-08-31 代码浏览器阶段①（含轻量符号跳转，PR #2）：本地项目只读查看——项目选择、懒加载目录树、escape-first 轻量高亮、文件名/内容搜索、接口→实现与 JavaBean→类定义多候选跳转、最近项目/文件持久化；敏感文件拒读与路径边界在 core 收口。测试：core 8 + IPC 1 + vitest 5 + e2e 1，全量闸门全绿。真机点验按用户指示跳过留档。任务目录已归档。
+- 2026-08-30 bugfix：资源收藏 IPC 恒失败——Resource.id 缺 serde(default)，浏览器 e2e 走 localStorage 不经此接缝故漏网；新增 workspace_ipc 真协议回归。随 v0.1.7 发版。任务目录已归档。
+
+- 2026-08-30 PR #1 大批次合并：渐进式能力成长 MVP（成熟度档位/核心能力视图/本地使用计数）+ 资源课题工作区与软件快捷方式 + 人与人消息会话一期 + 会话问题台账能力（内置注册表 3→4 条）+ app-chrome 壳演进（窗口红绿灯/布局菜单/三列布局/设置右移）。合并前两轮 rebase + 五道闸本地全绿，PR CI 与合并后 main CI 均 7 job 全绿（其间修一个 e2e「预览模式」双匹配 flake）。
+
+- 2026-08-30 工程质量第二档：分层 e2e 冒烟（IPC 真协议 6 用例 + 浏览器层 6 用例 + 独占端口 5273 修复）并入 main（`6f84109`），五道闸（cargo/clippy/fmt/vitest/e2e）全绿。
 
 - 2026-08-23 应用壳布局第一阶段：顶部全局操作栏、能力工具箱/AI 对话图标化、左右面板显隐、按需展开的终端抽屉。任务已归档至 `docs/work/archive/enhancement-2026-08-app-shell-layout/`。
 
@@ -106,4 +149,5 @@ v0.1.5（2026-08-24，tag `v0.1.5`。基于 v0.1.4 新增：终端两 bug 修复
 - 2026-08-23 AI 对话阶段①②：阶段① 独立对话页 + 多轮消息 + 安全 Markdown 渲染（ADR-002）+ 发送/停止/重试 + 模型状态展示；阶段② 会话侧栏 + `~/.elwright/chats/` 一文件一会话 + 自动保存 + 错误消息不落盘，零新依赖（手写 ISO8601 + AtomicU64 id）。真机验证后顺手修了 4 处 UI 反馈（保存表单自动关闭 / 复制按钮深色背景可见 / 重命名保护不被自动覆盖 / 引导诊断日志）；合并提交 `282d081` `6a8e83c`。三任务目录归档：phase1 / phase2 / bugfix-real-machine-issues。
 - 2026-08-23 v0.1.2 + v0.1.3 hotfix：v0.1.2 集成终端 v1 入包；v0.1.3 hotfix 修「检查更新」按钮 IPC 序列化 bug（`UpdateInfo` 字段命名）。见 `docs/work/archive/bugfix-2026-08-check-update-no-prompt/`。
 - 2026-08-23 v0.1.4：集成终端 v1 + AI 对话阶段①② + 一键安装脚本（macOS/Windows）进包。`feat/chat` 合并 commit `20d4199`；首次 `release.yml` run #5 dmg upload step 跟并行 CI 的 macos job 冲突失败，删 tag 重打后 run #6 全绿，dmg+msi 已上 Release。归档目录：chat phase1 / phase2 / bugfix-real-machine-issues / check-update-no-prompt / script-tools-docs。
+- 2026-08-24 工程质量治理第二档（分支 `enhancement/2026-08-quality-tier2-e2e`）：分层 e2e——IPC 层 tauri mock runtime 真协议测试（6 用例，macOS/Linux 真 PTY 全链路）+ 浏览器层 Playwright chromium（5 用例，接缝与降级守卫）；配套 IPC 命令层从 main.rs 下沉 `core/commands.rs`（AppCtx 注入，行为零变化）+ 存量测试环境变量锁统一（并行缺陷修复）。验证清单 `【自动化】/【手测】` 标记约定入 AI_CODE_AGENT_MAINTENANCE.md §6；新 Feature 文档 `docs/features/engineering-quality/`（含 ADR-001 e2e 分层取舍）。tauri-driver 弃选（Windows CI 无 WinAppDriver）。
 - 2026-08-24 应用壳反馈 bugfix + 终端体验批次（随 v0.1.5 进包）：修两个真机 bug（终端无回显——Tauri Channel 用法写反；第二 tab 不能输入——组件复用换 prop 不重接线，结构重写为 per-tab 实例）+ 八项交互优化（顶栏直达新建、＋/× 图标成组、拖拽调高、三态主题联动、扁平化等，参考 ZCode UI）+ AI 会话图标（Sparkles）与新建按钮图标化。分支 `bugfix/2026-08-app-shell-feedback` 共 17 提交，含延伸落地的工程质量治理第一档（CI clippy+fmt 闸门 + 前端 vitest 22 例）与设置中心第一阶段。任务目录已归档（`docs/work/archive/bugfix-2026-08-app-shell-feedback/`）。

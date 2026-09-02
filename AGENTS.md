@@ -64,7 +64,7 @@ Windows 公司机器无 MSVC，用 GNU 工具链编译：`cargo +stable-x86_64-p
 
 ## 当前进度
 
-看 `docs/ROADMAP.md`（活文档，唯一排期视图）。一句话现状：v0.1.4 已发（集成终端 v1 + AI 对话阶段①② + 一键安装脚本入包，dmg+msi 已上 Release）；进行中 = 应用壳布局第一阶段（`enhancement-2026-08-app-shell-layout`，顶部全局栏 + 面板显隐）。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
+看 `docs/ROADMAP.md`（活文档，唯一排期视图，本节只留指针不记细节）。一句话现状：v0.1.11 已发；进行中：AI 对话阶段④余项「长上下文」（ADR-004 定案，实施待开工），V2 剩余主干按 ROADMAP 顺序推进；真机点验遗留项见 `docs/work/active/PENDING-REAL-MACHINE-CHECKLIST.md`。资源工具脚本约定：**纯 Python 标准库、零第三方依赖、中文报错**——离网可跑是底线。
 
 ## 前端约定（src/）
 

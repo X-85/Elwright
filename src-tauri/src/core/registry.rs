@@ -16,6 +16,16 @@ pub struct Capability {
     pub prompt: Option<String>,
     #[serde(rename = "degradeDoc")]
     pub degrade_doc: Option<String>,
+    /// 渐进式发布档位：1 = 核心，数值越高越晚释放。
+    #[serde(rename = "releaseTier", default = "default_release_tier")]
+    pub release_tier: u8,
+    /// 可选：达到指定本地使用次数后解锁。
+    #[serde(rename = "unlockAfterUses", default)]
+    pub unlock_after_uses: Option<u32>,
+}
+
+fn default_release_tier() -> u8 {
+    1
 }
 
 /// Loaded capability registry, bound to an Elwright project root.
@@ -203,13 +213,12 @@ fn find_root_from(start: &Path) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_root_from, resolve_root, Registry};
+    use super::{find_root_from, resolve_root, Capability, Registry};
     use std::fs;
     use std::path::PathBuf;
-    use std::sync::Mutex;
 
     // resolve_root 读进程级环境变量与 cwd，测试间需串行
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    use crate::core::test_env::env_serialization_guard;
 
     /// temp 目录树: root/capabilities.json + root/nested/child/
     fn temp_root(tag: &str) -> (PathBuf, PathBuf) {
@@ -223,7 +232,7 @@ mod tests {
 
     #[test]
     fn env_override_wins() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let (root, _) = temp_root("env");
         std::env::set_var("ELWRIGHT_ROOT", &root);
         let resolved = resolve_root(&[]);
@@ -234,7 +243,7 @@ mod tests {
 
     #[test]
     fn cwd_walkup_finds_ancestor() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let (root, child) = temp_root("cwd");
         // 本仓库内运行时 cwd 上溯会命中仓库根；这里仅验证上溯语义：
         // 从 child 起找（借道 find_root_from 的纯函数）
@@ -244,7 +253,7 @@ mod tests {
 
     #[test]
     fn probe_dir_matches_bundle_layout() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_serialization_guard();
         let (root, _) = temp_root("probe");
         // bundle 布局：资源目录下直接是 capabilities.json（如 Contents/Resources）
         assert_eq!(find_root_from(&root).unwrap(), root);
@@ -290,6 +299,8 @@ mod tests {
             offline: None,
             prompt: None,
             degrade_doc: Some("resources/docs/example.md".to_string()),
+            release_tier: 1,
+            unlock_after_uses: None,
         };
 
         let value = serde_json::to_value(capability).unwrap();
@@ -297,6 +308,14 @@ mod tests {
         assert_eq!(value["degradeDoc"], "resources/docs/example.md");
         assert!(value.get("kind").is_none());
         assert!(value.get("degrade_doc").is_none());
+    }
+
+    #[test]
+    fn missing_release_metadata_defaults_to_core() {
+        let value: Capability =
+            serde_json::from_str(r#"{"id":"x","name":"X","type":"knowledge"}"#).unwrap();
+        assert_eq!(value.release_tier, 1);
+        assert!(value.unlock_after_uses.is_none());
     }
 
     // ---- 叠加层（overlay）----

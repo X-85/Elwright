@@ -27,3 +27,41 @@ core::llm（多轮 OpenAI-compatible 请求）
 - 会话存储属于桌面壳；浏览器预览只能展示未连接或降级状态，不模拟真实桌面持久化。
 - 多轮上下文可能包含敏感信息和超出模型限制，需提供清空上下文和历史删除，并在发送前做长度控制。
 - 流式输出必须能停止并回收请求，应用退出时不得留下后台请求或泄露输出。
+
+## 阶段③：能力协作（2026-08-31）
+
+- 系统提示由 `commands::chat_system_prompt` 动态构建：CHAT_SYSTEM_PROMPT +
+  能力清单 + 严格提议格式；空注册表不注入。
+- 标记协议在 `lib/chatProposal.ts`（提议/调用解析、结果识别、回灌截断），
+  ChatView 据此把对应消息渲染为确认卡片 / 结果块。
+- 执行复用 `run_script` / `view_doc` / `invoke_skill` 既有 IPC；无新增命令。
+
+## 阶段④：流式输出与请求级取消（2026-08-31，ADR-003）
+
+- `LlmClient::chat_messages_streaming`：blocking Read 逐块读 SSE（手写 data: 行解析），
+  每块检查取消表；`chat_completion_stream` 经 Tauri Channel 推 JSON 事件
+  （delta/done/error/cancelled）；`chat_cancel` 写取消表。
+- 全程无有效输出且未取消时回退非流式一次性返回（供应商兼容容错）。
+- ChatView 桌面走流式增量渲染（50ms 节流）；浏览器预览维持旧降级路径。
+
+## 阶段④ 余项：长上下文（2026-08-31，ADR-004）
+
+- `core::chat_context::fit_messages`：字符预算滑动窗口（默认 24000，
+  `contextBudgetChars` 配置链字段 / `ELWRIGHT_LLM_CONTEXT_BUDGET_CHARS` 环境变量可覆盖）。
+  最新消息必留（超预算中段截断留头尾），更早消息从新到旧整条保留、放不下整条丢弃。
+- `assemble_chat_messages`（commands.rs）为唯一收口：`chat_completion` 与
+  `chat_completion_stream` 同源，桌面/流式/非流式行为一致。
+- 预算按消息 content 字符数近似 token，零依赖纯本地（LLM 摘要压缩被 ADR-004 拒绝）。
+
+## 阶段④补丁联动（与代码浏览器阶段④同源）
+
+- `src/lib/patch.ts::extractFirstDiff` 在助手消息里识别 `\`\`\`diff` 围栏，仅作粗筛。
+- `ChatView.vue` 在识别到合法 diff 且最近打开过项目时露出「预览并应用到代码」按钮；
+  点击打开 `PatchPreviewDialog`（三栏预览 + 逐文件拒绝 + 确认写入）。
+- 调用链路：`Bridge.applyPatchPreview` → IPC `apply_patch_preview` →
+  `core::patch::build_preview`（仅解析，不写盘）；
+  用户确认后 `Bridge.applyPatchApply` → `apply_patch_apply` →
+  `core::patch::apply_preview`（路径黑名单 + 上下文校验 + 写文件 + 入快照）；
+  回滚走 `apply_patch_revert` + `core::patch::revert_snapshot_in`。
+- 快照存 `~/.elwright/code-browser/applied-patches.json`（按 code-browser 阶段④决策归属代码浏览器）；UI 暴露快照 id 用于一键回滚。
+- 边界：聊天页本身不持有任何补丁状态，只把识别结果交给 PatchPreviewDialog；不在 ChatView 直接落盘。

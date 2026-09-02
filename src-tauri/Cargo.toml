@@ -1,6 +1,6 @@
 [package]
 name = "elwright"
-version = "0.1.5"
+version = "0.1.13"
 edition = "2021"
 description = "个人工作流工具箱 · LLM 是增强不是地基"
 default-run = "elwright"
@@ -22,12 +22,40 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.13.4", features = ["blocking", "json"] }
+sha2 = "0.10"
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-dialog = "2.7.2"
 portable-pty = "0.8"
 parking_lot = "0.12"
 crossbeam-channel = "0.5"
+# Messaging phase 2 — Noise_XX 握手 + snow 自带 AEAD 数据通道（ADR-002）
+# ADR-002 原计划独立 secretstream，调研发现 snow TransportState 自带 ChaCha20-Poly1305 AEAD
+# + nonce 管理 + rekey，足够覆盖 ADR §D4 的全部安全需求（重放拒绝、顺序保证、显式 rekey）。
+# 实施期调整：去 dryoc 与 secretstream 单独封装，简化协议层；调整写入 ADR-002（实施偏差段）。
+snow = "0.9"
+ed25519-dalek = "2"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+rand = "0.8"
+hex = "0.4"
+thiserror = "1"
+# 消息中继连通性探测（测试连接按钮 / ew config messaging test）
+tokio = { version = "1", features = ["rt", "time"] }
+tokio-tungstenite = "0.24"
+# sync_peer 的 WS split/sink/stream
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
+# 本地静态密钥加密（发件箱/收件箱落盘，ADR-003 §D4）——RustCrypto 纯 Rust
+chacha20poly1305 = "0.10"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+# IPC 冒烟测试（tests/terminal_ipc.rs）用 mock runtime；
+# dev-dependencies 不进发布二进制
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+tempfile = "3"
+# 中继冒烟测试：起 relay 进程 + 两端 mock 客户端做 Noise 握手 + AEAD 收发
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time", "io-util"] }
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }

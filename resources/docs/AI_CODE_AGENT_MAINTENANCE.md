@@ -79,8 +79,13 @@ project/
 各文件职责：
 
 - `plan.md`：目标、范围、实现步骤、非目标、风险和验证方式
-- `checklist.md`：实现进度和完成项
-- `verification.md`：测试、静态检查、集成验证和结果
+- `checklist.md`：实现进度和完成项；每项必须带 `【自动化】` 或 `【手测】` 标记
+- `verification.md`：测试、静态检查、集成验证和结果；条目沿用同样的标记
+
+**标记约定**（2026-08 起，首个示范见 `enhancement-2026-08-quality-tier2-e2e`）：
+
+- `【自动化】`：可被命令行复跑。条目后附完整命令（如 `cargo test --test terminal_ipc`、`npm run test:e2e`），CI 已覆盖的注明 job 名。验证时优先跑命令并贴结果，不凭记忆勾选。
+- `【手测】`：只能人工执行（真机 GUI、真 LLM 连通等）。条目后附最短复现路径（入口 → 操作 → 预期）。Agent 完成后留给用户执行并在 verification 记录结果，不代填。
 - `rollout.md`：上线顺序、监控、灰度和回滚；风险低时可省略
 - `change-note.md`：问题、原因、修改范围、风险和影响
 - `behavior-change.md`：修改前后的业务规则、兼容策略和边界情况（仅中等修改）

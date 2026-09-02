@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
 import { resolvedThemeRef } from '../lib/theme'
+import { preferences } from '../lib/preferences'
 import type { TerminalSession } from '../lib/bridge'
 
 // xterm 主题跟随应用主题（system/light/dark 切换即生效）。
@@ -46,10 +47,10 @@ onMounted(() => {
   if (!containerRef.value) return
 
   term = new Terminal({
-    fontFamily: 'Menlo, Consolas, "Liberation Mono", monospace',
-    fontSize: 13,
+    fontFamily: preferences.value.terminalFontFamily,
+    fontSize: preferences.value.terminalFontSize,
     cursorBlink: true,
-    scrollback: 10000,
+    scrollback: preferences.value.terminalScrollback,
     convertEol: true,
     theme: XTERM_THEMES[resolvedThemeRef.value],
     // macOS/Win 上让 option/alt 作 Meta 键而非发送 ESC；此处保持默认 ESC 由用户按习惯
@@ -133,6 +134,15 @@ onMounted(() => {
 })
 
 // 主题切换：xterm options.theme 运行时可变，即时重绘
+watch(
+  () => [preferences.value.terminalFontFamily, preferences.value.terminalFontSize] as const,
+  ([family, size]) => {
+    if (!term) return
+    term.options.fontFamily = family
+    term.options.fontSize = size
+  },
+)
+
 watch(resolvedThemeRef, (theme) => {
   if (term) term.options.theme = { ...XTERM_THEMES[theme] }
 })

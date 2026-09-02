@@ -13,6 +13,10 @@ export interface Capability {
   degradeDoc?: string
   /** builtin = 内置注册表；custom = 用户叠加层（~/.elwright/）导入 */
   origin?: 'builtin' | 'custom'
+  /** 渐进式发布档位，1 为核心能力。 */
+  releaseTier?: number
+  /** 本地使用达到该次数后解锁；未配置表示按档位可见。 */
+  unlockAfterUses?: number
 }
 
 export interface ViewResult {
@@ -56,6 +60,21 @@ export interface LlmConfigInfo {
   userConfigPath?: string
 }
 
+/** 命名模型档案元信息（设置中心 模型设置下拉用） */
+export interface LlmProfileMeta {
+  name: string
+  active: boolean
+  source: 'user' | string
+}
+
+/** 前端写入/编辑档案用的完整结构（不含 active 状态） */
+export interface LlmProfileInput {
+  name: string
+  baseUrl: string
+  apiKey: string
+  model: string
+}
+
 /** 多轮对话消息（前端只传 user/assistant；system 由 Rust 侧固定前置） */
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -76,6 +95,183 @@ export interface ChatSession {
   createdAt: string
   updatedAt: string
   messages: ChatMessage[]
+}
+
+/** 工作工具栏 · Todo 条目（与 core::workbench::TodoItem 对应，camelCase） */
+export interface TodoItem {
+  id: number
+  text: string
+  done: boolean
+  createdAt: string
+  completedAt: string | null
+}
+
+/** 工作工具栏 · 今日记录日期（YYYY-MM-DD）列表 */
+export type NoteDate = string
+
+/** 消息传输 · 本地身份视图（不含密钥） */
+export interface LocalIdentity {
+  idBase32: string
+  signingPubHex: string
+  dhPubHex: string
+  identityDir: string
+}
+
+/** 消息传输 · v3 邀请 */
+export interface InviteInfo {
+  shortCode: string
+  qrPayload: string
+  expiresAt: number
+}
+
+/** 消息传输 · 联系人 */
+export interface Contact {
+  peerId: string
+  signingPubHex: string
+  dhPubHex: string
+  alias: string
+  addedAt: number
+}
+
+/** 消息传输 · 中继配置视图 */
+export interface MessagingConfig {
+  relayUrl: string
+}
+
+/** 消息传输 · 发送状态（queued = 已离线暂存待补投） */
+export interface SendStatus {
+  status: 'sent' | 'queued'
+  flushed: number
+  detail: string
+}
+
+/** 消息传输 · 收件箱条目（已解密） */
+export interface InboxItem {
+  id: number
+  peerId: string
+  text: string
+  receivedAt: number
+}
+
+export interface InboxPoll {
+  entries: InboxItem[]
+  maxId: number
+}
+
+/** 脑图节点（与 core::mindmap::MindNode 对应，camelCase） */
+export interface MindNode {
+  id: string
+  text: string
+  parent: string | null
+  collapsed: boolean
+  convertedTodo: boolean
+}
+
+export interface MindmapDoc {
+  id: string
+  title: string
+  nodes: MindNode[]
+  updatedAt: number
+}
+
+export interface MindmapSummary {
+  id: string
+  title: string
+  updatedAt: number
+  nodeCount: number
+}
+
+export interface MindmapListResult {
+  maps: MindmapSummary[]
+  corrupt: string[]
+}
+
+export interface WorkspaceFolder {
+  id: string
+  name: string
+  parentId: string | null
+}
+
+export interface WorkspaceResource {
+  id: string
+  title: string
+  kind: 'url' | 'path' | 'capability' | 'note' | 'app' | string
+  value: string
+  folderId: string | null
+  note: string
+  launchArgs: string[]
+  icon: string
+}
+
+export interface WorkspaceTopic {
+  id: string
+  title: string
+  question: string
+  resourceIds: string[]
+  report: string
+  updatedAt: string
+}
+
+export interface WorkspaceData {
+  folders: WorkspaceFolder[]
+  resources: WorkspaceResource[]
+  topics: WorkspaceTopic[]
+}
+
+export interface TopicReportResult {
+  source: 'llm' | 'offline' | string
+  content: string
+  note?: string
+}
+
+
+// ---- 代码浏览器阶段①（feature-2026-08-code-browser-phase1）----
+
+/** 目录树条目。 */
+export interface CodeTreeEntry {
+  path: string
+  name: string
+  kind: 'dir' | 'file'
+  size: number
+  readable: boolean
+  sensitive: boolean
+}
+
+/** 打开的代码文档。 */
+export interface CodeDocument {
+  path: string
+  name: string
+  language: string
+  size: number
+  truncated: boolean
+  content: string
+  sensitive: boolean
+  notice: string
+}
+
+/** 搜索命中。 */
+export interface CodeSearchHit {
+  path: string
+  name: string
+  line: number
+  snippet: string
+}
+
+/** 轻量符号命中。 */
+export interface CodeSymbolHit {
+  name: string
+  kind: 'class' | 'interface' | 'enum' | 'record' | 'method' | string
+  path: string
+  line: number
+  declaration: string
+}
+
+/** 最近项目 / 最近文件 / 收藏 / 书签持久化结构。 */
+export interface CodeBrowserRecent {
+  projects: { name: string; rootPath: string; lastOpenedAt: number }[]
+  files: { projectRoot: string; path: string; lastOpenedAt: number }[]
+  favorites: { projectRoot: string; path: string }[]
+  bookmarks: { projectRoot: string; path: string; line: number; label: string }[]
 }
 
 /**
@@ -118,6 +314,16 @@ export interface Bridge {
   setLlmConfig(baseUrl: string, apiKey: string | null, model: string): Promise<LlmConfigInfo>
   /** 用表单当前值测试连接（未保存也可测）。 */
   testLlmConnection(baseUrl: string, apiKey: string, model: string): Promise<string>
+  /** 列出全部命名档案（Q19 模型设置下拉用）。 */
+  listLlmProfiles(): Promise<LlmProfileMeta[]>
+  /** 当前激活的档案名；null = 走 flat 字段。 */
+  getActiveLlmProfile(): Promise<string | null>
+  /** 切换激活档案（不存在时拒绝）。 */
+  setActiveLlmProfile(name: string): Promise<void>
+  /** 新建/覆盖档案（name 校验由后端负责）。 */
+  saveLlmProfile(profile: LlmProfileInput): Promise<void>
+  /** 删除档案（若当前激活则自动回退 flat）。 */
+  deleteLlmProfile(name: string): Promise<void>
   /**
    * 多轮 AI 对话（非流式）：发送 user/assistant 历史，返回 assistant 回复。
    * system 提示词由后端固定前置；未配置/请求失败抛中文错误（对话无降级 SOP）。
@@ -131,6 +337,74 @@ export interface Bridge {
   saveChatSession(id: string, title: string, messages: ChatMessage[]): Promise<void>
   /** 删除会话（幂等）。 */
   deleteChatSession(id: string): Promise<void>
+  // ---- 工作工具栏（Todo + 今日记录）----
+  /** 全量 Todo（创建序）。 */
+  todoList(): Promise<TodoItem[]>
+  /** 新增一条，返回完整条目。 */
+  todoAdd(text: string): Promise<TodoItem>
+  /** 勾选/取消勾选。 */
+  todoToggle(id: number): Promise<TodoItem>
+  /** 删除。 */
+  todoRemove(id: number): Promise<void>
+  /** 读某日记录；无记录返回 null。 */
+  noteGet(date: string): Promise<string | null>
+  /** 保存某日记录（整文件覆盖）。 */
+  noteSave(date: string, content: string): Promise<void>
+  /** 已有记录的日期列表（倒序）。 */
+  noteList(): Promise<string[]>,
+  loadWorkspace(): Promise<WorkspaceData>
+  createWorkspaceFolder(name: string, parentId: string | null): Promise<WorkspaceFolder>
+  deleteWorkspaceFolder(id: string): Promise<void>
+  /** 选择一个本地文件，桌面模式返回绝对路径；浏览器预览返回 null。 */
+  chooseWorkspaceFile(): Promise<string | null>
+  createWorkspaceResource(resource: Omit<WorkspaceResource, 'id'>): Promise<WorkspaceResource>
+  deleteWorkspaceResource(id: string): Promise<void>
+  launchWorkspaceApp(id: string): Promise<string>
+  createWorkspaceTopic(title: string, question: string): Promise<WorkspaceTopic>
+  updateWorkspaceTopic(topic: WorkspaceTopic): Promise<void>
+  deleteWorkspaceTopic(id: string): Promise<void>
+  generateTopicReport(id: string): Promise<TopicReportResult>
+  // ---- 代码浏览器（只读；浏览器预览端明确降级，不伪造文件访问）----
+  /** 打开系统目录选择器选项目根；浏览器预览返回 null 并提示。 */
+  chooseProjectDirectory(): Promise<string | null>
+  codeBrowserTree(projectRoot: string, rel: string): Promise<CodeTreeEntry[]>
+  codeBrowserRead(projectRoot: string, rel: string): Promise<CodeDocument>
+  codeBrowserSearch(projectRoot: string, query: string, mode: 'filename' | 'content'): Promise<CodeSearchHit[]>
+  codeBrowserScanSymbols(projectRoot: string): Promise<CodeSymbolHit[]>
+  codeBrowserRecentLoad(): Promise<CodeBrowserRecent>
+  /** 记录一次打开（项目 / 项目+文件），返回更新后的最近列表。 */
+  codeBrowserRecentOpen(projectRoot: string, rel: string): Promise<CodeBrowserRecent>
+  /** 删除一条最近项目（含其名下最近文件；收藏/书签保留），返回更新后的最近列表。 */
+  codeBrowserRecentRemoveProject(projectRoot: string): Promise<CodeBrowserRecent>
+  /** 流式对话（阶段④，仅桌面）：事件 type = delta | done | error | cancelled。 */
+  chatCompletionStream(
+    requestId: number,
+    messages: ChatMessage[],
+    onEvent: (e: { type: 'delta' | 'done' | 'error' | 'cancelled'; text?: string; message?: string }) => void,
+  ): Promise<void>
+  /** 取消在途流式请求（后端中断读取）。 */
+  chatCancel(requestId: number): Promise<void>
+  /** 切换收藏文件，返回更新后的收藏列表。 */
+  codeBrowserFavoritesToggle(projectRoot: string, rel: string): Promise<CodeBrowserRecent['favorites']>
+  /** 切换代码书签（同路径同行去重），返回更新后的书签列表。 */
+  codeBrowserBookmarksToggle(projectRoot: string, rel: string, line: number, label: string): Promise<CodeBrowserRecent['bookmarks']>
+  /**
+   * 解析 unified diff 并预览（不写文件）。warnings 含敏感路径拒收等提示。
+   */
+  applyPatchPreview(projectRoot: string, patchText: string): Promise<unknown>
+  /**
+   * 应用预览到项目内文件。previews 由前端三栏对话框逐 hunk 选择后回传。
+   * 返回 { applied, skipped, snapshot_id }。
+   */
+  applyPatchApply(projectRoot: string, previews: unknown[]): Promise<unknown>
+  /**
+   * 撤销一次已应用补丁：按快照 ID 写回原内容。
+   */
+  applyPatchRevert(projectRoot: string, snapshotId: string): Promise<unknown>
+  /**
+   * 列出当前项目所有未撤销快照（UI 撤销列表用）。
+   */
+  applyPatchSnapshots(projectRoot: string): Promise<unknown[]>
   /**
    * 打开一个新终端会话。返回一个 TerminalSession：
    * - `onOutput` 接收 PTY 字节（原始 bytes，TUI 程序可能部分序列）
@@ -141,6 +415,42 @@ export interface Bridge {
   openTerminal(options?: { cwd?: string; shell?: string }): Promise<TerminalSession>
   /** 用户主目录（新终端默认 cwd）。浏览器预览返回 null。 */
   homeDir(): Promise<string | null>
+  // ---- 消息传输（phase 2，仅桌面；浏览器预览端明确降级，不发起网络）----
+  /** 本地身份（首次访问自动生成）；null = 主目录不可定位。 */
+  getIdentity(): Promise<LocalIdentity | null>
+  /** 生成 v3 邀请（短码 + 二维码原文）。ttl 缺省 300 秒。 */
+  createInvite(ttlSecs?: number): Promise<InviteInfo>
+  /** 校验对端 v3 邀请原文，返回联系人视图（不落盘，落盘走 addContact）。 */
+  acceptInvite(qrPayload: string): Promise<{ inviterId: string; signingPubHex: string; dhPubHex: string }>
+  /** 读消息中继 URL（空串 = 未配置）。 */
+  getMessagingConfig(): Promise<MessagingConfig>
+  /** 保存消息中继 URL（空串清除；非法值拒绝）。 */
+  setMessagingRelayUrl(url: string): Promise<MessagingConfig>
+  /** 探测中继连通性（WS 升级即断开，5 秒超时）。url 缺省用已保存配置。 */
+  testMessagingRelay(url?: string): Promise<string>
+  /** 联系人列表（按 ID 排序）。 */
+  listContacts(): Promise<Contact[]>
+  /** 校验 v3 邀请原文并落盘为联系人。 */
+  addContact(qrPayload: string, alias: string): Promise<Contact>
+  /** 删除联系人。 */
+  removeContact(peerId: string): Promise<void>
+  /** 发送文本：先入离线发件箱再当场投递；status=queued 表示已暂存待补投。 */
+  sendMessage(peerId: string, text: string): Promise<SendStatus>
+  /** 增量拉取收件箱（sinceId 之后）。 */
+  pollInbox(sinceId: number): Promise<InboxPoll>
+  /** 启动后台收件/补投 listener（幂等）。 */
+  startMessagingListener(): Promise<boolean>
+  // ---- 脑图（mindmap MVP，仅桌面）----
+  /** 列出全部脑图（按更新时间倒序；corrupt 为损坏文件名列表）。 */
+  listMindmaps(): Promise<MindmapListResult>
+  /** 新建脑图（标题 ≤80 字符）。 */
+  createMindmap(title: string): Promise<MindmapDoc>
+  /** 加载单张脑图。 */
+  loadMindmap(id: string): Promise<MindmapDoc>
+  /** 全量保存（原子写）。 */
+  saveMindmap(doc: MindmapDoc): Promise<MindmapDoc>
+  /** 删除脑图。 */
+  deleteMindmap(id: string): Promise<void>
 }
 
 const browserBridge: Bridge = {
@@ -246,6 +556,23 @@ const browserBridge: Bridge = {
 
   async setLlmConfig() {
     throw new Error('【预览模式】浏览器无法写入用户配置。\n真实配置请用桌面应用的「模型设置」或 CLI：ew config set')
+  },
+
+  // Q19 模型档案（预览模式全部抛明确降级）
+  async listLlmProfiles() {
+    throw new Error('【预览模式】浏览器无法读取模型档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile list')
+  },
+  async getActiveLlmProfile() {
+    throw new Error('【预览模式】浏览器无法读取激活档案。\n真实操作请用桌面应用的「模型设置」')
+  },
+  async setActiveLlmProfile() {
+    throw new Error('【预览模式】浏览器无法切换档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile use <name>')
+  },
+  async saveLlmProfile() {
+    throw new Error('【预览模式】浏览器无法保存档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile add')
+  },
+  async deleteLlmProfile() {
+    throw new Error('【预览模式】浏览器无法删除档案。\n真实操作请用桌面应用的「模型设置」或 CLI：ew config profile remove')
   },  async testLlmConnection(_baseUrl: string, _apiKey: string, _model: string) {
     // 连接测试本质是普通 HTTP POST，浏览器可直接发（CORS 由端点决定）
     const res = await fetch(`${_baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -286,6 +613,232 @@ const browserBridge: Bridge = {
     // 同上，静默成功
   },
 
+  // 工作工具栏：进程内模拟存储——UI 可在浏览器预览完整体验，
+  // 但不持久化（刷新即失），真实数据走桌面壳 IPC 写 ~/.elwright/。
+  async todoList() {
+    return [...browserWorkbenchTodos]
+  },
+
+  async todoAdd(text) {
+    const item: TodoItem = {
+      id: browserWorkbenchNextId++,
+      text,
+      done: false,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    }
+    browserWorkbenchTodos.push(item)
+    return { ...item }
+  },
+
+  async todoToggle(id) {
+    const item = browserWorkbenchTodos.find((t) => t.id === id)
+    if (!item) throw new Error(`Todo ${id} 不存在或已删除`)
+    item.done = !item.done
+    item.completedAt = item.done ? new Date().toISOString() : null
+    return { ...item }
+  },
+
+  async todoRemove(id) {
+    const idx = browserWorkbenchTodos.findIndex((t) => t.id === id)
+    if (idx === -1) throw new Error(`Todo ${id} 不存在或已删除`)
+    browserWorkbenchTodos.splice(idx, 1)
+  },
+
+  async noteGet(date) {
+    return browserWorkbenchNotes.get(date) ?? null
+  },
+
+  async noteSave(date, content) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`日期格式无效（应为 YYYY-MM-DD）: ${date}`)
+    browserWorkbenchNotes.set(date, content)
+  },
+
+  async noteList() {
+    return [...browserWorkbenchNotes.keys()].sort().reverse()
+  },
+
+  async loadWorkspace() {
+    const raw = localStorage.getItem('elwright-workspace')
+    if (!raw) return { folders: [], resources: [], topics: [] }
+    try {
+      const data = JSON.parse(raw) as WorkspaceData
+      data.folders ??= []
+      data.resources = (data.resources ?? []).map((resource) => ({
+        ...resource,
+        folderId: resource.folderId ?? null,
+        note: resource.note ?? '',
+        launchArgs: resource.launchArgs ?? [],
+        icon: resource.icon ?? '',
+      }))
+      data.topics = (data.topics ?? []).map((topic) => ({
+        ...topic,
+        resourceIds: topic.resourceIds ?? [],
+        report: topic.report ?? '',
+      }))
+      return data
+    } catch {
+      return { folders: [], resources: [], topics: [] }
+    }
+  },
+
+  async createWorkspaceFolder(name, parentId) {
+    const data = await this.loadWorkspace()
+    let depth = 1
+    let parent = parentId
+    while (parent) {
+      const folder = data.folders.find((f) => f.id === parent)
+      if (!folder) throw new Error('父文件夹不存在')
+      depth += 1
+      parent = folder.parentId
+    }
+    if (depth > 3) throw new Error('文件夹最多支持三层嵌套')
+    const folder = { id: `folder-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: name.trim(), parentId }
+    if (!folder.name) throw new Error('文件夹名称不能为空')
+    data.folders.push(folder)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+    return folder
+  },
+
+  async deleteWorkspaceFolder(id) {
+    const data = await this.loadWorkspace()
+    const removed = new Set([id])
+    let changed = true
+    while (changed) {
+      changed = false
+      data.folders.forEach((f) => { if (f.parentId && removed.has(f.parentId) && !removed.has(f.id)) { removed.add(f.id); changed = true } })
+    }
+    data.folders = data.folders.filter((f) => !removed.has(f.id))
+    data.resources.forEach((r) => { if (r.folderId && removed.has(r.folderId)) r.folderId = null })
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async chooseWorkspaceFile() {
+    return null
+  },
+
+  async chooseProjectDirectory() {
+    return null
+  },
+
+  async codeBrowserTree() {
+    throw new Error('【预览模式】浏览器无法读取本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserRead() {
+    throw new Error('【预览模式】浏览器无法读取本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserSearch() {
+    throw new Error('【预览模式】浏览器无法搜索本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserScanSymbols() {
+    throw new Error('【预览模式】浏览器无法扫描本机项目文件，请在桌面应用中使用代码浏览器。')
+  },
+
+  async codeBrowserRecentLoad() {
+    return { projects: [], files: [] }
+  },
+
+  async codeBrowserRecentOpen() {
+    // 浏览器端不落盘，返回空记录，不伪造持久化。
+    return { projects: [], files: [], favorites: [], bookmarks: [] }
+  },
+
+  async codeBrowserRecentRemoveProject() {
+    // 浏览器端最近列表本为空，删除是无害空操作。
+    return { projects: [], files: [], favorites: [], bookmarks: [] }
+  },
+
+  async chatCompletionStream() {
+    throw new Error('【预览模式】AI 对话仅在桌面应用可用。')
+  },
+
+  async chatCancel() {
+    // 浏览器无在途桌面请求，静默忽略
+  },
+
+  async codeBrowserFavoritesToggle() {
+    throw new Error('【预览模式】收藏需桌面端持久化，请在桌面应用中使用。')
+  },
+
+  async codeBrowserBookmarksToggle() {
+    throw new Error('【预览模式】书签需桌面端持久化，请在桌面应用中使用。')
+  },
+
+  async applyPatchPreview() {
+    throw new Error('【预览模式】补丁预览需桌面端，请在桌面应用中使用。')
+  },
+
+  async applyPatchApply() {
+    throw new Error('【预览模式】补丁应用需桌面端，请在桌面应用中使用。')
+  },
+
+  async applyPatchRevert() {
+    throw new Error('【预览模式】补丁撤销需桌面端，请在桌面应用中使用。')
+  },
+
+  async applyPatchSnapshots() {
+    return []
+  },
+
+  async createWorkspaceResource(resource) {
+    const data = await this.loadWorkspace()
+    if (!resource.title.trim() || !resource.value.trim()) throw new Error('资源标题和内容不能为空')
+    if (resource.folderId && !data.folders.some((f) => f.id === resource.folderId)) throw new Error('目标文件夹不存在')
+    const created = { ...resource, id: `resource-${Date.now()}-${Math.random().toString(16).slice(2)}` }
+    data.resources.push(created)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+    return created
+  },
+
+  async deleteWorkspaceResource(id) {
+    const data = await this.loadWorkspace()
+    data.resources = data.resources.filter((r) => r.id !== id)
+    data.topics.forEach((t) => { t.resourceIds = t.resourceIds.filter((rid) => rid !== id) })
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async launchWorkspaceApp() {
+    throw new Error('【预览模式】浏览器无法启动本机软件，请在桌面应用中打开快捷方式。')
+  },
+
+  async createWorkspaceTopic(title, question) {
+    const data = await this.loadWorkspace()
+    if (!title.trim()) throw new Error('课题名称不能为空')
+    const topic = { id: `topic-${Date.now()}-${Math.random().toString(16).slice(2)}`, title: title.trim(), question: question.trim(), resourceIds: [], report: '', updatedAt: new Date().toISOString() }
+    data.topics.push(topic)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+    return topic
+  },
+
+  async updateWorkspaceTopic(topic) {
+    const data = await this.loadWorkspace()
+    const index = data.topics.findIndex((t) => t.id === topic.id)
+    if (index < 0) throw new Error('课题不存在')
+    data.topics[index] = { ...topic, updatedAt: new Date().toISOString() }
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async deleteWorkspaceTopic(id) {
+    const data = await this.loadWorkspace()
+    data.topics = data.topics.filter((t) => t.id !== id)
+    localStorage.setItem('elwright-workspace', JSON.stringify(data))
+  },
+
+  async generateTopicReport(id) {
+    const data = await this.loadWorkspace()
+    const topic = data.topics.find((t) => t.id === id)
+    if (!topic) throw new Error('课题不存在')
+    const resources = topic.resourceIds.map((rid) => data.resources.find((r) => r.id === rid)).filter(Boolean) as WorkspaceResource[]
+    const source = resources.map((r) => `### ${r.title} [${r.kind}]\n${r.value}${r.note ? `\n备注：${r.note}` : ''}`).join('\n\n')
+    const content = `# ${topic.title}\n\n## 研究问题\n${topic.question || '（未填写）'}\n\n## 当前资料\n${source || '暂无已关联资源。'}\n\n## 分析框架\n1. 明确核心概念与边界。\n2. 对照资料中的事实、示例和限制。\n3. 将结论拆解为可验证的实践步骤。\n\n## 待补充\n- 为每个关键判断补充原始出处与反例。\n- 用实际案例验证结论，并记录版本与环境。\n\n> 这是预览模式下的离线报告草稿。`
+    topic.report = content
+    await this.updateWorkspaceTopic(topic)
+    return { source: 'offline', content, note: '【预览模式】未接 LLM，已生成离线报告草稿。' }
+  },
+
   async openTerminal() {
     throw new Error(
       '【预览模式】浏览器无法启动 PTY。\n真实终端请用桌面应用。',
@@ -296,7 +849,65 @@ const browserBridge: Bridge = {
     // 浏览器预览无终端面板，不会走到这里；返回 null 保持接口完备
     return null
   },
+
+  // ---- 消息传输（phase 2）：预览模式统一明确降级——不读本地身份、不发起网络 ----
+  async getIdentity() {
+    throw new Error('【预览模式】消息传输仅桌面端可用（浏览器不读写本地身份）。')
+  },
+  async createInvite() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async acceptInvite() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async getMessagingConfig() {
+    throw new Error('【预览模式】消息中继配置仅桌面端可读写。')
+  },
+  async setMessagingRelayUrl() {
+    throw new Error('【预览模式】消息中继配置仅桌面端可读写。')
+  },
+  async testMessagingRelay() {
+    throw new Error('【预览模式】中继连通性测试仅桌面端可用。')
+  },
+  async listContacts() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async addContact() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async removeContact() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async sendMessage() {
+    throw new Error('【预览模式】消息发送仅桌面端可用（浏览器不发起网络连接）。')
+  },
+  async pollInbox() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async startMessagingListener() {
+    throw new Error('【预览模式】消息传输仅桌面端可用。')
+  },
+  async listMindmaps() {
+    throw new Error('【预览模式】脑图仅桌面端可用（浏览器不读写本机文件）。')
+  },
+  async createMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
+  async loadMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
+  async saveMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
+  async deleteMindmap() {
+    throw new Error('【预览模式】脑图仅桌面端可用。')
+  },
 }
+
+// browserBridge 工作工具栏的进程内模拟存储（模块级，刷新即重置）
+const browserWorkbenchTodos: TodoItem[] = []
+let browserWorkbenchNextId = 1
+const browserWorkbenchNotes = new Map<string, string>()
 
 async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/core')
@@ -436,6 +1047,36 @@ const tauriBridge: Bridge = {
     return tauriInvoke<string>('test_llm_connection', { baseUrl, apiKey, model })
   },
 
+  // Q19 模型档案
+  async listLlmProfiles() {
+    const raw = await tauriInvoke<Array<Record<string, unknown>>>('llm_list_profiles')
+    return raw.map((r) => ({
+      name: String(r.name ?? ''),
+      active: Boolean(r.active),
+      source: String(r.source ?? 'user'),
+    }))
+  },
+  async getActiveLlmProfile() {
+    const raw = await tauriInvoke<string | null>('llm_get_active_profile')
+    return raw ?? null
+  },
+  async setActiveLlmProfile(name) {
+    await tauriInvoke<void>('llm_set_active_profile', { name })
+  },
+  async saveLlmProfile(profile) {
+    await tauriInvoke<void>('llm_save_profile', {
+      profile: {
+        name: profile.name,
+        base_url: profile.baseUrl,
+        api_key: profile.apiKey,
+        model: profile.model,
+      },
+    })
+  },
+  async deleteLlmProfile(name) {
+    await tauriInvoke<void>('llm_delete_profile', { name })
+  },
+
   async chat(messages) {
     return tauriInvoke<string>('chat_completion', { messages })
   },
@@ -473,6 +1114,155 @@ const tauriBridge: Bridge = {
 
   async deleteChatSession(id) {
     await tauriInvoke<void>('chat_delete_session', { id })
+  },
+
+  // 工作工具栏：真实 IPC（core::workbench，camelCase 自动对齐）
+  async todoList() {
+    return tauriInvoke<TodoItem[]>('todo_list')
+  },
+
+  async todoAdd(text) {
+    return tauriInvoke<TodoItem>('todo_add', { text })
+  },
+
+  async todoToggle(id) {
+    return tauriInvoke<TodoItem>('todo_toggle', { id })
+  },
+
+  async todoRemove(id) {
+    await tauriInvoke<void>('todo_remove', { id })
+  },
+
+  async noteGet(date) {
+    return tauriInvoke<string | null>('note_get', { date })
+  },
+
+  async noteSave(date, content) {
+    await tauriInvoke<void>('note_save', { date, content })
+  },
+
+  async noteList() {
+    return tauriInvoke<string[]>('note_list')
+  },
+
+  loadWorkspace() {
+    return tauriInvoke<WorkspaceData>('workspace_load')
+  },
+
+  createWorkspaceFolder(name, parentId) {
+    return tauriInvoke<WorkspaceFolder>('workspace_create_folder', { name, parentId })
+  },
+
+  async deleteWorkspaceFolder(id) {
+    await tauriInvoke<void>('workspace_delete_folder', { id })
+  },
+
+  async chooseWorkspaceFile() {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const path = await open({ title: '选择要收藏的本地文件', multiple: false, directory: false })
+    return typeof path === 'string' ? path : null
+  },
+
+  async chooseProjectDirectory() {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const path = await open({ title: '选择要浏览的项目目录', multiple: false, directory: true })
+    return typeof path === 'string' ? path : null
+  },
+
+  codeBrowserTree(projectRoot, rel) {
+    return tauriInvoke<CodeTreeEntry[]>('code_browser_tree', { projectRoot, rel })
+  },
+
+  codeBrowserRead(projectRoot, rel) {
+    return tauriInvoke<CodeDocument>('code_browser_read', { projectRoot, rel })
+  },
+
+  codeBrowserSearch(projectRoot, query, mode) {
+    return tauriInvoke<CodeSearchHit[]>('code_browser_search', { projectRoot, query, mode })
+  },
+
+  codeBrowserScanSymbols(projectRoot) {
+    return tauriInvoke<CodeSymbolHit[]>('code_browser_scan_symbols', { projectRoot })
+  },
+
+  codeBrowserRecentLoad() {
+    return tauriInvoke<CodeBrowserRecent>('code_browser_recent_load', {})
+  },
+
+  codeBrowserRecentOpen(projectRoot, rel) {
+    return tauriInvoke<CodeBrowserRecent>('code_browser_recent_open', { projectRoot, rel })
+  },
+
+  codeBrowserRecentRemoveProject(projectRoot) {
+    return tauriInvoke<CodeBrowserRecent>('code_browser_recent_remove_project', { projectRoot })
+  },
+
+  async chatCompletionStream(requestId, messages, onEvent) {
+    const { Channel, invoke } = await import('@tauri-apps/api/core')
+    const channel = new Channel<string>((raw) => {
+      try {
+        onEvent(JSON.parse(typeof raw === 'string' ? raw : String(raw)))
+      } catch {
+        // 非 JSON 事件忽略
+      }
+    })
+    await invoke('chat_completion_stream', { requestId, messages, channel })
+  },
+
+  async chatCancel(requestId) {
+    await tauriInvoke<void>('chat_cancel', { requestId })
+  },
+
+  codeBrowserFavoritesToggle(projectRoot, rel) {
+    return tauriInvoke<CodeBrowserRecent['favorites']>('code_browser_favorites_toggle', { projectRoot, rel })
+  },
+
+  codeBrowserBookmarksToggle(projectRoot, rel, line, label) {
+    return tauriInvoke<CodeBrowserRecent['bookmarks']>('code_browser_bookmarks_toggle', { projectRoot, rel, line, label })
+  },
+
+  applyPatchPreview(projectRoot, patchText) {
+    return tauriInvoke<unknown>('apply_patch_preview', { projectRoot, patchText })
+  },
+
+  applyPatchApply(projectRoot, previews) {
+    return tauriInvoke<unknown>('apply_patch_apply', { projectRoot, previews })
+  },
+
+  applyPatchRevert(projectRoot, snapshotId) {
+    return tauriInvoke<unknown>('apply_patch_revert', { projectRoot, snapshotId })
+  },
+
+  applyPatchSnapshots(projectRoot) {
+    return tauriInvoke<unknown[]>('apply_patch_snapshots', { projectRoot })
+  },
+
+  createWorkspaceResource(resource) {
+    return tauriInvoke<WorkspaceResource>('workspace_create_resource', { resource })
+  },
+
+  async deleteWorkspaceResource(id) {
+    await tauriInvoke<void>('workspace_delete_resource', { id })
+  },
+
+  launchWorkspaceApp(id) {
+    return tauriInvoke<string>('workspace_launch_app', { id })
+  },
+
+  createWorkspaceTopic(title, question) {
+    return tauriInvoke<WorkspaceTopic>('workspace_create_topic', { title, question })
+  },
+
+  async updateWorkspaceTopic(topic) {
+    await tauriInvoke<void>('workspace_update_topic', { topic })
+  },
+
+  async deleteWorkspaceTopic(id) {
+    await tauriInvoke<void>('workspace_delete_topic', { id })
+  },
+
+  generateTopicReport(id) {
+    return tauriInvoke<TopicReportResult>('workspace_generate_report', { id })
   },
 
   async openTerminal(options) {
@@ -543,6 +1333,65 @@ const tauriBridge: Bridge = {
   async homeDir() {
     const { homeDir } = await import('@tauri-apps/api/path')
     return homeDir()
+  },
+
+  // ---- 消息传输（phase 2）----
+  async getIdentity() {
+    return tauriInvoke<LocalIdentity | null>('identity_get', {})
+  },
+  async createInvite(ttlSecs?: number) {
+    return tauriInvoke<InviteInfo>('identity_create_invite', { ttlSecs: ttlSecs ?? null })
+  },
+  async acceptInvite(qrPayload: string) {
+    return tauriInvoke<{ inviterId: string; signingPubHex: string; dhPubHex: string }>(
+      'identity_accept_invite',
+      { qrPayload },
+    )
+  },
+  async getMessagingConfig() {
+    return tauriInvoke<MessagingConfig>('get_messaging_config', {})
+  },
+  async setMessagingRelayUrl(url: string) {
+    return tauriInvoke<MessagingConfig>('set_messaging_relay_url', { url })
+  },
+  async testMessagingRelay(url?: string) {
+    return tauriInvoke<string>('test_messaging_relay', { url: url ?? null })
+  },
+  async listContacts() {
+    return tauriInvoke<Contact[]>('contacts_list', {})
+  },
+  async addContact(qrPayload: string, alias: string) {
+    return tauriInvoke<Contact>('contacts_add', { qrPayload, alias })
+  },
+  async removeContact(peerId: string) {
+    await tauriInvoke<void>('contacts_remove', { peerId })
+  },
+  async sendMessage(peerId: string, text: string) {
+    return tauriInvoke<SendStatus>('messaging_send', { peerId, text })
+  },
+  async pollInbox(sinceId: number) {
+    return tauriInvoke<InboxPoll>('messaging_poll_inbox', { sinceId })
+  },
+  async startMessagingListener() {
+    return tauriInvoke<boolean>('messaging_start_listener', {})
+  },
+
+  // ---- 脑图 ----
+  async listMindmaps() {
+    const [maps, corrupt] = await tauriInvoke<[MindmapSummary[], string[]]>('mindmap_list', {})
+    return { maps, corrupt }
+  },
+  async createMindmap(title: string) {
+    return tauriInvoke<MindmapDoc>('mindmap_create', { title })
+  },
+  async loadMindmap(id: string) {
+    return tauriInvoke<MindmapDoc>('mindmap_load', { id })
+  },
+  async saveMindmap(doc: MindmapDoc) {
+    return tauriInvoke<MindmapDoc>('mindmap_save', { doc })
+  },
+  async deleteMindmap(id: string) {
+    await tauriInvoke<void>('mindmap_delete', { id })
   },
 }
 
