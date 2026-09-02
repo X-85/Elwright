@@ -563,3 +563,9 @@
 - 本轮方案：纯盘点无代码变更。候选：①工程图 MVP 立项（流程图可视化编辑 + Mermaid 生成/导出 + Todo 关联；前置评估 Mermaid bundle 体积与画布编辑器范围）；②i18n 第二批（其余视图壳层 + 能力类型/档位枚举标签，轻量可插队）；③消息③实时协作空间（大阶段，建议真机点验②后再启）；④用户动作：真机点验 v0.1.13（消息②互发/离线补投 + 脑图建图/转 Todo/重启持久化 + msi 幂等升级 + 历史 PENDING 清单）；⑤待决策：2a55766 误收的 TOOL-ROADMAP 文档保留或拆出。
 - 实际结果：已给出建议排序。
 - 下一步：等用户定向。
+
+### Q39 | 第1次处理（全量代码同步 GitHub，公司机协同准备）
+- 问题或新增信息：用户要把全部代码提交到 GitHub，计划在公司以 main 分支同步开发。
+- 本轮方案：核对工作区——无未推送提交（origin/main..HEAD 空），唯一残留 `.zcode/`（ZCode 会话产物）加入 .gitignore 不入库；提交推送后校验 HEAD == origin/main（24cdaa3）。
+- 实际结果：已验证——远端与本地一致，main 分支最新提交 CI 通过（功能性代码已在 0d84dce 前续 run 全绿）。公司机同步路径：git pull → src/ npm install → src-tauri cargo（Windows GNU 工具链 `cargo +stable-x86_64-pc-windows-gnu`，需 D:\mingw64\bin 在 PATH；cargo 代理在用户级 ~/.cargo/config.toml 不随仓库）。
+- 下一步：公司机拉取后如遇 GNU 工具链编译问题按 AGENTS.md §构建与运行排查；真机点验 v0.1.13 延续 PENDING。
