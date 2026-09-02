@@ -31,3 +31,5 @@ src/playwright-report/
 
 # Vitest coverage 输出（HTML 报告含绝对路径，不入库）
 src/coverage/
+# ZCode 会话工具产物（本机路径/计划文件，不入库）
+.zcode/
