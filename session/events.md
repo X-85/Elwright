@@ -557,3 +557,9 @@
 - 本轮方案：选**脑图先行**（ADR-001 已记录弃选理由：大纲树数据结构/交互比自由画布+Mermaid 小一个量级，可一次交付闭环；工程图顺延独立批次无返工风险）。ADR-001 五决定：D1 脑图先行 / D2 大纲式树形（弃选放射画布）/ D3 存储走 Rust core（~/.elwright/mindmaps/ 一图一文件原子写，弃选 localStorage）/ D4 Todo 双向关联最小实现 / D5 LLM 零依赖（AI 草稿后置）。实施：S1 core::mindmap——扁平 Vec + parent 指针、**数组序 = DFS 序（子树连续）不变量**，六个树操作全部维持；环防御；损坏文件容忍；id 消毒防路径穿越；5 IPC。S2 前端——lib/mindmap.ts 镜像纯函数（vitest 同套断言）+ MindmapView.vue（键盘流 Enter/Tab/⌘↑↓、折叠、节点转 Todo 打标记、Todo 导入、400ms 防抖自动保存）+ App 导航 + StartupView 体系纳入。
 - 实际结果：已验证——135 lib（mindmap 5）+ vitest 86（mindmap 5）+ e2e 12（预览降级守卫）+ clippy 0 + fmt 全绿。文档四件套（README/behavior/architecture/changelog）+ verification + ROADMAP 标记完成。修 3 个过程错误：Rust 测试两处断言笔误（深度预期/节点数）、clippy identical-blocks（move_vertical 分支合并）、lucide import 逗号笔误。
 - 下一步：真机点验（建图/转 Todo/重启持久化）由用户执行；工程图 MVP 待立项（Mermaid bundle 体积评估前置）。
+
+### Q38/Q39 | 附注（路线图咨询：v0.1.13 + 脑图 MVP 之后的选项）
+- 问题或新增信息：用户问下一步可以做什么。
+- 本轮方案：纯盘点无代码变更。候选：①工程图 MVP 立项（流程图可视化编辑 + Mermaid 生成/导出 + Todo 关联；前置评估 Mermaid bundle 体积与画布编辑器范围）；②i18n 第二批（其余视图壳层 + 能力类型/档位枚举标签，轻量可插队）；③消息③实时协作空间（大阶段，建议真机点验②后再启）；④用户动作：真机点验 v0.1.13（消息②互发/离线补投 + 脑图建图/转 Todo/重启持久化 + msi 幂等升级 + 历史 PENDING 清单）；⑤待决策：2a55766 误收的 TOOL-ROADMAP 文档保留或拆出。
+- 实际结果：已给出建议排序。
+- 下一步：等用户定向。
