@@ -625,10 +625,20 @@ pub fn test_connection(base_url: &str, api_key: &str, model: &str) -> Result<Str
         })
 }
 
-/// Join a base_url (e.g. `http://localhost:11434/v1`) with the
-/// chat-completions path, tolerating trailing slashes.
+/// Join a base_url with the chat-completions path, tolerating trailing slashes.
+///
+/// base_url 约定是「到 /v1 为止」的根（如 `http://host:8080/v1`）。用户填
+/// 裸根（无 `/v1`，如真机点验 C4 的 `http://10.54.39.45:8080`）时自动补
+/// `/v1`——主流 OpenAI 兼容服务（vLLM/one-api/glm 在 ZCode 等工具里的配法）
+/// 路径均为 `/v1/chat/completions`；已含 `/v1` 或自定义段（`/api/v1`、
+/// `/v1-beta`）则原样拼接，不二次补全。
 pub fn chat_url(base_url: &str) -> String {
-    format!("{}/chat/completions", base_url.trim_end_matches('/'))
+    let trimmed = base_url.trim_end_matches('/');
+    if trimmed.ends_with("/v1") {
+        format!("{trimmed}/chat/completions")
+    } else {
+        format!("{trimmed}/v1/chat/completions")
+    }
 }
 
 impl LlmClient {
@@ -849,9 +859,29 @@ mod tests {
 
     #[test]
     fn works_without_version_path() {
+        // 真机点验 C4：裸根自动补 /v1（OpenAI 兼容端点标准路径）
         assert_eq!(
             chat_url("http://10.0.0.5:8000"),
-            "http://10.0.0.5:8000/chat/completions"
+            "http://10.0.0.5:8000/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_url("http://10.54.39.45:8080"),
+            "http://10.54.39.45:8080/v1/chat/completions"
+        );
+    }
+
+    #[test]
+    fn keeps_custom_version_paths() {
+        // 已含 /v1 时原样拼接，不二次补全；网关把服务挂在 /api/v1 下同理
+        assert_eq!(
+            chat_url("https://gw.example.com/api/v1"),
+            "https://gw.example.com/api/v1/chat/completions"
+        );
+        // 边界：非 /v1 结尾的自定义版本段（v1-beta）也会被补 /v1——
+        // 此类端点极少见，遇到时用户在 base_url 写全 …/v1-beta/v1 即可
+        assert_eq!(
+            chat_url("https://api.example.com/v1-beta"),
+            "https://api.example.com/v1-beta/v1/chat/completions"
         );
     }
 
