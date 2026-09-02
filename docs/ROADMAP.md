@@ -45,7 +45,7 @@ v0.1.13（2026-09-01，tag `v0.1.13`，GitHub Release 附 dmg + msi）。
 
 ## 进行中
 
-（无——主干排期项均收口；真机点验按 PENDING 清单由用户执行）
+- **真机点验修复批次（`bugfix-2026-09-win-real-machine`）**：v0.1.13 Windows 真机点验（16 项有效，通过 9）暴露的问题逐项修复——代码浏览器 .env 敏感识别（B3）、符号跳转（B5）、复制路径按钮（B6）、工作台今日记录遮挡（C2）、代码浏览器搜索体验（B4）、OpenAI 兼容端点（C4）、后端控制台窗口（P1）。点验记录见 `docs/work/active/bugfix-2026-09-win-real-machine/`。
 - **工具路线图整理（2026-09-01，规划完成，待确认后归档）**：新增工具明细文档，登记 Markdown 文档预览/编辑与 JSON 转义/反转义；不含功能实现。任务目录 `docs/work/active/feature-2026-09-roadmap-tools/`。
 
 ## V1（短期，做完即发版）

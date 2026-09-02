@@ -146,9 +146,13 @@ pub fn resolve_in_root(root: &Path, rel: &str) -> Result<(PathBuf, String), Stri
 // ---- 敏感文件识别 ----
 
 /// 敏感文件判定：.env、密钥、证书、凭据类。只报元数据，永不读内容。
+/// .env 覆盖全部命名变体：`.env` / `.env.local` / `app.env` / `config.env.prod`。
 pub fn is_sensitive(name: &str) -> bool {
     let lower = name.to_lowercase();
-    lower.starts_with(".env")
+    lower == ".env"
+        || lower.starts_with(".env.")
+        || lower.ends_with(".env")
+        || lower.contains(".env.")
         || lower.ends_with(".pem")
         || lower.ends_with(".key")
         || lower.ends_with(".p12")
@@ -357,7 +361,10 @@ pub fn search(root: &Path, query: &str, mode: &str) -> Result<Vec<SearchHit>, St
             }
             return;
         }
-        // content 模式
+        // content 模式：敏感文件永不参与（snippet 会泄露内容）。
+        if is_sensitive(&name) {
+            return;
+        }
         let Ok(meta) = fs::metadata(abs) else { return };
         if meta.len() > MAX_SEARCH_FILE_BYTES {
             return;
@@ -808,6 +815,39 @@ mod tests {
         let by_content = search(&root, "FIND ME", "content").unwrap();
         assert_eq!(by_content.len(), 1);
         assert_eq!(by_content[0].line, 2);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn is_sensitive_covers_env_variants() {
+        for name in [
+            ".env",
+            ".ENV",
+            ".env.local",
+            ".env.production",
+            "app.env",
+            "config.env.prod",
+            "server.pem",
+            "id_rsa",
+            "credentials.json",
+        ] {
+            assert!(is_sensitive(name), "{name} 应判定为敏感");
+        }
+        for name in ["environment.ts", "canvas.rs", "App.java", "provider.ts"] {
+            assert!(!is_sensitive(name), "{name} 不应误判为敏感");
+        }
+    }
+
+    #[test]
+    fn search_content_skips_sensitive_files() {
+        let root = temp_project();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(".env"), "SECRET_TOKEN=abc123\n").unwrap();
+        fs::write(root.join("app.env"), "API_KEY=xyz\n").unwrap();
+        fs::write(root.join("notes.md"), "mention secret_token here\n").unwrap();
+        let hits = search(&root, "secret_token", "content").unwrap();
+        assert_eq!(hits.len(), 1, "敏感文件内容不得出现在搜索结果");
+        assert_eq!(hits[0].path, "notes.md");
         fs::remove_dir_all(&root).ok();
     }
 

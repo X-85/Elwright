@@ -109,7 +109,11 @@ pub fn build_command(entry: &Path, args: &[String]) -> Result<Command, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_command, python_interpreter, run_script_capture};
+    use super::{build_command, python_interpreter};
+
+    #[cfg(unix)]
+    use super::run_script_capture;
+    #[cfg(unix)]
     use std::fs;
 
     #[test]
