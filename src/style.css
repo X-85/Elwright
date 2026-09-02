@@ -2341,6 +2341,16 @@ button.primary:disabled {
   white-space: nowrap;
 }
 
+/* 搜索结果：文件名为主、完整路径弱化为次要信息（真机点验 B4 子项②） */
+.cb-hit-path {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cb-tree-body {
   display: flex;
   flex-direction: column;

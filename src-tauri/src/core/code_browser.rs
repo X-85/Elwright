@@ -349,8 +349,11 @@ pub fn search(root: &Path, query: &str, mode: &str) -> Result<Vec<SearchHit>, St
         .map_err(|e| format!("项目根不可访问: {e}"))?;
     let mut hits = Vec::new();
     let lower_query = query.to_lowercase();
+    // 达到上限后彻底停止遍历（closed-over 标志）；旧实现只在回调入口
+    // 检查后 return，大项目 200 命中后仍要空跑完整棵树——真机点验 B4「卡顿」。
+    let capped = std::cell::Cell::new(false);
     walk_files(&canonical_root, "", 0, &mut |abs, rel| {
-        if hits.len() >= MAX_SEARCH_RESULTS {
+        if capped.get() {
             return;
         }
         let name = abs
@@ -366,6 +369,9 @@ pub fn search(root: &Path, query: &str, mode: &str) -> Result<Vec<SearchHit>, St
                     line: 0,
                     snippet: String::new(),
                 });
+                if hits.len() >= MAX_SEARCH_RESULTS {
+                    capped.set(true);
+                }
             }
             return;
         }
@@ -385,8 +391,12 @@ pub fn search(root: &Path, query: &str, mode: &str) -> Result<Vec<SearchHit>, St
         for (idx, line) in text.lines().enumerate() {
             if line.to_lowercase().contains(&lower_query) {
                 let trimmed = line.trim();
-                let snippet = if trimmed.len() > 200 {
-                    format!("{}…", &trimmed[..200])
+                // 按字符边界截断：旧实现 &trimmed[..200] 按字节切，
+                // 中文行命中时 char boundary panic → IPC 前端 Promise
+                // 永久 pending → 搜索按钮永久置灰（真机点验 B4 子项④）。
+                let snippet = if trimmed.chars().count() > 200 {
+                    let cut: String = trimmed.chars().take(200).collect();
+                    format!("{cut}…")
                 } else {
                     trimmed.to_string()
                 };
@@ -397,6 +407,7 @@ pub fn search(root: &Path, query: &str, mode: &str) -> Result<Vec<SearchHit>, St
                     snippet,
                 });
                 if hits.len() >= MAX_SEARCH_RESULTS {
+                    capped.set(true);
                     return;
                 }
             }
@@ -856,6 +867,35 @@ mod tests {
         let hits = search(&root, "secret_token", "content").unwrap();
         assert_eq!(hits.len(), 1, "敏感文件内容不得出现在搜索结果");
         assert_eq!(hits[0].path, "notes.md");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn search_snippet_truncates_on_char_boundary() {
+        // 真机点验 B4 子项④：中文长行按字节截断（&s[..200]）会 panic，
+        // IPC 前端 Promise 永久 pending → 搜索按钮永久置灰。
+        let root = temp_project();
+        fs::create_dir_all(&root).unwrap();
+        let long_cn = "中文内容".repeat(150); // 600 chars = 1800 bytes
+        fs::write(root.join("Doc.java"), format!("{long_cn}\n")).unwrap();
+        let hits = search(&root, "中文", "content").unwrap();
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].snippet.ends_with('…'));
+        assert!(hits[0].snippet.chars().count() <= 201);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn search_filename_mode_respects_result_cap() {
+        // 真机点验 B4 子项③：filename 模式命中数到上限后必须停止推进
+        // （旧行为不设置 capped，大项目会空跑完整棵树）。
+        let root = temp_project();
+        fs::create_dir_all(&root).unwrap();
+        for i in 0..(MAX_SEARCH_RESULTS + 50) {
+            fs::write(root.join(format!("Service{i}.java")), "class X {}\n").unwrap();
+        }
+        let hits = search(&root, "service", "filename").unwrap();
+        assert_eq!(hits.len(), MAX_SEARCH_RESULTS);
         fs::remove_dir_all(&root).ok();
     }
 

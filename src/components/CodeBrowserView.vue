@@ -202,16 +202,58 @@ async function refreshTree() {
   await loadTree('')
 }
 
+let searchSeq = 0
+
 async function doSearch() {
+  // 竞态防护：即时搜索下旧请求可能晚于新请求返回，旧结果会覆盖新结果
+  // 并把 searching 卡在错误状态（真机点验 B4 子项④「结果清不掉」）。
+  const seq = ++searchSeq
+  const q = query.value.trim()
+  if (!q) {
+    searchHits.value = []
+    searching.value = false
+    return
+  }
   searching.value = true
   try {
-    searchHits.value = await props.bridge.codeBrowserSearch(projectRoot.value, query.value, searchMode.value)
-    if (searchHits.value.length === 0) notify('无搜索结果', true)
+    const hits = await props.bridge.codeBrowserSearch(projectRoot.value, q, searchMode.value)
+    if (seq === searchSeq) {
+      searchHits.value = hits
+      if (hits.length === 0) notify('无搜索结果', true)
+    }
   } catch (e) {
-    notify(String(e), false)
+    if (seq === searchSeq) notify(String(e), false)
   } finally {
-    searching.value = false
+    if (seq === searchSeq) searching.value = false
   }
+}
+
+// 即时模糊搜索：输入停顿 300ms 自动触发（真机点验 B4 子项①「必须点按钮
+// 才生效」）；Enter 立即搜。手输速度远快于 300ms，大项目下也不会逐键打爆 IPC。
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function onSearchInput() {
+  if (!query.value.trim()) {
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = null
+    searchSeq++
+    searchHits.value = []
+    searching.value = false
+    return
+  }
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    searchTimer = null
+    void doSearch()
+  }, 300)
+}
+
+function clearSearch() {
+  query.value = ''
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = null
+  searchSeq++
+  searchHits.value = []
+  searching.value = false
 }
 
 const jumpCandidates = computed(() => {
@@ -380,17 +422,18 @@ defineExpose({ openProject, openAbsolute })
     <div v-else class="cb-workspace">
       <aside class="cb-tree">
         <div class="cb-search">
-          <input v-model="query" class="cb-search-input" placeholder="文件名 / 内容搜索…" @keyup.enter="doSearch" />
-          <select v-model="searchMode" class="cb-search-mode" aria-label="搜索模式">
+          <input v-model="query" class="cb-search-input" placeholder="文件名 / 内容搜索…" @input="onSearchInput" @keyup.enter="doSearch" />
+          <select v-model="searchMode" class="cb-search-mode" aria-label="搜索模式" @change="onSearchInput">
             <option value="filename">文件名</option>
             <option value="content">内容</option>
           </select>
+          <button v-if="query || searchHits.length" class="cb-icon-btn" title="清除搜索" aria-label="清除搜索" @click="clearSearch"><X :size="14" /></button>
           <button class="cb-icon-btn" title="搜索" :disabled="searching || !query.trim()" @click="doSearch"><Search :size="14" /></button>
         </div>
         <ul v-if="searchHits.length" class="cb-hits">
           <li v-for="hit in searchHits" :key="hit.path + hit.line">
             <button class="cb-hit" @click="openRel(hit.path, hit.line)">
-              <FileText :size="13" /> {{ hit.path }}<span v-if="hit.line" class="cb-muted">:{{ hit.line }}</span>
+              <FileText :size="13" /> {{ hit.name }}<span class="cb-muted cb-hit-path">{{ hit.path }}</span><span v-if="hit.line" class="cb-muted">:{{ hit.line }}</span>
               <span v-if="hit.snippet" class="cb-snippet">{{ hit.snippet }}</span>
             </button>
           </li>
