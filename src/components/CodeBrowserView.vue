@@ -325,6 +325,12 @@ async function copyText(text: string) {
   }
 }
 
+/** 项目根 + 相对路径 → 可粘贴的绝对路径（Windows 反斜杠根目录也能正确拼接）。 */
+function joinProjectPath(root: string, rel: string): string {
+  const sep = root.includes('\\') ? '\\' : '/'
+  return root.replace(/[\\/]+$/, '') + sep + rel.replace(/^[\\/]+/, '')
+}
+
 function closeTab(path: string) {
   const idx = tabs.value.findIndex((t) => t.path === path)
   if (idx === -1) return
@@ -451,7 +457,7 @@ defineExpose({ openProject, openAbsolute })
             <code>{{ activeTab.doc.path }}</code>
             <span class="cb-muted">{{ activeTab.doc.language }} · {{ activeTab.doc.size }} B</span>
             <button class="cb-icon-btn" :title="isFavorite(activeTab.doc.path) ? '取消收藏' : '收藏文件'" :class="{ 'cb-fav-on': isFavorite(activeTab.doc.path) }" @click="toggleFavorite(activeTab.doc.path)"><Star :size="13" /></button>
-            <button class="cb-icon-btn" title="复制文件路径" @click="copyText(projectRoot + '/' + activeTab.doc.path)"><Copy :size="13" /></button>
+            <button class="cb-icon-btn" title="复制文件路径" @click="copyText(joinProjectPath(projectRoot, activeTab.doc.path))"><Copy :size="13" /> 复制路径</button>
             <button class="cb-send-ai" title="把当前文件创建为 Todo（含代码位置，可在工作台跳回）" @click="createTodoFromLine"><ListTodo :size="13" /> 转为 Todo</button>
             <button class="cb-send-ai" title="在终端中打开文件所在目录" @click="openInTerminal"><SquareTerminal :size="13" /> 终端定位</button>
             <button class="cb-send-ai" @click="requestSendToAi">发送到 AI</button>
