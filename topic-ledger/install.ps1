@@ -34,7 +34,8 @@ Get-ChildItem -Path $source -Force | Where-Object { $_.Name -notin @("install.ps
 }
 if ($SkillName -eq "session-ledger") {
     $skillFile = Join-Path $target "SKILL.md"
-    $skillText = Get-Content -Raw -Path $skillFile
+    # Windows PowerShell 5.1 uses the system code page by default; keep Chinese instructions intact.
+    $skillText = Get-Content -Raw -Encoding UTF8 -Path $skillFile
     $skillText = $skillText -replace "(?m)^name: topic-ledger$", "name: session-ledger"
     [System.IO.File]::WriteAllText($skillFile, $skillText, (New-Object System.Text.UTF8Encoding($false)))
 }

@@ -575,3 +575,9 @@
 - 本轮方案：保留旧 Q 台账协议；新增 `session/topics/<topic-id>/` 的 Topic 文件协议（topic/events/decisions/handoff）、可复制 `topic-ledger` Skill、Windows 安装脚本和零依赖静态查看页。现有 Elwright“资源与课题”页面不迁移，避免混淆两个领域模型。
 - 实际结果：已验证——Skill 包、协议参考、安装脚本、查看页和当前示例 Topic 已写入工作区；未验证——公司 ZCode 实际 Skill 根目录、安装发现和 Windows 浏览器真机行为。
 - 下一步：公司机 `git pull` 后安装 Skill，完成一次 checkpoint/handoff；双击查看页选择 `session/topics/T-2026-09-topic-ledger-mvp` 做真实验证。
+
+### Q40 | 第2次处理（独立验证包收敛）
+- 问题或新增信息：用户明确先做不与 Elwright 强绑定的验证版本，计划放到公司 Windows 的 ZCode 使用，并已安装 Google Chrome。
+- 本轮方案：将 `topic-ledger/` 明确为可单独复制的分发边界；README 补充 Windows/ZCode/Chrome 路径；安装脚本显式按 UTF-8 读取，避免 Windows PowerShell 5.1 中文乱码；查看页增加文件夹选择器兼容提示。
+- 实际结果：已验证——包内无 Elwright 运行时、Rust、Node 或在线服务依赖；静态查看页仍只读本地 Markdown。未验证——公司 ZCode 实际 Skill 根目录、Skill 自动发现、Chrome 真机文件夹选择。
+- 下一步：公司机只复制 `topic-ledger` 目录，按 handoff 中命令安装；在 ZCode 完成 checkpoint/handoff，再用 Chrome 选择真实 Topic 文件夹。

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>Topic Ledger</title>
   <style>
     :root { color-scheme: light; --bg: #f6f7f9; --panel: #fff; --line: #dfe3e8; --text: #17202a; --muted: #66717f; --blue: #2457d6; --blue-soft: #eaf0ff; --green: #18794e; --amber: #9a6400; }
@@ -66,7 +67,7 @@
     <div class="layout">
       <aside>
         <div class="side-label">当前数据</div>
-        <div id="fileStatus" class="file-status">还没有打开 Topic。请选中 `session/topics/T-.../` 文件夹。</div>
+        <div id="fileStatus" class="file-status">还没有打开 Topic。请选中 `session/topics/T-.../` 文件夹。Chrome 支持文件夹选择器。</div>
         <div id="dropzone" class="dropzone">也可以把 Topic 文件夹拖到这里</div>
         <div class="help">页面只读本地 Markdown，不上传、不执行命令，也不会修改台账。建议选择包含 `topic.md`、`handoff.md`、`decisions.md`、`events.md` 的单个 Topic 文件夹。</div>
       </aside>
@@ -83,6 +84,11 @@
       const dropzone = document.getElementById('dropzone');
       const main = document.getElementById('main');
       const status = document.getElementById('fileStatus');
+
+      if (typeof folderInput.webkitdirectory === 'undefined') {
+        document.querySelector('label.button.primary').classList.add('unsupported');
+        dropzone.textContent = '当前浏览器不支持文件夹选择，请改用“选择 Markdown 文件”按钮。';
+      }
 
       const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
       const inline = (value) => escapeHtml(value).replace(/`([^`]+)`/g, '<code>$1</code>');

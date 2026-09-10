@@ -1,12 +1,12 @@
 # Topic 交接
 
 - topic: T-2026-09-topic-ledger-mvp
-- generated: 2026-09-10
+- generated: 2026-09-11
 - status: 处理中
 
 ## 一句话状态
 
-Topic 台账 MVP 已在本仓库落地，下一步是在公司 Windows 的 ZCode 真实安装和使用。
+Topic 台账独立验证包已落地，下一步是在公司 Windows 的 ZCode 安装并用 Chrome 查看真实 Topic。
 
 ## 已完成
 
@@ -14,6 +14,8 @@ Topic 台账 MVP 已在本仓库落地，下一步是在公司 Windows 的 ZCode
 - 新增 Topic 文件协议：`topic.md`、`events.md`、`decisions.md`、`handoff.md`。
 - 新增 `install.ps1`，覆盖前备份旧 Skill。
 - 新增零依赖 `viewer/topic-viewer.html`。
+- `topic-ledger/` 可单独复制，不要求安装 Elwright、Rust 或 Node.js。
+- 安装脚本显式使用 UTF-8，兼容 Windows PowerShell 5.1 的中文 Skill 文件。
 
 ## 已确认决定
 
@@ -31,14 +33,14 @@ Topic 台账 MVP 已在本仓库落地，下一步是在公司 Windows 的 ZCode
 ## 未验证与风险
 
 - 公司 ZCode 的 Skill 根目录需要现场确认；安装脚本支持 `-SkillRoot` 显式指定。
-- 浏览器文件夹选择器需要选择单个 Topic 目录，而不是整个仓库。
+- Chrome 文件夹选择器需要选择单个 Topic 目录，而不是整个仓库。
 
 ## 下一步
 
-1. 在公司 Windows 拉取仓库。
-2. 运行 `powershell -ExecutionPolicy Bypass -File .\\topic-ledger\\install.ps1`。
-3. 在 ZCode 中让 Skill 创建或更新一个 Topic checkpoint。
-4. 双击 `topic-ledger\\viewer\\topic-viewer.html`，选择 `session\\topics\\T-2026-09-topic-ledger-mvp`。
+1. 在公司 Windows 只复制 `topic-ledger` 目录（或拉取仓库后定位到该目录）。
+2. 运行 `powershell -ExecutionPolicy Bypass -File .\\topic-ledger\\install.ps1 -SkillRoot "$env:USERPROFILE\\.zcode\\skills"`。
+3. 在 ZCode 中让 Skill 创建或更新一个 Topic checkpoint，并完成一次 handoff。
+4. 用 Google Chrome 打开 `topic-ledger\\viewer\\topic-viewer.html`，选择 `session\\topics\\T-2026-09-topic-ledger-mvp`。
 
 ## 给下一个 Agent 的边界
 
