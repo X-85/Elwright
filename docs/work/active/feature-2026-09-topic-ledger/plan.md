@@ -9,8 +9,8 @@
 - 新增 `topic-ledger` Skill，兼容现有 `session/` 台账和 Q 编号。
 - 新增 `topic.md`、`events.md`、`decisions.md`、`handoff.md` 协议。
 - 新增可双击打开的静态查看页，选择 Topic 文件夹后显示人类可读状态。
-- 提供 Windows PowerShell 安装脚本和使用说明。
 - `topic-ledger/` 目录是独立分发边界，复制它即可，不要求安装 Elwright 或其开发工具链。
+- 不提供安装脚本，由目标 Agent（明天为 ZCode）负责安装或加载源 Skill。
 
 ## 非目标
 
@@ -22,5 +22,5 @@
 ## 验证
 
 - Skill 结构和 YAML frontmatter 可被手工静态检查。
-- PowerShell 脚本通过静态审阅，并覆盖 Windows PowerShell 5.1 的 UTF-8 读取路径；实际安装留给公司 Windows。
+- 源 Skill 结构和引用关系通过静态检查；实际安装和发现行为留给公司 Windows 的 ZCode。
 - 查看页能在 Chrome 等兼容浏览器中选择 Topic 文件夹并渲染状态、决定、未决项和交接内容。

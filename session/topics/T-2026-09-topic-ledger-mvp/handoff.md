@@ -6,16 +6,15 @@
 
 ## 一句话状态
 
-Topic 台账独立验证包已落地，下一步是在公司 Windows 的 ZCode 安装并用 Chrome 查看真实 Topic。
+Topic 台账源 Skill 已落地，下一步是在公司 Windows 让 ZCode 安装并用 Chrome 查看真实 Topic。
 
 ## 已完成
 
 - 新增 `topic-ledger` Skill，兼容原有 Q 编号台账。
 - 新增 Topic 文件协议：`topic.md`、`events.md`、`decisions.md`、`handoff.md`。
-- 新增 `install.ps1`，覆盖前备份旧 Skill。
 - 新增零依赖 `viewer/topic-viewer.html`。
 - `topic-ledger/` 可单独复制，不要求安装 Elwright、Rust 或 Node.js。
-- 安装脚本显式使用 UTF-8，兼容 Windows PowerShell 5.1 的中文 Skill 文件。
+- 安装动作交给 ZCode，不要求用户寻找 Skill 目录或执行 PowerShell。
 
 ## 已确认决定
 
@@ -27,18 +26,17 @@ Topic 台账独立验证包已落地，下一步是在公司 Windows 的 ZCode �
 
 - `topic-ledger/SKILL.md`
 - `topic-ledger/references/protocol.md`
-- `topic-ledger/install.ps1`
 - `topic-ledger/viewer/topic-viewer.html`
 
 ## 未验证与风险
 
-- 公司 ZCode 的 Skill 根目录需要现场确认；安装脚本支持 `-SkillRoot` 显式指定。
+- 公司 ZCode 的源 Skill 安装和自动发现行为需要现场确认。
 - Chrome 文件夹选择器需要选择单个 Topic 目录，而不是整个仓库。
 
 ## 下一步
 
 1. 在公司 Windows 只复制 `topic-ledger` 目录（或拉取仓库后定位到该目录）。
-2. 运行 `powershell -ExecutionPolicy Bypass -File .\\topic-ledger\\install.ps1 -SkillRoot "$env:USERPROFILE\\.zcode\\skills"`。
+2. 把 `topic-ledger/SKILL.md` 交给 ZCode 安装或加载，并让它按需读取 `references/protocol.md`。
 3. 在 ZCode 中让 Skill 创建或更新一个 Topic checkpoint，并完成一次 handoff。
 4. 用 Google Chrome 打开 `topic-ledger\\viewer\\topic-viewer.html`，选择 `session\\topics\\T-2026-09-topic-ledger-mvp`。
 

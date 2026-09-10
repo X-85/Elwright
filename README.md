@@ -124,15 +124,9 @@ npm run dev                          # http://localhost:5173
 
 ### Topic 台账 MVP（跨 ZCode / Codex）
 
-Topic 是人的工作单元，Chat 是交流容器，Task 是执行记录。仓库中的 `topic-ledger/` 是可复制到公司 Windows ZCode 的 Skill，使用普通 Markdown 保存 `session/topics/<topic-id>/`，不依赖 Elwright 桌面端或在线 LLM。
+Topic 是人的工作单元，Chat 是交流容器，Task 是执行记录。仓库中的 `topic-ledger/` 是可交给公司 Windows ZCode 安装的源 Skill，使用普通 Markdown 保存 `session/topics/<topic-id>/`，不依赖 Elwright 桌面端或在线 LLM。
 
-```powershell
-# 在仓库根目录执行；默认安装到已有的 .zcode\skills 或 .codex\skills
-powershell -ExecutionPolicy Bypass -File .\topic-ledger\install.ps1
-
-# 查看当前 Topic（双击打开后选择 session\topics\T-... 文件夹）
-Start-Process .\topic-ledger\viewer\topic-viewer.html
-```
+明天只需把 `topic-ledger/SKILL.md` 交给 ZCode 安装或加载，并让它按需读取 `references/protocol.md`。查看当前 Topic 时，用 Google Chrome 打开 `topic-ledger/viewer/topic-viewer.html`，再选择 `session/topics/T-...` 文件夹。
 
 详细协议和 Windows 现场验证步骤见 [Topic 台账 Feature](docs/features/topic-ledger/README.md) 与 [当前 MVP 交接](session/topics/T-2026-09-topic-ledger-mvp/handoff.md)。
 

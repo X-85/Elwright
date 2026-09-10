@@ -11,6 +11,7 @@
 
 - 已确认：验证阶段不把 Topic 接入 Elwright 的 Rust 核心、桌面壳或注册表；`topic-ledger/` 自身就是可复制到公司 Windows 的包。
 - 已确认：ZCode 负责维护 Markdown 台账，Google Chrome 负责只读查看；两者通过 `session/topics/<topic-id>/` 文件协议连接。
+- 已确认：验证阶段不提供安装脚本，用户把源 `SKILL.md` 交给 ZCode 安装或加载，以减少公司机操作步骤。
 - 未验证：公司机的 Skill 根目录、ZCode 自动发现和 Chrome 文件夹选择器需要现场确认。
 
 ## D1：自动化交互测试分层
