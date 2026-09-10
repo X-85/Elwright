@@ -122,6 +122,20 @@ npm run dev                          # http://localhost:5173
 
 想导入自己的能力，可以在桌面端使用「导入能力」，或执行 `ew import <文件>`；想让「技能型」能力接入大模型，再看 **[LLM 配置指引](docs/release/llm-setup-guide.md)**。
 
+### Topic 台账 MVP（跨 ZCode / Codex）
+
+Topic 是人的工作单元，Chat 是交流容器，Task 是执行记录。仓库中的 `topic-ledger/` 是可复制到公司 Windows ZCode 的 Skill，使用普通 Markdown 保存 `session/topics/<topic-id>/`，不依赖 Elwright 桌面端或在线 LLM。
+
+```powershell
+# 在仓库根目录执行；默认安装到已有的 .zcode\skills 或 .codex\skills
+powershell -ExecutionPolicy Bypass -File .\topic-ledger\install.ps1
+
+# 查看当前 Topic（双击打开后选择 session\topics\T-... 文件夹）
+Start-Process .\topic-ledger\viewer\topic-viewer.html
+```
+
+详细协议和 Windows 现场验证步骤见 [Topic 台账 Feature](docs/features/topic-ledger/README.md) 与 [当前 MVP 交接](session/topics/T-2026-09-topic-ledger-mvp/handoff.md)。
+
 ## License
 
 MIT — 自由使用、修改、分发，让更多人受益。

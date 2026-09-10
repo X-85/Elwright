@@ -46,6 +46,7 @@ v0.1.13（2026-09-01，tag `v0.1.13`，GitHub Release 附 dmg + msi）。
 ## 进行中
 
 （无——主干排期项均收口；真机点验按 PENDING 清单由用户执行）
+- **Topic 台账跨 Agent MVP（2026-09-10，独立可复制工具，待公司机验证）**：新增 `topic-ledger` Skill、`session/topics/<topic-id>/` Markdown 协议、Windows 安装脚本和零依赖查看页；不要求 Elwright 桌面端升级，先验证 ZCode/Codex 跨 Chat 交接闭环。任务目录 `docs/work/active/feature-2026-09-topic-ledger/`。
 - **工具路线图整理（2026-09-01，规划完成，待确认后归档）**：新增工具明细文档，登记 Markdown 文档预览/编辑与 JSON 转义/反转义；不含功能实现。任务目录 `docs/work/active/feature-2026-09-roadmap-tools/`。
 
 ## V1（短期，做完即发版）

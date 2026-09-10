@@ -37,3 +37,10 @@
 | Q37 | 工具路线图整理 | 已解决 | 已建立工具明细路线图；登记 Markdown 文档编辑/预览、JSON 转义/反转义，并确认 JSON 格式化/压缩已实现 | 后续实施各工具时分别建 Feature 与实现任务 |
 | Q38 | 脑图 MVP（后置验证解锁首项） | 已完成（真机点验待用户） | ADR-001 选定脑图先行（工程图顺延）：大纲式树形 + DFS 序不变量 + Rust core 存储 + Todo 双向关联 + 键盘流 + 预览降级。S1 core 5 单测 + 5 IPC（3c003cc）；S2 前端 vitest 5 + MindmapView + 导航；门禁 135 lib/vitest 86/e2e 12/clippy 0 全绿 | 真机点验；工程图 MVP 立项待定向（Mermaid bundle 评估前置） |
 | Q39 | 全量代码同步 GitHub（公司机协同） | 已完成 | 工作区清点：无未推送提交；.zcode/ 入 .gitignore（24cdaa3）；HEAD == origin/main 校验一致 | 公司机 git pull + npm install + GNU 工具链构建（AGENTS.md 有指引）；遇编译问题回报 |
+| Q40 | Topic 台账跨 Agent MVP（ZCode 可用 + 人类查看页） | 处理中 | 已落地可复制 `topic-ledger` Skill、Markdown 协议、Windows 安装脚本、零依赖查看页和当前示例 Topic；公司 Windows/ZCode 尚未真机验证 | 公司机安装 Skill，完成一次 checkpoint/handoff，并双击查看页验证 |
+
+## Topic 索引
+
+| Topic | 标题 | 状态 | 当前摘要 |
+| --- | --- | --- | --- |
+| [T-2026-09-topic-ledger-mvp](topics/T-2026-09-topic-ledger-mvp/topic.md) | Topic 台账跨 Agent MVP | 处理中 | Skill、协议、Windows 安装脚本和查看页已落地，待公司机验证 |

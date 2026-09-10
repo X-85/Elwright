@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Topic Ledger</title>
+  <style>
+    :root { color-scheme: light; --bg: #f6f7f9; --panel: #fff; --line: #dfe3e8; --text: #17202a; --muted: #66717f; --blue: #2457d6; --blue-soft: #eaf0ff; --green: #18794e; --amber: #9a6400; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 30px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #b9c8f5; border-radius: 7px; background: var(--blue-soft); color: var(--blue); font-weight: 800; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 18px; line-height: 1.2; }
+    .subtitle { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .actions { display: flex; align-items: center; gap: 9px; }
+    .button { border: 1px solid var(--line); border-radius: 5px; padding: 7px 11px; background: var(--panel); color: var(--text); }
+    .button:hover { border-color: #9aa7b7; }
+    .button.primary { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .button input { display: none; }
+    .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: calc(100vh - 79px); }
+    aside { padding: 22px 18px; border-right: 1px solid var(--line); background: #fbfcfd; }
+    main { min-width: 0; max-width: 1060px; width: 100%; margin: 0 auto; padding: 28px 34px 50px; }
+    .side-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .file-status { margin-top: 9px; padding: 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .dropzone { margin-top: 14px; padding: 14px 10px; border: 1px dashed #aeb8c4; border-radius: 5px; background: var(--panel); color: var(--muted); text-align: center; }
+    .dropzone.drag { border-color: var(--blue); background: var(--blue-soft); color: var(--blue); }
+    .help { margin-top: 18px; color: var(--muted); font-size: 12px; }
+    .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+    .hero h2 { font-size: 26px; line-height: 1.25; }
+    .hero-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; background: #eef1f5; color: var(--muted); font-size: 12px; }
+    .chip.status-处理中 { background: #fff3d7; color: var(--amber); }
+    .chip.status-已解决 { background: #e4f6ed; color: var(--green); }
+    .chip.status-阻塞 { background: #fde8e8; color: #b42318; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+    .card { min-width: 0; padding: 17px 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+    .card.wide { grid-column: 1 / -1; }
+    .card h3 { margin-bottom: 9px; font-size: 14px; }
+    .card p, .card li { color: #3d4854; }
+    .card ul { margin: 0; padding-left: 19px; }
+    .empty { display: grid; place-items: center; min-height: 380px; border: 1px dashed var(--line); border-radius: 6px; color: var(--muted); text-align: center; }
+    .empty strong { display: block; margin-bottom: 5px; color: var(--text); }
+    .markdown h2 { margin: 18px 0 8px; font-size: 17px; }
+    .markdown h3 { margin: 14px 0 6px; font-size: 14px; }
+    .markdown p { margin: 7px 0; }
+    .markdown ul { margin: 7px 0; padding-left: 20px; }
+    .markdown code { padding: 1px 4px; border-radius: 3px; background: #f0f2f5; color: #334155; }
+    .raw { margin-top: 22px; }
+    .raw summary { color: var(--muted); cursor: pointer; }
+    pre { margin: 10px 0 0; padding: 14px; overflow: auto; border: 1px solid var(--line); border-radius: 5px; background: #f8fafc; white-space: pre-wrap; }
+    .notice { margin-top: 18px; padding: 10px 12px; border-left: 3px solid var(--blue); background: var(--blue-soft); color: #27447f; }
+    @media (max-width: 760px) { header { align-items: flex-start; flex-direction: column; padding: 18px; } .layout { display: block; } aside { border-right: 0; border-bottom: 1px solid var(--line); } main { padding: 22px 18px 40px; } .grid { grid-template-columns: 1fr; } .card.wide { grid-column: auto; } .hero { flex-direction: column; } .hero-meta { justify-content: flex-start; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><div class="brand-mark">T</div><div><h1>Topic Ledger</h1><p class="subtitle">让人随时重新进入一项工作</p></div></div>
+      <div class="actions"><label class="button primary">打开 Topic 文件夹<input id="folderInput" type="file" webkitdirectory directory multiple></label><label class="button">选择 Markdown 文件<input id="fileInput" type="file" accept=".md,text/markdown" multiple></label></div>
+    </header>
+    <div class="layout">
+      <aside>
+        <div class="side-label">当前数据</div>
+        <div id="fileStatus" class="file-status">还没有打开 Topic。请选中 `session/topics/T-.../` 文件夹。</div>
+        <div id="dropzone" class="dropzone">也可以把 Topic 文件夹拖到这里</div>
+        <div class="help">页面只读本地 Markdown，不上传、不执行命令，也不会修改台账。建议选择包含 `topic.md`、`handoff.md`、`decisions.md`、`events.md` 的单个 Topic 文件夹。</div>
+      </aside>
+      <main id="main">
+        <div class="empty"><div><strong>打开一个 Topic 开始</strong><span>Topic 快照、决定、未决问题和交接摘要会集中显示在这里。</span></div></div>
+      </main>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const files = {};
+      const folderInput = document.getElementById('folderInput');
+      const fileInput = document.getElementById('fileInput');
+      const dropzone = document.getElementById('dropzone');
+      const main = document.getElementById('main');
+      const status = document.getElementById('fileStatus');
+
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+      const inline = (value) => escapeHtml(value).replace(/`([^`]+)`/g, '<code>$1</code>');
+      const basename = (file) => (file.name || file.webkitRelativePath.split('/').pop() || '').toLowerCase();
+
+      function sections(text) {
+        const result = {};
+        let current = '__root__';
+        result[current] = [];
+        String(text || '').split(/\r?\n/).forEach((line) => {
+          const match = line.match(/^##\s+(.+)$/);
+          if (match) { current = match[1].trim(); result[current] = []; return; }
+          result[current].push(line);
+        });
+        return result;
+      }
+
+      function metadata(text) {
+        const result = {};
+        String(text || '').split(/\r?\n/).forEach((line) => {
+          const match = line.match(/^[-*]\s+([\w-]+):\s*(.*)$/);
+          if (match) result[match[1]] = match[2].trim();
+        });
+        return result;
+      }
+
+      function markdown(text) {
+        const lines = String(text || '').split(/\r?\n/);
+        let html = ''; let list = false;
+        const closeList = () => { if (list) { html += '</ul>'; list = false; } };
+        lines.forEach((line) => {
+          if (!line.trim()) { closeList(); return; }
+          const heading = line.match(/^(#{1,3})\s+(.+)$/);
+          const item = line.match(/^[-*]\s+(.*)$/);
+          if (heading) { closeList(); html += `<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`; return; }
+          if (item) { if (!list) { html += '<ul>'; list = true; } const checked = item[1].match(/^\[([ xX])\]\s+(.*)$/); html += `<li>${checked ? `<span>${checked[1].toLowerCase() === 'x' ? '☑' : '☐'}</span> ${inline(checked[2])}` : inline(item[1])}</li>`; return; }
+          closeList(); html += `<p>${inline(line)}</p>`;
+        });
+        closeList(); return html;
+      }
+
+      function sectionHtml(map, name, fallback) {
+        const value = map[name] || [];
+        return value.join('\n').trim() ? markdown(value.join('\n')) : `<p>${escapeHtml(fallback || '暂无内容')}</p>`;
+      }
+
+      function card(title, content, wide) { return `<section class="card${wide ? ' wide' : ''}"><h3>${escapeHtml(title)}</h3>${content}</section>`; }
+
+      function render() {
+        const topic = files['topic.md'] || '';
+        const handoff = files['handoff.md'] || '';
+        const decisions = files['decisions.md'] || '';
+        const events = files['events.md'] || '';
+        if (!topic) { main.innerHTML = '<div class="empty"><div><strong>没有找到 topic.md</strong><span>请选择一个 Topic 文件夹，或单独选择 topic.md。</span></div></div>'; return; }
+        const meta = metadata(topic); const map = sections(topic); const title = topic.match(/^#\s+Topic:\s*(.+)$/m)?.[1] || meta.id || '未命名 Topic';
+        const statusText = meta.status || '未标记';
+        status.textContent = `${title} · ${Object.keys(files).filter((key) => files[key]).join(', ')}`;
+        main.innerHTML = `<div class="hero"><div><h2>${escapeHtml(title)}</h2><p class="subtitle">${escapeHtml(meta.id || 'Topic')} · 更新于 ${escapeHtml(meta.updated || '未标记')}</p></div><div class="hero-meta"><span class="chip status-${escapeHtml(statusText)}">${escapeHtml(statusText)}</span><span class="chip">负责人：${escapeHtml(meta.owner || 'human')}</span></div></div>
+          <div class="notice">先看“当前摘要”和“下一步”，再按需要展开决定、证据和事件。换 Chat 或换 Agent 时，优先携带 <code>handoff.md</code>。</div>
+          <div class="grid">${card('目标', sectionHtml(map, '目标', '未填写'))}${card('完成标准', sectionHtml(map, '完成标准', '未填写'))}${card('当前摘要', sectionHtml(map, '当前摘要', '未填写'), true)}${card('未决问题', sectionHtml(map, '未决问题', '暂无未决项'))}${card('产出物', sectionHtml(map, '产出物', '暂无产出物'))}${card('已验证', sectionHtml(map, '已验证', '暂无记录'))}${card('交接摘要', sectionHtml(sections(handoff), '一句话状态', handoff ? '请展开下方原文查看完整交接。' : '尚未生成 handoff.md'))}</div>
+          <details class="raw"><summary>查看完整 handoff.md / decisions.md / events.md</summary><div class="markdown">${handoff ? `<h2>handoff.md</h2>${markdown(handoff)}` : ''}${decisions ? `<h2>decisions.md</h2>${markdown(decisions)}` : ''}${events ? `<h2>events.md</h2>${markdown(events)}` : ''}</div></details>
+          <details class="raw"><summary>查看 topic.md 原文</summary><pre>${escapeHtml(topic)}</pre></details>`;
+      }
+
+      async function load(fileList) {
+        Object.keys(files).forEach((key) => delete files[key]);
+        for (const file of Array.from(fileList || [])) {
+          const name = basename(file);
+          if (['topic.md', 'handoff.md', 'decisions.md', 'events.md'].includes(name)) files[name] = await file.text();
+        }
+        render();
+      }
+
+      folderInput.addEventListener('change', (event) => load(event.target.files));
+      fileInput.addEventListener('change', (event) => load(event.target.files));
+      ['dragenter', 'dragover'].forEach((name) => dropzone.addEventListener(name, (event) => { event.preventDefault(); dropzone.classList.add('drag'); }));
+      ['dragleave', 'drop'].forEach((name) => dropzone.addEventListener(name, (event) => { event.preventDefault(); dropzone.classList.remove('drag'); }));
+      dropzone.addEventListener('drop', (event) => load(event.dataTransfer.files));
+    })();
+  </script>
+</body>
+</html>
