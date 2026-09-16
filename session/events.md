@@ -593,3 +593,9 @@
 - 本轮方案：`git fetch origin` 后比对 main 与 origin/main；`git status` 检查工作区；`git branch -vv` 清点本地分支与远程的 ahead/behind；对两个 ahead 分支逐一验证其独有提交是否已并入 main 或已被 main 上更新的提交取代。
 - 实际结果：main == origin/main（97a271c），无需拉取也无新提交；工作区干净；`feature-2026-08-settings-center-followup` ahead 的 c76631b 已在 main 历史中；`feature-2026-08-code-browser-phase1` ahead 的 248f74b（PENDING 清单初版）内容已被 main 9df288a 的后续更新覆盖，两处均无内容丢失。一键安装脚本（install.sh/install.ps1/docs/install/one-line-install.md）均在 main 上，当前版本 v0.1.13。
 - 下一步：无需提交或推送；两个 stale 本地分支（可 fast-forward 到远程或删除）是否清理待用户决定。
+
+### Q42 | 第1次处理（确认 Elwright 是否有台账功能）
+- 问题或新增信息：用户问 Elwright 软件本身是否做了台账功能。
+- 本轮方案：全仓搜索「台账」并读内置注册表与 SOP 文档确认。
+- 实际结果：有——内置技能型能力 `session-ledger`（会话问题台账，2026-08-30 随 PR #1 进 main，注册表 3→4 条）：配 LLM 时生成交给代码 Agent 的台账启用指令，离线降级展示 session-ledger-sop.md（即当前 session/ 协议的源头）；SOP 明确边界「Elwright 不自动改项目文件，台账由读写工作区的 Agent 维护」。
+- 下一步：无遗留；若想让它变成应用内自动维护的台账（而非生成指令），属新需求需另行立项。

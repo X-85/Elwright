@@ -40,6 +40,8 @@
 | Q40 | Topic 台账跨 Agent MVP（ZCode 可用 + 人类查看页） | 处理中 | 已收敛为可单独交给 ZCode 的 `topic-ledger` 源 Skill；含 Markdown 协议、Chrome 只读查看页和当前示例 Topic；公司 Windows/ZCode 尚未真机验证 | 公司机只复制 `topic-ledger`，让 ZCode 安装，完成一次 checkpoint/handoff，并用 Chrome 查看 |
 | Q41 | 回家后拉取最新代码并盘点本地待提交项 | 已完成 | `git fetch` 后 main == origin/main（97a271c）无新提交；工作区干净无未提交改动；两个 ahead 本地分支均为 stale 指针（settings-center 的 merge commit 已在 main；code-browser-phase1 的 248f74b 内容已被 main 9df288a 取代），无内容丢失 | 无需提交；stale 分支是否清理待用户决定 |
 
+| Q42 | 确认 Elwright 是否有台账功能 | 已解决 | 有——内置技能 `session-ledger`（PR #1 进 main）：配 LLM 生成 Agent 台账指令，离线降级为 SOP 文档（当前 session/ 协议源头）；Elwright 本身不自动维护文件 | 若要应用内自动维护需另行立项 |
+
 ## Topic 索引
 
 | Topic | 标题 | 状态 | 当前摘要 |
