@@ -38,6 +38,7 @@
 | Q38 | 脑图 MVP（后置验证解锁首项） | 已完成（真机点验待用户） | ADR-001 选定脑图先行（工程图顺延）：大纲式树形 + DFS 序不变量 + Rust core 存储 + Todo 双向关联 + 键盘流 + 预览降级。S1 core 5 单测 + 5 IPC（3c003cc）；S2 前端 vitest 5 + MindmapView + 导航；门禁 135 lib/vitest 86/e2e 12/clippy 0 全绿 | 真机点验；工程图 MVP 立项待定向（Mermaid bundle 评估前置） |
 | Q39 | 全量代码同步 GitHub（公司机协同） | 已完成 | 工作区清点：无未推送提交；.zcode/ 入 .gitignore（24cdaa3）；HEAD == origin/main 校验一致 | 公司机 git pull + npm install + GNU 工具链构建（AGENTS.md 有指引）；遇编译问题回报 |
 | Q40 | Topic 台账跨 Agent MVP（ZCode 可用 + 人类查看页） | 处理中 | 已收敛为可单独交给 ZCode 的 `topic-ledger` 源 Skill；含 Markdown 协议、Chrome 只读查看页和当前示例 Topic；公司 Windows/ZCode 尚未真机验证 | 公司机只复制 `topic-ledger`，让 ZCode 安装，完成一次 checkpoint/handoff，并用 Chrome 查看 |
+| Q41 | 回家后拉取最新代码并盘点本地待提交项 | 已完成 | `git fetch` 后 main == origin/main（97a271c）无新提交；工作区干净无未提交改动；两个 ahead 本地分支均为 stale 指针（settings-center 的 merge commit 已在 main；code-browser-phase1 的 248f74b 内容已被 main 9df288a 取代），无内容丢失 | 无需提交；stale 分支是否清理待用户决定 |
 
 ## Topic 索引
 

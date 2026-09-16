@@ -587,3 +587,9 @@
 - 本轮方案：删除 `topic-ledger/install.ps1`，清理 PowerShell、Skill 目录和备份逻辑说明；保留 `SKILL.md`、协议参考和 Chrome 查看页，并把安装职责明确交给 ZCode。
 - 实际结果：已验证——文档和交接步骤已同步；Skill 校验、查看页脚本检查、引用检查和 `git diff --check` 均通过。
 - 下一步：公司机只复制 `topic-ledger`，让 ZCode 安装/加载 `SKILL.md`，然后完成 checkpoint、handoff 和 Chrome 查看。
+
+### Q41 | 第1次处理（拉最新 + 本地盘点）
+- 问题或新增信息：用户回家后要求先从 GitHub 拉最新代码，再检查本地是否有需要提交的内容。
+- 本轮方案：`git fetch origin` 后比对 main 与 origin/main；`git status` 检查工作区；`git branch -vv` 清点本地分支与远程的 ahead/behind；对两个 ahead 分支逐一验证其独有提交是否已并入 main 或已被 main 上更新的提交取代。
+- 实际结果：main == origin/main（97a271c），无需拉取也无新提交；工作区干净；`feature-2026-08-settings-center-followup` ahead 的 c76631b 已在 main 历史中；`feature-2026-08-code-browser-phase1` ahead 的 248f74b（PENDING 清单初版）内容已被 main 9df288a 的后续更新覆盖，两处均无内容丢失。一键安装脚本（install.sh/install.ps1/docs/install/one-line-install.md）均在 main 上，当前版本 v0.1.13。
+- 下一步：无需提交或推送；两个 stale 本地分支（可 fast-forward 到远程或删除）是否清理待用户决定。
