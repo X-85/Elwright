@@ -605,3 +605,9 @@
 - 本轮方案：fetch + git status + rev-parse 比对 main 与 origin/main。
 - 实际结果：工作区干净，main == origin/main（e1f1b8e）；本会话仅有两笔 docs(session) 台账提交（Q41/Q42）且均已推送；功能代码零待提交。
 - 下一步：无遗留。
+
+### Q43 | 第1次处理（执行 prevent-sleep-now 熄屏保活）
+- 问题或新增信息：用户调用 /prevent-sleep-now 技能，要求防止 Mac 休眠并立即熄屏。
+- 本轮方案：按技能协议先 pgrep 检测已有 caffeinate 数量再行动，避免守护进程堆积。
+- 实际结果：检测到 1 个 caffeinate（PID 48289）已在运行，按幂等规则不新建进程，直接 pmset displaysleepnow 熄屏；验证 pgrep 仍为 1 个实例。
+- 下一步：无遗留；恢复休眠时手动 pkill caffeinate 即可。

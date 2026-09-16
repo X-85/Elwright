@@ -42,6 +42,8 @@
 
 | Q42 | 确认 Elwright 是否有台账功能 | 已解决 | 有——内置技能 `session-ledger`（PR #1 进 main）：配 LLM 生成 Agent 台账指令，离线降级为 SOP 文档（当前 session/ 协议源头）；Elwright 本身不自动维护文件 | 若要应用内自动维护需另行立项 |
 
+| Q43 | 执行 prevent-sleep-now 熄屏保活 | 已解决 | 检测到 caffeinate（48289）已在运行，按幂等不新建，仅 pmset displaysleepnow 熄屏；验证单实例 | 恢复休眠时 pkill caffeinate |
+
 ## Topic 索引
 
 | Topic | 标题 | 状态 | 当前摘要 |
